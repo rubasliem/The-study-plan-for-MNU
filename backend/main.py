@@ -9,6 +9,7 @@ from sqlalchemy import inspect, text, func, or_
 from database import engine, get_db, SessionLocal
 import models, schemas, auth
 import json
+import re
 import pandas as pd
 import io
 from openpyxl import Workbook
@@ -604,8 +605,21 @@ def read_root():
 @app.post("/api/auth/login", response_model=schemas.Token)
 def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     client_ip = request.client.host if request.client else "127.0.0.1"
-    user = db.query(models.User).filter(models.User.username == form_data.username).first()
-    if not user or not auth.verify_password(form_data.password, user.hashed_password):
+    clean_username = form_data.username.strip() if form_data.username else ""
+    clean_password = form_data.password.strip() if form_data.password else ""
+    # Exact match first
+    user = db.query(models.User).filter(models.User.username == clean_username).first()
+    if not user:
+        # Case-insensitive or underscore/multiple spaces normalized match
+        normalized_input = re.sub(r'\s+', ' ', clean_username.replace('_', ' ')).strip().lower()
+        all_users = db.query(models.User).all()
+        for u in all_users:
+            if u.username:
+                u_norm = re.sub(r'\s+', ' ', u.username.replace('_', ' ')).strip().lower()
+                if u_norm == normalized_input:
+                    user = u
+                    break
+    if not user or not auth.verify_password(clean_password, user.hashed_password):
         log_activity(
             db=db,
             username=form_data.username,

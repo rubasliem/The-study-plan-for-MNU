@@ -34,8 +34,8 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (username, password) => {
         const formData = new URLSearchParams();
-        formData.append('username', username);
-        formData.append('password', password);
+        formData.append('username', (username || '').trim());
+        formData.append('password', (password || '').trim());
         
         try {
             const res = await axios.post(`${API}/api/auth/login`, formData, {

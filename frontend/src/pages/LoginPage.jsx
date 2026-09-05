@@ -290,7 +290,7 @@ const LoginPage = () => {
                     {/* Footer Copyright */}
                     <div className="mt-4" style={{ fontSize: '0.95rem', color: '#888', lineHeight: '1.6' }}>
                         <div>جميع الحقوق محفوظة © 2027/2026</div>
-                        <div>صُنِع بواسطة <strong className="mx-1">الفريق الهندسي والتقني</strong> التابع لإدارة <strong className="mx-1">شؤون الطلاب</strong></div>
+                        <div>صُنِع بواسطة <strong className="mx-1">الفريق الهندسي والتقني</strong>التابع لإدارة<strong className="mx-1">شؤون الطلاب</strong></div>
                     </div>
                 </div>
             </div>

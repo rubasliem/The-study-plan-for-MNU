@@ -7,4 +7,5 @@ openpyxl
 requests
 python-multipart
 PyJWT
+bcrypt==4.0.1
 passlib[bcrypt]
