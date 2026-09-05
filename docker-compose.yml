@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  # 1. قاعدة البيانات (PostgreSQL)
+  db:
+    image: postgres:15
+    container_name: mnu_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: mnu_admin
+      POSTGRES_PASSWORD: mnu_password_2026
+      POSTGRES_DB: mnu_study_plan
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # 2. خدمة إشعارات الواتساب (OpenWA)
+  openwa:
+    image: openwa/wa-automate
+    container_name: mnu_whatsapp_gateway
+    restart: always
+    environment:
+      - PORT=8080
+      - API_KEY=mnu_secret_key_whatsapp
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:

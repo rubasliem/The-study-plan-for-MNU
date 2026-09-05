@@ -1,0 +1,781 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap');
+@media print {
+  .no-print,
+  .sidebar,
+  aside,
+  nav {
+    display: none !important;
+  }
+  main {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex: 1 1 100% !important;
+  }
+}
+.print-only { display: none !important; }
+@media print {
+  .print-only { display: block !important; }
+}
+@media print {
+  img {
+    display: block !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+:root {
+  /* Color Palette - Premium Forest Green & Gold from Logo */
+  --primary: #2e7d32;       /* Logo Green */
+  --primary-hover: #1b5e20;
+  --primary-light: #e8f5e9;
+  --secondary: #c5a059;     /* Logo Gold */
+  --secondary-light: #fdfbf7;
+  
+  --bg-main: #f8fafc;       /* Slate 50 */
+  --bg-card: #ffffff;
+  --bg-sidebar: #0f172a;    /* Slate 900 (Dark) */
+  --bg-sidebar-hover: #1e293b;
+  
+  --text-main: #334155;     /* Slate 700 */
+  --text-title: #0f172a;    /* Slate 900 */
+  --text-muted: #64748b;    /* Slate 500 */
+  --text-on-dark: #f8fafc;
+  
+  --border-color: #e2e8f0;  /* Slate 200 */
+  --border-focus: #3b82f6;  
+  
+  --success: #10b981;
+  --success-light: #ecfdf5;
+  --warning: #f59e0b;
+  --warning-light: #fffbeb;
+  --danger: #ef4444;
+  --danger-light: #fef2f2;
+  
+  /* Layout Metrics */
+  --sidebar-width: 270px;
+  --header-height: 70px;
+  --border-radius: 12px;
+  --border-radius-sm: 8px;
+  --border-radius-lg: 16px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 15px rgba(30, 64, 175, 0.15);
+  
+  /* Transitions */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+
+  /* Typography */
+  --font-family: 'Cairo', system-ui, -apple-system, sans-serif;
+}
+
+/* Base resets */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-variant-numeric: lining-nums !important;
+  -moz-font-feature-settings: "lnum" !important;
+  -webkit-font-feature-settings: "lnum" !important;
+  font-feature-settings: "lnum" !important;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  direction: rtl;
+  text-align: right;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom Scrollbar Styles for Premium Look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* General Link/Button styling resets */
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+/* ==========================================================================
+   تنسيقات إضافية لمحاذاة وتوحيد هوية الألوان مع لوجو الجامعة (أخضر وذهبي)
+   ========================================================================== */
+
+/* 1. أزرار إضافة عضو هيئة التدريس / الحفظ (Primary Button) */
+.btn-primary {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease-in-out !important;
+}
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+  background-color: var(--primary-hover) !important;
+  border-color: var(--primary-hover) !important;
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.2) !important;
+}
+
+/* 2. زر الاستيراد (Success Button) */
+.btn-success {
+  background-color: #1b5e20 !important;
+  border-color: #1b5e20 !important;
+  color: white !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease-in-out !important;
+}
+.btn-success:hover, .btn-success:focus {
+  background-color: #123c15 !important;
+  border-color: #123c15 !important;
+  box-shadow: 0 4px 12px rgba(27, 94, 32, 0.25) !important;
+}
+
+/* 3. زر الطباعة (Info Button) */
+.btn-info {
+  background-color: var(--secondary) !important;
+  border-color: var(--secondary) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease-in-out !important;
+}
+.btn-info:hover, .btn-info:focus {
+  background-color: #a4813f !important;
+  border-color: #a4813f !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(197, 160, 89, 0.25) !important;
+}
+
+/* 4. تنسيق جدول البيانات ليطابق ألوان اللوجو */
+.table thead th {
+  background-color: var(--primary) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  border-bottom: 2.5px solid var(--secondary) !important;
+  text-align: center;
+  vertical-align: middle;
+}
+.table tbody td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* 5. تنسيق الترقيم الصفحي النشط (Active Pagination) */
+.page-item.active .page-link {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: white !important;
+}
+.page-link {
+  color: var(--primary) !important;
+}
+.page-link:hover {
+  background-color: var(--primary-light) !important;
+  color: var(--primary-hover) !important;
+}
+
+/* 6. تنسيقات شريط القائمة الجانبي (Sidebar) */
+.sidebar {
+  background-color: #ffffff !important;
+  border-left: 1px solid #dee2e6 !important;
+  width: var(--sidebar-width) !important;
+}
+.nav-link {
+  color: #475569 !important;
+  font-weight: 600;
+  border-radius: 8px !important;
+  margin-bottom: 5px;
+  padding: 12px 15px !important;
+  transition: all 0.2s ease !important;
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  white-space: nowrap !important;
+}
+.nav-link:hover {
+  background-color: var(--primary-light) !important;
+  color: var(--primary) !important;
+}
+.nav-link.active {
+  background-color: var(--primary) !important;
+  color: white !important;
+  box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15) !important;
+}
+.sidebar-brand {
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 20px;
+  margin-bottom: 25px;
+}
+
+/* ==========================================================================
+   7. تعديل وتوحيد ألوان العناوين والأزرار والروابط مع لوجو الجامعة
+   ========================================================================== */
+
+h1, h2, h3, h4, h5, h6, .modal-title, .h1, .h2, .h3, .h4, .h5, .h6 {
+  color: var(--primary) !important;
+  font-weight: 700 !important;
+}
+
+/* الروابط وأزرار الإضافة التابعة لها */
+.btn-link, a.btn-link, .btn-link i {
+  color: var(--primary) !important;
+  text-decoration: none !important;
+  font-weight: 600 !important;
+}
+.btn-link:hover, a.btn-link:hover {
+  color: var(--primary-hover) !important;
+  text-decoration: underline !important;
+}
+
+/* تعديل زر Excel (Warning) ليطابق لون ذهبي اللوجو بدلاً من الأصفر الفاقع */
+.btn-warning {
+  background-color: var(--secondary) !important;
+  border-color: var(--secondary) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease-in-out !important;
+}
+.btn-warning:hover, .btn-warning:focus, .btn-warning:active {
+  background-color: #a4813f !important;
+  border-color: #a4813f !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(197, 160, 89, 0.25) !important;
+}
+
+.btn-outline-warning {
+  color: var(--secondary) !important;
+  border-color: var(--secondary) !important;
+  background-color: transparent !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease-in-out !important;
+}
+.btn-outline-warning:hover, .btn-outline-warning:focus, .btn-outline-warning:active {
+  background-color: var(--secondary) !important;
+  border-color: var(--secondary) !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(197, 160, 89, 0.25) !important;
+}
+
+/* ألوان النصوص المساعدة للنجاح والتوجيه */
+.text-success, .text-primary {
+  color: var(--primary) !important;
+}
+
+/* التنبيهات الإرشادية */
+.alert-info {
+  border-right: 5px solid var(--primary) !important;
+  background-color: var(--primary-light) !important;
+  color: var(--primary-hover) !important;
+  border-left: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
+}
+
+/* حدود المدخلات النشطة لمنع اللون الأزرق */
+.form-control:focus, .form-select:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 0.25rem rgba(46, 125, 50, 0.15) !important;
+}
+
+
+
+
+/* Action buttons colors overrides */
+.action-btn-view {
+  color: #0b5ed7 !important;
+}
+.action-btn-edit {
+  color: #ffb300 !important;
+}
+.action-btn-delete {
+  color: #d32f2f !important;
+}
+
+/* ==========================================================================
+   تنسيقات إضافية لمحاذاة وتوحيد هوية الألوان مع لوجو الجامعة (أخضر وذهبي)
+   ========================================================================== */
+
+/* 1. أزرار إضافة عضو هيئة التدريس / الحفظ (Primary Button) */
+.btn-primary {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease-in-out !important;
+}
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+  background-color: var(--primary-hover) !important;
+  border-color: var(--primary-hover) !important;
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.2) !important;
+}
+
+/* 2. زر الاستيراد (Success Button) */
+.btn-success {
+  background-color: #1b5e20 !important;
+  border-color: #1b5e20 !important;
+  color: white !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease-in-out !important;
+}
+.btn-success:hover, .btn-success:focus {
+  background-color: #123c15 !important;
+  border-color: #123c15 !important;
+  box-shadow: 0 4px 12px rgba(27, 94, 32, 0.25) !important;
+}
+
+/* 3. زر الطباعة (Info Button) */
+.btn-info {
+  background-color: var(--secondary) !important;
+  border-color: var(--secondary) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease-in-out !important;
+}
+.btn-info:hover, .btn-info:focus {
+  background-color: #a4813f !important;
+  border-color: #a4813f !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(197, 160, 89, 0.25) !important;
+}
+
+/* ⚡ تأثير ضوئي مبهر عند لمس والضغط على زر نسخ الخطة */
+.btn-copy-plan-glow {
+  position: relative !important;
+  overflow: hidden !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  background-color: #eab308 !important;
+  border-color: #d97706 !important;
+  color: #451a03 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 12px rgba(202, 138, 4, 0.35), 0 0 10px rgba(234, 179, 8, 0.2) !important;
+  border-radius: 8px !important;
+}
+
+.btn-copy-plan-glow * {
+  color: #451a03 !important;
+}
+
+/* شعاع ضوئي متحرك Sweep Shimmer Light */
+.btn-copy-plan-glow::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 70%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.7),
+    transparent
+  );
+  transform: skewX(-25deg);
+  transition: 0.6s ease-in-out;
+  pointer-events: none;
+}
+
+.btn-copy-plan-glow:hover::before,
+.btn-copy-plan-glow:active::before {
+  left: 140%;
+}
+
+.btn-copy-plan-glow:hover,
+.btn-copy-plan-glow:focus {
+  background-color: #f59e0b !important;
+  border-color: #d97706 !important;
+  color: #451a03 !important;
+  transform: translateY(-2px) scale(1.04) !important;
+  box-shadow: 0 0 25px rgba(251, 191, 36, 0.9), 0 0 12px rgba(245, 158, 11, 0.7) !important;
+}
+
+.btn-copy-plan-glow:hover *,
+.btn-copy-plan-glow:focus * {
+  color: #451a03 !important;
+}
+
+.btn-copy-plan-glow:active {
+  transform: scale(0.96) !important;
+  background-color: #d97706 !important;
+  color: #451a03 !important;
+  box-shadow: 0 0 35px rgba(253, 224, 71, 1), 0 0 20px rgba(245, 158, 11, 0.9) !important;
+}
+
+/* 📐 التحكم المعتدل بعرض نافذة نسخ الخطة */
+.copy-plan-modal {
+  max-width: 620px !important;
+  width: 90% !important;
+}
+
+/* 4. تنسيق جدول البيانات ليطابق ألوان اللوجو */
+.table thead th {
+  background-color: var(--primary) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  border-bottom: 2.5px solid var(--secondary) !important;
+  text-align: center;
+  vertical-align: middle;
+}
+.table tbody td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* 5. تنسيق الترقيم الصفحي النشط (Active Pagination) */
+.page-item.active .page-link {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: white !important;
+}
+.page-link {
+  color: var(--primary) !important;
+}
+.page-link:hover {
+  background-color: var(--primary-light) !important;
+  color: var(--primary-hover) !important;
+}
+
+/* 6. تنسيقات شريط القائمة الجانبي (Sidebar) */
+.sidebar {
+  background-color: #ffffff !important;
+  border-left: 1px solid #dee2e6 !important;
+  width: var(--sidebar-width) !important;
+}
+.nav-link {
+  color: #475569 !important;
+  font-weight: 600;
+  border-radius: 8px !important;
+  margin-bottom: 5px;
+  padding: 12px 15px !important;
+  transition: all 0.2s ease !important;
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  white-space: nowrap !important;
+}
+.nav-link:hover {
+  background-color: var(--primary-light) !important;
+  color: var(--primary) !important;
+}
+.nav-link.active {
+  background-color: var(--primary) !important;
+  color: white !important;
+  box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15) !important;
+}
+.sidebar-brand {
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 20px;
+  margin-bottom: 25px;
+}
+
+/* ==========================================================================
+   7. تعديل وتوحيد ألوان العناوين والأزرار والروابط مع لوجو الجامعة
+   ========================================================================== */
+
+h1, h2, h3, h4, h5, h6, .modal-title, .h1, .h2, .h3, .h4, .h5, .h6 {
+  color: var(--primary) !important;
+  font-weight: 700 !important;
+}
+
+/* الروابط وأزرار الإضافة التابعة لها */
+.btn-link, a.btn-link, .btn-link i {
+  color: var(--primary) !important;
+  text-decoration: none !important;
+  font-weight: 600 !important;
+}
+.btn-link:hover, a.btn-link:hover {
+  color: var(--primary-hover) !important;
+  text-decoration: underline !important;
+}
+
+/* تعديل زر Excel (Warning) ليطابق لون ذهبي اللوجو بدلاً من الأصفر الفاقع */
+.btn-warning {
+  background-color: var(--secondary) !important;
+  border-color: var(--secondary) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease-in-out !important;
+}
+.btn-warning:hover, .btn-warning:focus, .btn-warning:active {
+  background-color: #a4813f !important;
+  border-color: #a4813f !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(197, 160, 89, 0.25) !important;
+}
+
+.btn-outline-warning {
+  color: var(--secondary) !important;
+  border-color: var(--secondary) !important;
+  background-color: transparent !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease-in-out !important;
+}
+.btn-outline-warning:hover, .btn-outline-warning:focus, .btn-outline-warning:active {
+  background-color: var(--secondary) !important;
+  border-color: var(--secondary) !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(197, 160, 89, 0.25) !important;
+}
+
+/* ألوان النصوص المساعدة للنجاح والتوجيه */
+.text-success, .text-primary {
+  color: var(--primary) !important;
+}
+
+/* التنبيهات الإرشادية */
+.alert-info {
+  border-right: 5px solid var(--primary) !important;
+  background-color: var(--primary-light) !important;
+  color: var(--primary-hover) !important;
+  border-left: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
+}
+
+/* حدود المدخلات النشطة لمنع اللون الأزرق */
+.form-control:focus, .form-select:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 0.25rem rgba(46, 125, 50, 0.15) !important;
+}
+
+
+
+
+/* Action buttons colors overrides */
+.action-btn-view {
+  color: #0b5ed7 !important;
+}
+.action-btn-edit {
+  color: #ffb300 !important;
+}
+.action-btn-delete {
+  color: #d32f2f !important;
+}
+
+/* Zebra Striping Override */
+.striped-row td {
+  background-color: #e8f5e9 !important;
+}
+@media print {
+  .print-overflow-visible {
+    overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    display: block !important;
+  }
+  .card {
+    border: none !important;
+    box-shadow: none !important;
+    display: block !important;
+  }
+  table {
+    page-break-inside: auto !important;
+  }
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+  .print-table-courses tbody td,
+  .print-table-courses tbody th {
+    font-size: 8pt !important;
+  }
+  .print-table-profs tbody td,
+  .print-table-profs tbody th {
+    font-size: 7pt !important;
+  }
+  .print-table-courses thead tr:not(.print-univ-header-row) th,
+  .print-table-profs thead tr:not(.print-univ-header-row) th {
+    font-size: 8pt !important;
+  }
+  .excel-only,
+  tr.excel-only,
+  th.excel-only,
+  td.excel-only {
+    display: none !important;
+  }
+}
+
+/* Custom Uniform Buttons */
+.btn-save-custom {
+  background-color: #2e7d32 !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 4px !important;
+  padding: 8px 25px !important;
+  font-weight: bold !important;
+  cursor: pointer !important;
+}
+.btn-save-custom:hover, .btn-save-custom:focus, .btn-save-custom:active {
+  background-color: #1b5e20 !important;
+}
+
+.btn-cancel-custom {
+  background-color: #6c757d !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 4px !important;
+  padding: 8px 20px !important;
+  font-weight: bold !important;
+  cursor: pointer !important;
+}
+.btn-cancel-custom:hover, .btn-cancel-custom:focus, .btn-cancel-custom:active {
+  background-color: #5a6268 !important;
+}
+
+.btn-excel-custom {
+  background-color: #c5a059 !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 4px !important;
+  padding: 8px 20px !important;
+  font-weight: bold !important;
+  cursor: pointer !important;
+}
+.btn-excel-custom:hover, .btn-excel-custom:focus, .btn-excel-custom:active {
+  background-color: #a4813f !important;
+}
+
+/* Fix Modal Close Button position for RTL */
+.modal-header .btn-close {
+  margin-right: auto !important;
+  margin-left: 0 !important;
+}
+
+/* UI Table Data Font Size Adjustments */
+.print-table-courses tbody td,
+.print-table-profs tbody td {
+  font-size: 14.5px !important;
+}
+
+/* Header rows font size increase */
+.print-table-courses thead th,
+.print-table-profs thead th {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+}
+
+@media print {
+  .print-table-profs tbody td,
+  .print-table-profs tbody th,
+  .print-table-courses tbody td,
+  .print-table-courses tbody th {
+    font-size: 8pt !important;
+  }
+}
+
+/* Custom Zebra Striping for Study Plan Tables */
+.study-plan-custom-table tbody tr.row-white > td {
+  background-color: #ffffff !important;
+  --bs-table-bg: #ffffff !important;
+}
+
+.study-plan-custom-table tbody tr.row-green > td {
+  background-color: #eaf7ec !important;
+  --bs-table-bg: #eaf7ec !important;
+}
+
+.study-plan-custom-table tbody tr > td.col-student-count,
+.study-plan-custom-table tfoot tr > td.col-student-count {
+  background-color: #eaf7ec !important;
+  --bs-table-bg: #eaf7ec !important;
+  color: #166534 !important;
+  font-weight: bold !important;
+}
+
+/* Luminous Golden Shine Effect matching the Emblem Dove */
+.btn-copy-plan-glow {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 35%, #fde047 70%, #fef08a 100%) !important;
+  border: none !important;
+  color: #78350f !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.2px;
+  box-shadow: none !important;
+  transform: none !important;
+  transition: opacity 0.2s ease, background 0.2s ease !important;
+}
+
+.btn-copy-plan-glow svg {
+  color: #78350f !important;
+}
+
+.btn-copy-plan-glow::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 40%;
+  height: 200%;
+  background: linear-gradient(
+    60deg,
+    rgba(255, 255, 255, 0) 20%,
+    rgba(255, 255, 255, 0.7) 50%,
+    rgba(255, 255, 255, 0) 80%
+  );
+  transform: rotate(25deg);
+  pointer-events: none;
+  transition: all 0.75s ease;
+}
+
+.btn-copy-plan-glow:hover {
+  background: linear-gradient(135deg, #d97706 0%, #f59e0b 35%, #fbbf24 70%, #fde047 100%) !important;
+  color: #78350f !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.btn-copy-plan-glow:hover svg {
+  color: #78350f !important;
+}
+
+.btn-copy-plan-glow:hover::before {
+  left: 140%;
+}
+
+.btn-copy-plan-glow:active,
+.btn-copy-plan-glow.glow-active {
+  transform: none !important;
+  box-shadow: none !important;
+  opacity: 0.9 !important;
+}
