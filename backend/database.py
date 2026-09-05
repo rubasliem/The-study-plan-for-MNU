@@ -1,13 +1,16 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# اسم ملف قاعدة البيانات
-SQLALCHEMY_DATABASE_URL = "sqlite:///./mnu_system.db"
+# اسم ملف / رابط قاعدة البيانات
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./mnu_system.db")
+
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 
 # إنشاء محرك قاعدة البيانات
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+    DATABASE_URL, connect_args=connect_args
 )
 
 # إنشاء جلسة للتعامل مع البيانات

@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  # 1. قاعدة البيانات (PostgreSQL)
+  # 1. قاعدة البيانات (Database - PostgreSQL)
   db:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: mnu_postgres
     restart: always
     environment:
@@ -14,17 +14,45 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - mnu_network
 
-  # 2. خدمة إشعارات الواتساب (OpenWA)
-  openwa:
-    image: openwa/wa-automate
-    container_name: mnu_whatsapp_gateway
+  # 2. الخادم الخلفي (Backend - FastAPI)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: mnu-backend:latest
+    container_name: mnu_backend
     restart: always
     environment:
-      - PORT=8080
-      - API_KEY=mnu_secret_key_whatsapp
+      - DATABASE_URL=sqlite:///./mnu_system.db
     ports:
-      - "8080:8080"
+      - "8000:8000"
+    volumes:
+      - ./backend/mnu_system.db:/app/mnu_system.db
+    networks:
+      - mnu_network
+
+  # 3. الواجهة الأمامية (Frontend - React & Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: mnu-frontend:latest
+    container_name: mnu_frontend
+    restart: always
+    ports:
+      - "80:80"
+      - "5173:80"
+    depends_on:
+      - backend
+    networks:
+      - mnu_network
 
 volumes:
   pgdata:
+
+networks:
+  mnu_network:
+    driver: bridge
