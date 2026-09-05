@@ -381,10 +381,153 @@ const NotificationsPage = () => {
         });
     };
 
+    const formatPrintDate = (dateInput) => {
+        if (!dateInput) return '—';
+        try {
+            const d = (dateInput instanceof Date) 
+                ? dateInput 
+                : new Date(typeof dateInput === 'string' && dateInput.endsWith('Z') ? dateInput : dateInput + 'Z');
+            if (isNaN(d.getTime())) return String(dateInput);
+            
+            const day = d.getDate();
+            const month = d.getMonth() + 1;
+            const year = d.getFullYear();
+            
+            let hours = d.getHours();
+            const ampm = hours >= 12 ? 'م' : 'ص';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            const formattedHours = String(hours).padStart(2, '0');
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            const seconds = String(d.getSeconds()).padStart(2, '0');
+            
+            return `${day}/${month}/${year} - ${formattedHours}:${minutes}:${seconds} ${ampm}`;
+        } catch {
+            return String(dateInput);
+        }
+    };
+
     const hasActiveFilters = searchTerm || filterYear || filterSemester || filterPage;
 
     return (
         <Container fluid className="py-4">
+            {/* Print Stylesheet */}
+            <style>{`
+                @page {
+                    size: A4 landscape;
+                    margin: 8mm 6mm;
+                }
+                @media print {
+                    html, body {
+                        width: 100% !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: #ffffff !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif !important;
+                    }
+                    .no-print, .d-print-none, .sidebar, aside, nav, header {
+                        display: none !important;
+                    }
+                    main {
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        width: 100% !important;
+                        max-width: 100% !important;
+                    }
+                    .container-fluid {
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        max-width: 100% !important;
+                        width: 100% !important;
+                    }
+                    .card {
+                        border: none !important;
+                        box-shadow: none !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        background: transparent !important;
+                    }
+                    .card-body {
+                        padding: 0 !important;
+                    }
+                    .table-responsive {
+                        overflow: visible !important;
+                        overflow-x: visible !important;
+                        display: block !important;
+                        width: 100% !important;
+                    }
+                    .notif-custom-table {
+                        width: 100% !important;
+                        min-width: 0 !important;
+                        max-width: 100% !important;
+                        table-layout: fixed !important;
+                        border-collapse: collapse !important;
+                        margin: 0 !important;
+                        font-size: 8.5pt !important;
+                    }
+                    .notif-custom-table th,
+                    .notif-custom-table td {
+                        border: 1px solid #777777 !important;
+                        padding: 6px 5px !important;
+                        line-height: 1.35 !important;
+                        word-break: break-word !important;
+                        overflow-wrap: anywhere !important;
+                        vertical-align: middle !important;
+                    }
+                    .notif-custom-table thead th {
+                        background-color: #2e7d32 !important;
+                        color: #ffffff !important;
+                        font-weight: bold !important;
+                        font-size: 9pt !important;
+                        text-align: center !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    .notif-custom-table tbody tr:nth-child(even) td {
+                        background-color: #f8faf8 !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    .notif-custom-table tbody tr {
+                        page-break-inside: avoid !important;
+                    }
+                    /* Column Widths in Print */
+                    .notif-custom-table th.col-faculty,
+                    .notif-custom-table td.col-faculty {
+                        width: 18% !important;
+                    }
+                    .notif-custom-table th.col-year,
+                    .notif-custom-table td.col-year {
+                        width: 13% !important;
+                    }
+                    .notif-custom-table th.col-by,
+                    .notif-custom-table td.col-by {
+                        width: 17% !important;
+                    }
+                    .notif-custom-table th.col-action,
+                    .notif-custom-table td.col-action {
+                        width: 38% !important;
+                    }
+                    .notif-custom-table th.col-date,
+                    .notif-custom-table td.col-date {
+                        width: 14% !important;
+                    }
+                    .notif-custom-table .badge {
+                        border: 1px solid #bbb !important;
+                        font-size: 7.5pt !important;
+                        padding: 2px 4px !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    .notif-custom-table .badge.bg-success {
+                        background-color: #2e7d32 !important;
+                        color: #ffffff !important;
+                    }
+                }
+            `}</style>
+
             <div className="d-flex justify-content-between align-items-center mb-4 d-print-none">
                 <h2 className="d-flex align-items-center gap-3 m-0" style={{ fontWeight: 'bold', color: '#2e7d32' }}>
                     <FaBell className="text-success" style={{ marginLeft: '15px' }} /> الإشعارات
@@ -416,14 +559,53 @@ const NotificationsPage = () => {
             
             <Card className="shadow-sm border-0" style={{ borderRadius: '15px' }}>
                 <Card.Body className="p-4">
-                    {/* Print Only Title */}
-                    <div className="d-none d-print-block mb-4 text-center">
-                        <h3 className="fw-bold mb-3" style={{ color: '#2e7d32' }}>تقرير الإشعارات</h3>
-                        <div className="text-muted d-flex justify-content-center gap-3" style={{ fontSize: '1.1rem' }}>
-                            {searchTerm ? <span>{faculties.find(f => String(f.id) === String(searchTerm))?.name || searchTerm}</span> : <span>جميع الكليات</span>}
-                            {filterYear && <span>| العام الجامعي: {filterYear}</span>}
-                            {filterSemester && <span>| الفصل الدراسي: {filterSemester}</span>}
-                            {filterPage && <span>| الصفحة: {filterPage}</span>}
+                    {/* Official Print Header */}
+                    <div className="d-none d-print-block mb-3">
+                        <div className="d-flex justify-content-between align-items-center pb-2 border-bottom border-2 border-success">
+                            {/* Right side in RTL: University Info with Logo */}
+                            <div className="d-flex align-items-center gap-3">
+                                <img src={logo} alt="MNU Logo" style={{ height: '70px', width: 'auto', objectFit: 'contain' }} />
+                                <div className="text-end">
+                                    <h4 className="fw-bold mb-0" style={{ color: '#2e7d32', fontSize: '1.25rem' }}>جامعة المنوفية الأهلية</h4>
+                                    <div className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>إدارة تكنولوجيا المعلومات والنظم</div>
+                                    <div className="text-muted" style={{ fontSize: '0.8rem' }}>منظومة إدارة وتوزيع الخطط الدراسية</div>
+                                </div>
+                            </div>
+
+                            {/* Center: Title */}
+                            <div className="text-center">
+                                <div className="px-4 py-2 rounded-3 border border-2 border-success bg-light d-inline-block">
+                                    <h4 className="fw-bold mb-0 text-success" style={{ fontSize: '1.2rem' }}>تقرير سجل الإشعارات والتنبيهات</h4>
+                                </div>
+                            </div>
+
+                            {/* Left side in RTL: Report Metadata */}
+                            <div className="text-start" style={{ fontSize: '0.82rem', lineHeight: '1.5' }}>
+                                <div>
+                                    <strong>تاريخ الطباعة: </strong>
+                                    <span dir="ltr" style={{ display: 'inline-block', direction: 'ltr', fontFamily: 'Consolas, Monaco, "Segoe UI", sans-serif', fontWeight: 600 }}>
+                                        {formatPrintDate(new Date())}
+                                    </span>
+                                </div>
+                                <div>
+                                    <strong>إجمالي الإشعارات: </strong>
+                                    <span dir="ltr" style={{ display: 'inline-block', direction: 'ltr', fontWeight: 600 }}>
+                                        {filteredNotifications.length.toLocaleString('en-US')}
+                                    </span> إشعار
+                                </div>
+                                {searchTerm && (
+                                    <div><strong>الكلية:</strong> {faculties.find(f => String(f.id) === String(searchTerm))?.name || searchTerm}</div>
+                                )}
+                                {filterYear && (
+                                    <div><strong>العام الجامعي:</strong> {filterYear}</div>
+                                )}
+                                {filterSemester && (
+                                    <div><strong>الفصل الدراسي:</strong> {filterSemester}</div>
+                                )}
+                                {filterPage && (
+                                    <div><strong>الصفحة:</strong> {filterPage}</div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -515,7 +697,7 @@ const NotificationsPage = () => {
                         </div>
                     ) : (
                         <div className="table-responsive">
-                            <Table hover className="align-middle" style={{ minWidth: '900px' }}>
+                            <Table hover className="align-middle notif-custom-table" style={{ minWidth: '900px' }}>
                                 <thead className="table-light">
                                     <tr>
                                         {canDelete && (
@@ -527,11 +709,11 @@ const NotificationsPage = () => {
                                                 />
                                             </th>
                                         )}
-                                        <th>الكلية</th>
-                                        <th >العام الجامعي<br /> الفصل الدراسي</th>
-                                        <th>بواسطة</th>
-                                        <th>الحدث</th>
-                                        <th>التاريخ والوقت</th>
+                                        <th className="col-faculty">الكلية</th>
+                                        <th className="col-year text-center">العام الجامعي<br /> الفصل الدراسي</th>
+                                        <th className="col-by text-center">بواسطة</th>
+                                        <th className="col-action">الحدث</th>
+                                        <th className="col-date text-center">التاريخ والوقت</th>
                                         {canDelete && <th className="text-center d-print-none">إجراءات</th>}
                                     </tr>
                                 </thead>
@@ -547,14 +729,14 @@ const NotificationsPage = () => {
                                                     />
                                                 </td>
                                             )}
-                                            <td>
+                                            <td className="col-faculty">
                                                 <div className="fw-medium text-primary d-flex flex-column gap-1">
                                                     {notif.facultyNames && notif.facultyNames.length > 0 ? (
                                                         notif.facultyNames.map((name, idx) => <span key={idx}>{name}</span>)
                                                     ) : "غير محدد"}
                                                 </div>
                                             </td>
-                                            <td>
+                                            <td className="col-year text-center">
                                                 {notif.academic_year || notif.semester ? (
                                                     <div className="d-flex flex-column gap-1 align-items-center">
                                                         {notif.academic_year && <Badge bg="success" style={{ fontSize: '13px' }}>{notif.academic_year}</Badge>}
@@ -566,7 +748,7 @@ const NotificationsPage = () => {
                                                     </div>
                                                 )}
                                             </td>
-                                            <td>
+                                            <td className="col-by text-center">
                                                 {(() => {
                                                     let text = notif.action_by ? notif.action_by.replace(/@gmail\.com/gi, '') : '';
                                                     let role = '';
@@ -596,8 +778,8 @@ const NotificationsPage = () => {
                                                     );
                                                 })()}
                                             </td>
-                                            <td>{renderActionText(notif.action_text, notif.action_by)}</td>
-                                            <td>
+                                            <td className="col-action">{renderActionText(notif.action_text, notif.action_by)}</td>
+                                            <td className="col-date text-center">
                                                 <small className="text-muted">
                                                     {(() => {
                                                         if (!notif.created_at || typeof notif.created_at !== 'string') return '';
@@ -605,9 +787,9 @@ const NotificationsPage = () => {
                                                             const d = new Date(notif.created_at.endsWith('Z') ? notif.created_at : notif.created_at + 'Z');
                                                             if (isNaN(d.getTime())) return notif.created_at;
                                                             return (
-                                                                <div dir="ltr" className="text-end">
-                                                                    <div>{d.toLocaleTimeString('en-US')}</div>
-                                                                    <div>{d.toLocaleDateString('en-GB')}</div>
+                                                                <div dir="ltr" className="text-center" style={{ fontSize: '8.5pt' }}>
+                                                                    <div>{d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
+                                                                    <div className="fw-bold">{d.toLocaleDateString('en-GB')}</div>
                                                                 </div>
                                                             );
                                                         } catch (e) {
