@@ -514,6 +514,15 @@ const NotificationsPage = () => {
                     .notif-custom-table td.col-date {
                         width: 14% !important;
                     }
+                    .notif-custom-table .notif-datetime-cell .date-part {
+                        font-size: 9pt !important;
+                        font-weight: bold !important;
+                        color: #000000 !important;
+                    }
+                    .notif-custom-table .notif-datetime-cell .time-part {
+                        font-size: 8.5pt !important;
+                        color: #444444 !important;
+                    }
                     .notif-custom-table .badge {
                         border: 1px solid #bbb !important;
                         font-size: 7.5pt !important;
@@ -780,23 +789,25 @@ const NotificationsPage = () => {
                                             </td>
                                             <td className="col-action">{renderActionText(notif.action_text, notif.action_by)}</td>
                                             <td className="col-date text-center">
-                                                <small className="text-muted">
-                                                    {(() => {
-                                                        if (!notif.created_at || typeof notif.created_at !== 'string') return '';
-                                                        try {
-                                                            const d = new Date(notif.created_at.endsWith('Z') ? notif.created_at : notif.created_at + 'Z');
-                                                            if (isNaN(d.getTime())) return notif.created_at;
-                                                            return (
-                                                                <div dir="ltr" className="text-center" style={{ fontSize: '8.5pt' }}>
-                                                                    <div>{d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
-                                                                    <div className="fw-bold">{d.toLocaleDateString('en-GB')}</div>
+                                                {(() => {
+                                                    if (!notif.created_at || typeof notif.created_at !== 'string') return '';
+                                                    try {
+                                                        const d = new Date(notif.created_at.endsWith('Z') ? notif.created_at : notif.created_at + 'Z');
+                                                        if (isNaN(d.getTime())) return notif.created_at;
+                                                        return (
+                                                            <div dir="ltr" className="text-center notif-datetime-cell" style={{ lineHeight: '1.4' }}>
+                                                                <div className="fw-bold text-dark date-part" style={{ fontSize: '15px' }}>
+                                                                    {d.toLocaleDateString('en-GB')}
                                                                 </div>
-                                                            );
-                                                        } catch (e) {
-                                                            return notif.created_at || '';
-                                                        }
-                                                    })()}
-                                                </small>
+                                                                <div className="text-muted fw-semibold time-part" style={{ fontSize: '13.5px' }}>
+                                                                    {d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    } catch (e) {
+                                                        return notif.created_at || '';
+                                                    }
+                                                })()}
                                             </td>
                                             {canDelete && (
                                                 <td className="text-center d-print-none">
