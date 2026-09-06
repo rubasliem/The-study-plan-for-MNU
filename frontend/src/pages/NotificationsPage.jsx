@@ -230,15 +230,15 @@ const NotificationsPage = () => {
                 }
             } catch (e) {}
             
-            let text = notif.action_by ? notif.action_by.replace(/@gmail\.com/gi, '') : '';
-            const match = text.match(/(.+?)\s*\((.+?)\)/);
-            const username = match ? match[1].trim() : text.trim();
+            let text = notif.action_by ? notif.action_by.replace(/@gmail\.com/gi, '').trim() : '';
+            const match = text.match(/^([^\(]+?)\s*\((.+)\)$/);
+            const byText = text || (match ? match[1].trim() : '');
 
             const row = worksheet.addRow({
                 faculty: notif.facultyNames && notif.facultyNames.length > 0 ? notif.facultyNames.join('، ') : "غير محدد",
                 year: notif.academic_year || '—',
                 semester: notif.semester || '—',
-                by: username,
+                by: byText,
                 event: notif.action_text || '',
                 datetime: dateStr
             });
@@ -769,10 +769,12 @@ const NotificationsPage = () => {
                                             <td className="col-by text-center">
                                                 {(() => {
                                                     let text = notif.action_by ? notif.action_by.replace(/@gmail\.com/gi, '') : '';
-                                                    let role = '';
                                                     let username = text.trim();
+                                                    let role = '';
+                                                    let subColleges = '';
                                                     
-                                                    const match = text.match(/(.+?)\s*\((.+?)\)/);
+                                                    // استخراج اسم المستخدم والمسمى الكامل مع دعم الأقواس المتداخلة
+                                                    const match = text.match(/^([^\(]+?)\s*\((.+)\)$/);
                                                     if (match) {
                                                         username = match[1].trim();
                                                         role = match[2].trim();
@@ -781,17 +783,79 @@ const NotificationsPage = () => {
                                                         if (textRoleMatch) {
                                                             role = textRoleMatch[1].trim();
                                                         } else {
-                                                            if (username.includes('Soliman_Zahran') || username.includes('Shimaa_Elsab3')) role = 'مدير شؤون الطلاب';
-                                                            else if (username.includes('Ruba_Sliem')) role = 'مدير عام';
-                                                            else if (username.includes('Waael_Shaaban') || username.includes('Ahmed_Habeeb') || username.includes('mohamedHandsa') || username.includes('Elshimaa_Ramzy') || username.includes('Haytham_Gaber')) role = 'مسؤول كلية';
-                                                            else if (username.includes('rubaDR')) role = 'مدير برنامج';
+                                                            if (username.includes('Soliman_Zahran') || username.includes('Shimaa_Elsab3') || username.includes('Soliman Zahran')) role = 'مدير شؤون الطلاب';
+                                                            else if (username.includes('Ruba_Sliem') || username.includes('Ruba Sliem') || username === 'admin') role = 'مدير عام';
+                                                            else if (username.includes('Waael_Shaaban') || username.includes('Ahmed_Habeeb') || username.includes('mohamedHandsa') || username.includes('Elshimaa_Ramzy') || username.includes('Haytham_Gaber') || username.includes('Mohamed Abdel Muez') || username.includes('Ola_Mater')) {
+                                                                role = 'مسؤول كلية';
+                                                            } else if (username.includes('rubaDR') || username.includes('olaDR') || username.includes('Ahmed_Dawood')) {
+                                                                role = 'مدير برنامج';
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // إذا كان عضو هيئة تدريس، نفصل الكليات في سطر إضافي تحته تماماً مثل السايدبار
+                                                    if (role.includes('عضو هيئة تدريس')) {
+                                                        const memberMatch = role.match(/^(عضو هيئة تدريس.*?)\s*\((.+)\)$/);
+                                                        if (memberMatch) {
+                                                            role = memberMatch[1].trim();
+                                                            subColleges = memberMatch[2].trim();
+                                                        }
+                                                    }
+
+                                                    // لمسؤولي الكليات ومديري البرامج، التأكد من ظهور الكلية بجانب الوظيفة إذا لم تكن ملحقة بها
+                                                    if (role === 'مسؤول كلية' || role === 'مدير برنامج') {
+                                                        let collegeName = '';
+                                                        if (notif.facultyNames && notif.facultyNames.length > 0) {
+                                                            collegeName = notif.facultyNames[0].replace(/^كلية\s+/, '').trim();
+                                                        } else if (notif.faculty_id && faculties && faculties.length > 0) {
+                                                            const f = faculties.find(fac => String(fac.id) === String(notif.faculty_id));
+                                                            if (f) collegeName = f.name.replace(/^كلية\s+/, '').trim();
+                                                        }
+                                                        if (collegeName) {
+                                                            role = `${role} ${collegeName}`;
+                                                        }
+                                                    } else if (role === 'عضو هيئة تدريس' && !subColleges) {
+                                                        if (notif.facultyNames && notif.facultyNames.length > 0) {
+                                                            subColleges = notif.facultyNames.map(f => f.replace(/^كلية\s+/, '').trim()).join(' - ');
+                                                        } else if (notif.faculty_id && faculties && faculties.length > 0) {
+                                                            const f = faculties.find(fac => String(fac.id) === String(notif.faculty_id));
+                                                            if (f) subColleges = f.name.replace(/^كلية\s+/, '').trim();
                                                         }
                                                     }
                                                     
                                                     return (
-                                                        <div className="text-center d-flex flex-column align-items-center gap-1">
-                                                            <span className="fw-bold text-dark">{username}</span>
-                                                            {role && <span className="fw-bold" style={{ fontSize: '12.5px', color: '#6c757d' }}>{role}</span>}
+                                                        <div className="text-center d-flex flex-column align-items-center justify-content-center" style={{ gap: '2px' }}>
+                                                            <span className="fw-bold text-dark" style={{ fontSize: '13.5px', lineHeight: '1.3' }}>
+                                                                {username}
+                                                            </span>
+                                                            {role && (
+                                                                <span 
+                                                                    className="fw-semibold" 
+                                                                    style={{ 
+                                                                        fontSize: '12.5px', 
+                                                                        color: '#2e7d32', 
+                                                                        lineHeight: '1.35',
+                                                                        whiteSpace: 'normal',
+                                                                        wordBreak: 'break-word'
+                                                                    }}
+                                                                >
+                                                                    {role}
+                                                                </span>
+                                                            )}
+                                                            {subColleges && (
+                                                                <span 
+                                                                    className="fw-semibold" 
+                                                                    style={{ 
+                                                                        fontSize: '11.5px', 
+                                                                        color: '#2e7d32', 
+                                                                        lineHeight: '1.3',
+                                                                        whiteSpace: 'normal',
+                                                                        wordBreak: 'break-word'
+                                                                    }}
+                                                                >
+                                                                    {subColleges}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     );
                                                 })()}

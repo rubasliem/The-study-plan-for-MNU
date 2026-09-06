@@ -72,29 +72,60 @@ app.add_middleware(ContextMiddleware)
 # 3. إنشاء الجداول في قاعدة البيانات
 models.Base.metadata.create_all(bind=engine)
 
-def get_user_role_display(user) -> str:
+def get_user_role_display(user, db: Session = None) -> str:
     if not user:
         return "مستخدم"
+    clean_job = ""
     if hasattr(user, 'job_title') and user.job_title and user.job_title.strip():
-        return user.job_title.strip()
-    role_val = getattr(user, 'role', '')
-    role_str = getattr(role_val, 'value', str(role_val))
-    if role_str == 'admin':
-        return "مدير عام"
-    elif role_str == 'manager':
-        return "مدير"
-    elif role_str == 'student_affairs':
-        return "مدير شؤون الطلاب"
-    elif role_str == 'faculty_professor':
-        return "مدير برنامج"
-    elif role_str == 'reviewer':
-        return "المراجع"
-    return "مسؤول كلية"
+        clean_job = re.sub(r'\s*\([^\)]*\)', '', user.job_title.strip()).strip()
+    if not clean_job:
+        role_val = getattr(user, 'role', '')
+        role_str = getattr(role_val, 'value', str(role_val))
+        role_map = {
+            'admin': 'مدير عام',
+            'manager': 'مسؤول إدارة',
+            'student_affairs': 'مدير شؤون الطلاب',
+            'faculty_professor': 'مدير برنامج',
+            'reviewer': 'المراجع',
+            'faculty_admin': 'مسؤول كلية'
+        }
+        clean_job = role_map.get(role_str, 'مسؤول كلية')
+        
+    is_fac_admin = (getattr(user, 'role', None) == models.UserRole.faculty_admin) or ("مسؤول كلية" in clean_job)
+    is_prog_mgr = (getattr(user, 'role', None) == models.UserRole.faculty_professor) or ("مدير برنامج" in clean_job)
+    is_fac_member = ("عضو هيئة تدريس" in clean_job)
+    
+    colleges = []
+    if getattr(user, 'assigned_faculties', None):
+        colleges = [f.name.replace("كلية", "").strip() for f in user.assigned_faculties if f.name]
+    if not colleges and getattr(user, 'faculty', None) and user.faculty and user.faculty.name:
+        colleges = [user.faculty.name.replace("كلية", "").strip()]
+    elif not colleges and getattr(user, 'faculty_id', None) and db:
+        fac = db.query(models.Faculty).filter(models.Faculty.id == user.faculty_id).first()
+        if fac and fac.name:
+            colleges = [fac.name.replace("كلية", "").strip()]
+            
+    unique_colleges = list(dict.fromkeys([c for c in colleges if c]))
+    colleges_str = " - ".join(unique_colleges)
+    
+    if is_fac_member:
+        return f"{clean_job} ({colleges_str})" if colleges_str else clean_job
+    elif is_fac_admin:
+        if clean_job.endswith("كلية"):
+            return f"{clean_job} {colleges_str}" if colleges_str else clean_job
+        elif "كلية" in clean_job:
+            return f"{clean_job} ({colleges_str})" if colleges_str else clean_job
+        else:
+            return f"{clean_job} كلية {colleges_str}" if colleges_str else clean_job
+    elif is_prog_mgr:
+        return f"{clean_job} {colleges_str}" if colleges_str else clean_job
+    else:
+        return clean_job
 
-def get_user_action_by(user) -> str:
+def get_user_action_by(user, db: Session = None) -> str:
     if not user:
         return ""
-    role_display = get_user_role_display(user)
+    role_display = get_user_role_display(user, db)
     return f"{user.username} ({role_display})"
 
 def log_activity(
@@ -169,9 +200,17 @@ def create_notification(db, faculty_id, action_by, action_text, academic_year=No
         semester = ctx_semester
 
     if hasattr(action_by, 'username'):
-        action_by_str = get_user_action_by(action_by)
+        action_by_str = get_user_action_by(action_by, db)
     else:
-        action_by_str = str(action_by)
+        action_by_str = str(action_by) if action_by else ""
+        if action_by_str and db:
+            m = re.match(r"^([^\(]+)(?:\s*\((.+)\))?$", action_by_str.strip())
+            if m:
+                raw_uname = m.group(1).strip()
+                clean_uname = raw_uname.replace('@gmail.com', '').strip()
+                u = db.query(models.User).filter((models.User.username == clean_uname) | (models.User.username == raw_uname)).first()
+                if u:
+                    action_by_str = get_user_action_by(u, db)
     notif = models.Notification(
         faculty_id=faculty_id,
         action_by=action_by_str,
@@ -4747,7 +4786,7 @@ def get_professors_report(
 
 @app.post("/api/notifications/log")
 def log_notification(data: schemas.NotificationCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    user_action_by_str = get_user_action_by(current_user)
+    user_action_by_str = get_user_action_by(current_user, db)
     action_text = data.action_text.replace('[ADMIN_ONLY] ', '').replace('[ADMIN_ONLY]', '').strip()
     if getattr(data, 'admin_only', False):
         action_text = f"[ADMIN_ONLY] {action_text}"
@@ -4785,7 +4824,7 @@ def log_notification(data: schemas.NotificationCreate, db: Session = Depends(get
             description=data.action_text,
             entity_type="MAIN_TABLE" if "الجدول الرئيسي" in data.action_text else ("PROFESSORS" if "تدريس" in data.action_text else "STUDY_PLAN"),
             user_id=current_user.id,
-            user_role=get_user_role_display(current_user),
+            user_role=get_user_role_display(current_user, db),
             faculty_id=data.faculty_ids[0] if (data.faculty_ids and len(data.faculty_ids) == 1) else None,
             academic_year=data.academic_year,
             semester=data.semester,
@@ -4825,19 +4864,20 @@ def get_notifications(db: Session = Depends(get_db), current_user: models.User =
 
     notifications = query.order_by(models.Notification.id.desc()).all()
     
-    # خريطة المسميات الوظيفية الحالية للمستخدمين لتحديث حتى الإشعارات السابقة بدقة
-    user_job_map = {u.username: get_user_role_display(u) for u in db.query(models.User).all()}
-    import re
+    # خريطة المسميات الوظيفية والكليات الحالية للمستخدمين لتحديث حتى الإشعارات السابقة بدقة
+    user_job_map = {u.username: get_user_role_display(u, db) for u in db.query(models.User).all()}
 
     for n in notifications:
         if n.action_text.startswith('[ADMIN_ONLY] '):
             n.action_text = n.action_text.replace('[ADMIN_ONLY] ', '')
         if n.action_by:
-            m = re.match(r"^([^\(]+)(?:\s*\((.+?)\))?$", n.action_by.strip())
+            m = re.match(r"^([^\(]+)(?:\s*\((.+)\))?$", n.action_by.strip())
             if m:
-                uname = m.group(1).strip()
-                if uname in user_job_map:
-                    n.action_by = f"{uname} ({user_job_map[uname]})"
+                raw_uname = m.group(1).strip()
+                clean_uname = raw_uname.replace('@gmail.com', '').strip()
+                matched_role = user_job_map.get(clean_uname) or user_job_map.get(raw_uname)
+                if matched_role:
+                    n.action_by = f"{clean_uname} ({matched_role})"
             
     return notifications
 
