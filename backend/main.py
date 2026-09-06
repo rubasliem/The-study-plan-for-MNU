@@ -4748,8 +4748,8 @@ def get_professors_report(
 @app.post("/api/notifications/log")
 def log_notification(data: schemas.NotificationCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     user_action_by_str = get_user_action_by(current_user)
-    action_text = data.action_text
-    if getattr(data, 'admin_only', False) and not action_text.startswith('[ADMIN_ONLY]'):
+    action_text = data.action_text.replace('[ADMIN_ONLY] ', '').replace('[ADMIN_ONLY]', '').strip()
+    if getattr(data, 'admin_only', False):
         action_text = f"[ADMIN_ONLY] {action_text}"
     
     if data.faculty_ids:
