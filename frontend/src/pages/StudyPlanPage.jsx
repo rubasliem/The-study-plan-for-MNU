@@ -2914,11 +2914,28 @@ ${signaturesHtml}
     toast.success("تم تصدير شيت Excel نموذج 1 بنجاح!");
   };
 
+  const logAction = async (actionText, facultyIds = null, academicYear = null, semester = null) => {
+    try {
+      await axios.post(`${API}/api/notifications/log`, {
+        action_text: actionText,
+        faculty_ids: facultyIds,
+        academic_year: academicYear,
+        semester: semester
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+    } catch (error) {
+      console.error("Error logging action", error);
+    }
+  };
+
   const handlePrintModel1 = () => {
     if (planRows.length === 0) {
       toast.error("لا توجد بيانات مقررات لطباعتها في الخطة.");
       return;
     }
+    const facName = activeFac?.name || "الكلية";
+    logAction(`قام بطباعة الخطة الدراسية (نموذج 1) لكلية ${facName}`, activeFac?.id ? [activeFac.id] : null, selectedYear, selectedSemester);
     const printHtml = generateModel1Html(true);
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
@@ -3231,6 +3248,8 @@ ${signaturesHtml}
       toast.error("لا توجد بيانات مقررات أو أساتذة لطباعتها في الخطة.");
       return;
     }
+    const facName = activeFac?.name || "الكلية";
+    logAction(`قام بطباعة بيانات أعضاء هيئة التدريس بالخطة الدراسية (نموذج 2) لكلية ${facName}`, activeFac?.id ? [activeFac.id] : null, selectedYear, selectedSemester);
     const htmlContent = generateModel2Html(true);
     const printWindow = window.open("", "_blank");
     if (!printWindow) {

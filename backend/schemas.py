@@ -362,6 +362,7 @@ class NotificationCreate(BaseModel):
     faculty_ids: Optional[List[int]] = None
     academic_year: Optional[str] = None
     semester: Optional[str] = None
+    admin_only: Optional[bool] = False
 
 
 class NotificationOut(BaseModel):

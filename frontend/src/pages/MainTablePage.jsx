@@ -530,9 +530,31 @@ const MainTablePage = () => {
     const totalAllCourses = grandTotalCoursesT1 + grandTotalCoursesT2 + grandTotalCoursesT3;
     const totalAllProfs = grandTotalProfsT1 + grandTotalProfsT2 + grandTotalProfsT3;
 
+    const logAction = async (actionText, facultyIds = null, academicYear = null, semester = null) => {
+        try {
+            await axios.post(`${API}/api/notifications/log`, {
+                action_text: actionText,
+                faculty_ids: facultyIds,
+                academic_year: academicYear,
+                semester: semester
+            }, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            });
+        } catch (error) {
+            console.error("Error logging action", error);
+        }
+    };
+
     const handlePrintMainTable = () => {
         const facName = faculties.find(f => String(f.id) === String(selectedFaculty))?.name || "جميع الكليات";
         const documentTitle = `الجدول الرئيسي الموحد - ${facName} - العام الجامعي ${selectedYear}`;
+
+        // تسجيل حدث طباعة الجدول الرئيسي في الإشعارات
+        const fids = selectedFaculty ? [Number(selectedFaculty)] : (faculties.map(f => f.id));
+        const notifText = selectedFaculty 
+            ? `قام بطباعة الجدول الرئيسي الموحد لكلية ${facName}` 
+            : `قام بطباعة الجدول الرئيسي الموحد لجميع الكليات`;
+        logAction(notifText, fids.length > 0 ? fids : null, selectedYear || null, null);
 
         let tableRowsHTML = "";
         rows.forEach((row, idx) => {
@@ -721,6 +743,14 @@ const MainTablePage = () => {
     const handlePrintModalProfs = () => {
         const facName = faculties.find(f => String(f.id) === String(modalFaculty))?.name || "جميع الكليات";
         const documentTitle = `بيانات أعضاء هيئة التدريس وتوزيع المقرارات - ${facName} - العام الجامعي ${modalYear}`;
+
+        // تسجيل حدث طباعة بيانات أعضاء هيئة التدريس الخاصة بالجدول الرئيسي في الإشعارات
+        const fids = modalFaculty ? [Number(modalFaculty)] : (faculties.map(f => f.id));
+        const notifText = modalFaculty 
+            ? `قام بطباعة بيانات أعضاء هيئة التدريس وتوزيع المقرارات بالجدول الرئيسي لكلية ${facName}` 
+            : `قام بطباعة بيانات أعضاء هيئة التدريس وتوزيع المقرارات بالجدول الرئيسي لجميع الكليات`;
+        logAction(notifText, fids.length > 0 ? fids : null, modalYear || null, null);
+
         const formatHours = (num) => Math.round((num || 0) * 100) / 100;
 
         const filteredModalProfs = modalProfs.filter(prof => {

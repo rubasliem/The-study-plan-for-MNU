@@ -4748,7 +4748,9 @@ def get_professors_report(
 @app.post("/api/notifications/log")
 def log_notification(data: schemas.NotificationCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     user_action_by_str = get_user_action_by(current_user)
-    action_text = f"[ADMIN_ONLY] {data.action_text}"
+    action_text = data.action_text
+    if getattr(data, 'admin_only', False) and not action_text.startswith('[ADMIN_ONLY]'):
+        action_text = f"[ADMIN_ONLY] {action_text}"
     
     if data.faculty_ids:
         for fid in data.faculty_ids:
@@ -4773,6 +4775,25 @@ def log_notification(data: schemas.NotificationCreate, db: Session = Depends(get
         db.add(notif)
         
     db.commit()
+
+    # توثيق الحدث أيضاً في سجل العمليات (Audit Logs)
+    try:
+        log_activity(
+            db=db,
+            username=current_user.username,
+            action_type="EXPORT" if ("تصدير" in data.action_text or "تنزيل" in data.action_text) else "PRINT",
+            description=data.action_text,
+            entity_type="MAIN_TABLE" if "الجدول الرئيسي" in data.action_text else ("PROFESSORS" if "تدريس" in data.action_text else "STUDY_PLAN"),
+            user_id=current_user.id,
+            user_role=get_user_role_display(current_user),
+            faculty_id=data.faculty_ids[0] if (data.faculty_ids and len(data.faculty_ids) == 1) else None,
+            academic_year=data.academic_year,
+            semester=data.semester,
+            status="success"
+        )
+    except Exception as e:
+        logger.error(f"Error logging activity for notification: {e}")
+
     return {"message": "تم تسجيل الإشعار بنجاح"}
 
 

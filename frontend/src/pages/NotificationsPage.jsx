@@ -36,10 +36,12 @@ const NotificationsPage = () => {
     ];
 
     const pagesList = [
+        'الجدول الرئيسي',
         'أعضاء هيئة التدريس',
         'المقررات الدراسية',
         'الخطة الدراسية',
         'إضافة مستخدم وصلاحيات',
+        'توقيعات المسؤولين',
         'استرجاع المحذوف'
     ];
 
@@ -270,7 +272,8 @@ const NotificationsPage = () => {
         
         if (filterPage) {
             const text = n.action_text || '';
-            if (filterPage === 'أعضاء هيئة التدريس' && !text.includes('هيئة التدريس') && !text.includes('عضو')) return false;
+            if (filterPage === 'الجدول الرئيسي' && !text.includes('الجدول الرئيسي')) return false;
+            if (filterPage === 'أعضاء هيئة التدريس' && !text.includes('هيئة التدريس') && !text.includes('عضو') && !text.includes('أستاذ')) return false;
             if (filterPage === 'المقررات الدراسية' && !text.includes('مقرر')) return false;
             if (filterPage === 'الخطة الدراسية' && !text.includes('الخطة')) return false;
             if (filterPage === 'إضافة مستخدم وصلاحيات' && !text.includes('مستخدم') && !text.includes('صلاحية')) return false;
