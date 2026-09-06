@@ -394,8 +394,13 @@ async def process_and_replace_courses(file: UploadFile, db: Session):
 
                 # Clear old modules if it's the first row for a medicine bundle and we just updated it
                 if is_medicine_template and course.code in updated_courses:
-                    # Since we are processing row by row, we only delete modules when processing the "main" row (first row of course)
-                    db.query(models.CourseModule).filter(models.CourseModule.course_id == course.id).delete()
+                    # Nullify foreign key references in study_plan_items before deleting
+                    db.query(models.StudyPlanItem).filter(
+                        models.StudyPlanItem.module_id.in_(
+                            db.query(models.CourseModule.id).filter(models.CourseModule.course_id == course.id)
+                        )
+                    ).update({"module_id": None}, synchronize_session=False)
+                    db.query(models.CourseModule).filter(models.CourseModule.course_id == course.id).delete(synchronize_session=False)
                     db.flush()
 
             # Process module if medicine template

@@ -3250,15 +3250,44 @@ def update_course(id: int, course: schemas.CourseCreate, db: Session = Depends(g
     for key, val in course_data.items():
         setattr(db_course, key, val)
         
-    # Update modules
-    db.query(models.CourseModule).filter(models.CourseModule.course_id == id).delete()
+    # Update modules safely without violating foreign key constraints
+    existing_modules = db.query(models.CourseModule).filter(models.CourseModule.course_id == id).all()
+    existing_map = {m.department_name.strip().lower(): m for m in existing_modules}
+    
     if db_course.is_bundle and modules_data:
+        kept_module_ids = set()
         for mod in modules_data:
-            m_obj = models.CourseModule(course_id=id, **mod)
-            db.add(m_obj)
+            dept_key = mod.get("department_name", "").strip().lower()
+            if dept_key in existing_map:
+                # Update existing module
+                m_obj = existing_map[dept_key]
+                for k, v in mod.items():
+                    setattr(m_obj, k, v)
+                kept_module_ids.add(m_obj.id)
+            else:
+                # Add new module
+                m_obj = models.CourseModule(course_id=id, **mod)
+                db.add(m_obj)
+                db.flush()
+                kept_module_ids.add(m_obj.id)
+                
+        # Delete modules that were removed by the user
+        for old_m in existing_modules:
+            if old_m.id not in kept_module_ids:
+                db.query(models.StudyPlanItem).filter(models.StudyPlanItem.module_id == old_m.id).update(
+                    {"module_id": None}, synchronize_session=False
+                )
+                db.delete(old_m)
+    elif not db_course.is_bundle:
+        for old_m in existing_modules:
+            db.query(models.StudyPlanItem).filter(models.StudyPlanItem.module_id == old_m.id).update(
+                {"module_id": None}, synchronize_session=False
+            )
+            db.delete(old_m)
 
     user_role_str = get_user_role_display(current_user)
-    action_text = f"قام بتعديل المقرر: {db_course.name_ar}"
+    course_title = db_course.name_ar or db_course.name_en or db_course.code or "مقرر"
+    action_text = f"قام بتعديل المقرر: {course_title}"
     create_notification(db, db_course.faculty_id, f"{current_user.username} ({user_role_str})", action_text)
     
     db.commit()
