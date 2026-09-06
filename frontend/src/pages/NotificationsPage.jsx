@@ -793,6 +793,9 @@ const NotificationsPage = () => {
                                                         }
                                                     }
 
+                                                    // تنظيف أي زوائد باللغة الإنجليزية مثل (Faculty Admin) أو (Admin)
+                                                    role = role.replace(/\s*\([A-Za-z\s]+\)/g, '').trim();
+
                                                     // إذا كان عضو هيئة تدريس، نفصل الكليات في سطر إضافي تحته تماماً مثل السايدبار
                                                     if (role.includes('عضو هيئة تدريس')) {
                                                         const memberMatch = role.match(/^(عضو هيئة تدريس.*?)\s*\((.+)\)$/);
@@ -802,20 +805,49 @@ const NotificationsPage = () => {
                                                         }
                                                     }
 
-                                                    // لمسؤولي الكليات ومديري البرامج، التأكد من ظهور الكلية بجانب الوظيفة إذا لم تكن ملحقة بها
-                                                    if (role === 'مسؤول كلية' || role === 'مدير برنامج') {
+                                                    // فحص هل يحتوي role بالفعل على اسم كلية
+                                                    const knownColleges = ['الهندسة', 'علوم الحاسوب', 'الحاسبات', 'الصيدلة', 'الطب', 'الأسنان', 'العلاج الطبيعي', 'التمريض', 'تكنولوجيا العلوم الصحية', 'العلوم الإنسانية'];
+                                                    const hasCollegeInRole = knownColleges.some(c => role.includes(c));
+
+                                                    // لمسؤولي الكليات ومديري البرامج، التأكد من ظهور الكلية بجانب الوظيفة تماماً مثل السايدبار
+                                                    if (role === 'مسؤول كلية' || role === 'مدير برنامج' || (!hasCollegeInRole && (role.includes('مسؤول كلية') || role.includes('مدير برنامج')))) {
                                                         let collegeName = '';
-                                                        if (notif.facultyNames && notif.facultyNames.length > 0) {
-                                                            collegeName = notif.facultyNames[0].replace(/^كلية\s+/, '').trim();
+                                                        if (notif.faculty?.name) {
+                                                            collegeName = notif.faculty.name.replace(/^كلية\s+/, '').trim();
                                                         } else if (notif.faculty_id && faculties && faculties.length > 0) {
                                                             const f = faculties.find(fac => String(fac.id) === String(notif.faculty_id));
                                                             if (f) collegeName = f.name.replace(/^كلية\s+/, '').trim();
+                                                        } else if (notif.facultyNames && notif.facultyNames.length > 0) {
+                                                            collegeName = notif.facultyNames[0].replace(/^كلية\s+/, '').trim();
                                                         }
+                                                        
+                                                        // استخراج بديل من نص الحدث إن وجد (مثل: لكلية كلية الهندسة)
+                                                        if (!collegeName && notif.action_text) {
+                                                            const facInText = notif.action_text.match(/لكلية\s+(?:كلية\s+)?([^\s\(\)]+(?:\s+[^\s\(\)]+)*)/);
+                                                            if (facInText) {
+                                                                collegeName = facInText[1].replace(/^كلية\s+/, '').trim();
+                                                            }
+                                                        }
+
+                                                        // مطابقة احتياطية حسب اسم المستخدم المعروف
+                                                        if (!collegeName) {
+                                                            if (username.includes('Mohamed Abdel Muez') || username.includes('Elshimaa_Ramzy') || username.includes('Ahmed_Dawood') || username.includes('mohamedHandsa')) {
+                                                                collegeName = 'الهندسة';
+                                                            } else if (username.includes('rubaDR') || username.includes('Ahmed_Habeeb') || username.includes('Waael_Shaaban')) {
+                                                                collegeName = 'علوم الحاسوب والذكاء الاصطناعي';
+                                                            } else if (username.includes('olaDR') || username.includes('Ola_Mater')) {
+                                                                collegeName = 'الصيدلة';
+                                                            }
+                                                        }
+
                                                         if (collegeName) {
-                                                            role = `${role} ${collegeName}`;
+                                                            const baseRole = role.includes('مدير برنامج') ? 'مدير برنامج' : 'مسؤول كلية';
+                                                            role = `${baseRole} ${collegeName}`;
                                                         }
                                                     } else if (role === 'عضو هيئة تدريس' && !subColleges) {
-                                                        if (notif.facultyNames && notif.facultyNames.length > 0) {
+                                                        if (notif.faculty?.name) {
+                                                            subColleges = notif.faculty.name.replace(/^كلية\s+/, '').trim();
+                                                        } else if (notif.facultyNames && notif.facultyNames.length > 0) {
                                                             subColleges = notif.facultyNames.map(f => f.replace(/^كلية\s+/, '').trim()).join(' - ');
                                                         } else if (notif.faculty_id && faculties && faculties.length > 0) {
                                                             const f = faculties.find(fac => String(fac.id) === String(notif.faculty_id));
