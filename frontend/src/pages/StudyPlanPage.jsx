@@ -2912,6 +2912,7 @@ ${signaturesHtml}
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     toast.success("تم تصدير شيت Excel نموذج 1 بنجاح!");
+    logAction(`قام بتنزيل جدول المقررات (نموذج 1 - Excel) لكلية ${facName}`, activeFac?.id ? [activeFac.id] : null, selectedYear, selectedSemester);
   };
 
   const logAction = async (actionText, facultyIds = null, academicYear = null, semester = null) => {
@@ -3241,6 +3242,7 @@ ${signaturesHtml}
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     toast.success("تم تصدير شيت Excel نموذج 2 بنجاح!");
+    logAction(`قام بتنزيل جدول الأساتذة والمقررات (نموذج 2 - Excel) لكلية ${facName}`, activeFac?.id ? [activeFac.id] : null, selectedYear, selectedSemester);
   };
 
   const handlePrintModel2 = () => {

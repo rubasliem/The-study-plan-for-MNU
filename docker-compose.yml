@@ -26,11 +26,11 @@ services:
     container_name: mnu_backend
     restart: always
     environment:
-      - DATABASE_URL=sqlite:///./mnu_system.db
+      - DATABASE_URL=postgresql://mnu_admin:mnu_password_2026@db:5432/mnu_study_plan
     ports:
       - "8000:8000"
-    volumes:
-      - ./backend/mnu_system.db:/app/mnu_system.db
+    depends_on:
+      - db
     networks:
       - mnu_network
 
