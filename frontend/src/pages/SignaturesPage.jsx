@@ -7,7 +7,7 @@ import { confirmAction } from '../utils/confirmAlert';
 import Select from 'react-select';
 import toast from 'react-hot-toast';
 
-const API = "http://127.0.0.1:8000";
+const API = "";
 
 const SignaturesPage = () => {
     const [faculties, setFaculties] = useState([]);
@@ -155,17 +155,17 @@ const SignaturesPage = () => {
         <div style={{ padding: '20px', direction: 'rtl' }}>
             <div className="row mb-3 align-items-center">
                 {/* عنوان الصفحة */}
-                <div className="col-9">
+                <div className="col-12 col-lg-9 mb-3 mb-lg-0">
                     <h2 style={{ margin: 0, fontWeight: 'bold', color: '#2e7d32' }} className="d-flex align-items-center gap-3"><FaPenNib className="text-success" style={{ marginLeft: '15px' }} /> توقيعات المسؤولين</h2>
                 </div>
-                <div className="col-3">
+                <div className="col-12 col-lg-3">
                     {/* مساحة فارغة لمطابقة الهيدر */}
                 </div>
             </div>
 
             <div className="row mb-3 align-items-center">
                 {/* حقل اختيار الكلية */}
-                <div className="col-5">
+                <div className="col-12 col-lg-5 mb-2 mb-lg-0">
                     <Select
                         placeholder="اختر الكلية للبدء..."
                         value={faculties.find(f => String(f.id) === String(selectedFaculty)) ? {
@@ -179,7 +179,7 @@ const SignaturesPage = () => {
                 </div>
 
                 {/* نوع التقرير */}
-                <div className="col-4">
+                <div className="col-12 col-lg-4 mb-2 mb-lg-0">
                     <Form.Select
                         value={reportTypeFilter}
                         onChange={(e) => setReportTypeFilter(e.target.value)}
@@ -193,7 +193,7 @@ const SignaturesPage = () => {
                 </div>
 
                 {/* زر إضافة توقيع جديد */}
-                <div className="col-3">
+                <div className="col-12 col-lg-3">
                     <Button
                         variant="primary"
                         onClick={() => handleOpenModal('add')}

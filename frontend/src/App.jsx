@@ -22,6 +22,7 @@ function App() {
   const params = new URLSearchParams(window.location.search);
   const initialTab = params.get('tab') || 'professors';
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -39,10 +40,17 @@ function App() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', direction: 'rtl' }}>
+    <div className="app-container" style={{ display: 'flex', minHeight: '100vh', direction: 'rtl', position: 'relative' }}>
       <Toaster position="top-center" reverseOrder={false} toastOptions={{ duration: 5000, style: { fontFamily: 'inherit', fontSize: '15px', borderRadius: '10px', padding: '12px 20px' } }} />
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      <main style={{ flex: 1, padding: '20px' }}>
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+      <main style={{ flex: 1, padding: '20px', width: '100%', overflowX: 'hidden' }}>
+        <div className="d-md-none d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+          <button className="btn btn-light shadow-sm" onClick={() => setIsSidebarOpen(true)}>
+             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          </button>
+          <h5 className="mb-0 text-success fw-bold">جامعة المنوفية الأهلية</h5>
+          <div style={{width: '42px'}}></div> {/* Spacer for centering */}
+        </div>
         {activeTab === 'dashboard' && <MainTablePage />}
         {activeTab === 'professors' && <ProfessorsPage />}
         {activeTab === 'courses' && <CoursesPage />}

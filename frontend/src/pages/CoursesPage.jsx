@@ -508,7 +508,7 @@ const CoursesPage = () => {
 
       const resolvedSemester = localStorage.getItem('studyplan_semester') || null;
 
-      await axios.post('http://127.0.0.1:8000/api/notifications/log', {
+      await axios.post('/api/notifications/log', {
 
         action_text: actionText,
 
@@ -542,17 +542,17 @@ const CoursesPage = () => {
 
       const [resCourses, resFacs, resProgs, resFailRates, resSigs, resYears] = await Promise.all([
 
-        axios.get('http://127.0.0.1:8000/api/courses'),
+        axios.get('/api/courses'),
 
-        axios.get('http://127.0.0.1:8000/api/faculties'),
+        axios.get('/api/faculties'),
 
-        axios.get('http://127.0.0.1:8000/api/programs'),
+        axios.get('/api/programs'),
 
-        axios.get('http://127.0.0.1:8000/api/courses/fail_rates'),
+        axios.get('/api/courses/fail_rates'),
 
-        axios.get('http://127.0.0.1:8000/api/signatures?report_type=المقرارات الدراسية'),
+        axios.get('/api/signatures?report_type=المقرارات الدراسية'),
 
-        axios.get('http://127.0.0.1:8000/api/academic-years')
+        axios.get('/api/academic-years')
 
       ]);
 
@@ -1177,7 +1177,7 @@ const CoursesPage = () => {
 
       if (modalMode === 'add') {
 
-        const res = await axios.post('http://127.0.0.1:8000/api/courses', payload);
+        const res = await axios.post('/api/courses', payload);
 
         toast.success("تمت إضافة المقرر بنجاح");
 
@@ -1187,7 +1187,7 @@ const CoursesPage = () => {
 
       } else {
 
-        await axios.put(`http://127.0.0.1:8000/api/courses/${selectedCourse.id}`, payload);
+        await axios.put(`/api/courses/${selectedCourse.id}`, payload);
 
         toast.success("تم تحديث بيانات المقرر بنجاح");
 
@@ -1227,7 +1227,7 @@ const CoursesPage = () => {
 
         for (const id of ids) {
 
-          await axios.delete(`http://127.0.0.1:8000/api/courses/${id}`);
+          await axios.delete(`/api/courses/${id}`);
 
         }
 
@@ -1257,7 +1257,7 @@ const CoursesPage = () => {
 
     const link = document.createElement("a");
 
-    link.href = "http://127.0.0.1:8000/api/courses/template";
+    link.href = "/api/courses/template";
 
     link.setAttribute("download", "نموذج_استيراد_المقررات_الاسترشادية.xlsx");
 
@@ -1275,7 +1275,7 @@ const CoursesPage = () => {
 
     const link = document.createElement("a");
 
-    link.href = "http://127.0.0.1:8000/api/courses/template/medicine";
+    link.href = "/api/courses/template/medicine";
 
     link.setAttribute("download", "نموذج_استيراد_المقررات_الدراسية_طب.xlsx");
 
@@ -1307,7 +1307,7 @@ const CoursesPage = () => {
 
     try {
 
-      const res = await axios.post("http://127.0.0.1:8000/api/courses/import-all", fData, {
+      const res = await axios.post("/api/courses/import-all", fData, {
 
         headers: { "Content-Type": "multipart/form-data" }
 
@@ -4225,7 +4225,7 @@ const CoursesPage = () => {
 
         {/* عنوان الصفحة */}
 
-        <div className="col-9">
+        <div className="col-12 col-lg-9 mb-3 mb-lg-0">
 
           <h2 style={{ margin: 0, fontWeight: 'bold', color: '#2e7d32' }} className="d-flex align-items-center gap-3"><FaBook className="text-success" style={{ marginLeft: '15px' }} /> المقررات الدراسية</h2>
 
@@ -4233,17 +4233,17 @@ const CoursesPage = () => {
 
         {/* أزرار الاستيراد والطباعة */}
 
-        <div className="col-3">
+        <div className="col-12 col-lg-3">
 
-          <div className="d-flex gap-2">
+          <div className="d-flex flex-wrap gap-2">
 
-            <Button variant="info" className="w-50 text-nowrap" onClick={() => setShowImportModal(true)}>
+            <Button variant="info" className="flex-fill text-nowrap" onClick={() => setShowImportModal(true)}>
 
               <i className="bi bi-file-earmark-excel"></i> استيراد
 
             </Button>
 
-            <Button variant="info" className="w-50 text-nowrap" onClick={() => {
+            <Button variant="info" className="flex-fill text-nowrap" onClick={() => {
 
               setSelectedRows([]);
 
@@ -4267,7 +4267,7 @@ const CoursesPage = () => {
 
         {/* حقل البحث */}
 
-        <div className="col-9">
+        <div className="col-12 col-lg-9 mb-3 mb-lg-0">
 
           <input
 
@@ -4301,7 +4301,7 @@ const CoursesPage = () => {
 
         {/* زر إضافة مقرر جديد */}
 
-        <div className="col-3">
+        <div className="col-12 col-lg-3">
 
           <Button
 
@@ -6582,7 +6582,7 @@ const CoursesPage = () => {
 
             </div>
 
-            <div className="d-flex gap-2">
+            <div className="d-flex flex-wrap gap-2">
 
               <Button
 

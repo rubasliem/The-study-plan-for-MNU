@@ -230,7 +230,7 @@ const RecycleBinPage = () => {
                         </div>
                     ) : (
                         <div className="table-responsive">
-                            <Table hover className="mb-0 align-middle">
+                            <Table responsive hover className="mb-0 align-middle">
                                 <thead className="bg-success text-white">
                                     <tr>
                                         <th style={{ width: '50px' }}>

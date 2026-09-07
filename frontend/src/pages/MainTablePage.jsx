@@ -6,7 +6,7 @@ import Select from 'react-select';
 import { AuthContext } from '../context/AuthContext';
 import logo from '../assets/logo.png';
 
-const API = "http://localhost:8000";
+const API = "";
 
 const customSelectStyles = {
     control: (provided, state) => ({

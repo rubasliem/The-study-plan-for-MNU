@@ -26,7 +26,7 @@ import {
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 
-const API = "http://localhost:8000";
+const API = "";
 
 const GuidelinesPage = () => {
   const { user } = useContext(AuthContext);

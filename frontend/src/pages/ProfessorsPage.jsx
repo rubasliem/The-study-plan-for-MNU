@@ -559,7 +559,7 @@ const ProfessorsPage = () => {
 
     const link = document.createElement("a");
 
-    link.href = "http://127.0.0.1:8000/api/professors/template";
+    link.href = "/api/professors/template";
 
     link.setAttribute("download", "نموذج_استيراد_اعضاء_هيئة_التدريس.xlsx");
 
@@ -599,7 +599,7 @@ const ProfessorsPage = () => {
 
     try {
 
-      const res = await axios.post("http://127.0.0.1:8000/api/professors/import", data, {
+      const res = await axios.post("/api/professors/import", data, {
 
         headers: {
 
@@ -667,7 +667,7 @@ const ProfessorsPage = () => {
 
       try {
 
-        await axios.delete(`http://127.0.0.1:8000/api/professors/${id}`);
+        await axios.delete(`/api/professors/${id}`);
 
 
 
@@ -705,7 +705,7 @@ const ProfessorsPage = () => {
 
         const resolvedSemester = semester || localStorage.getItem('studyplan_semester') || null;
 
-        await axios.post(`http://127.0.0.1:8000/api/notifications/log`, {
+        await axios.post(`/api/notifications/log`, {
 
           action_text: actionText,
 
@@ -885,7 +885,7 @@ const ProfessorsPage = () => {
 
       try {
 
-        const res = await axios.get(`http://127.0.0.1:8000/api/professors/${professor.id}/assignments`);
+        const res = await axios.get(`/api/professors/${professor.id}/assignments`);
 
         setProfessorAssignments(res.data);
 
@@ -909,17 +909,17 @@ const ProfessorsPage = () => {
 
       const [pRes, fRes, cRes, progRes, sRes, yearsRes] = await Promise.all([
 
-        axios.get('http://127.0.0.1:8000/api/professors'),
+        axios.get('/api/professors'),
 
-        axios.get('http://127.0.0.1:8000/api/faculties'),
+        axios.get('/api/faculties'),
 
-        axios.get('http://127.0.0.1:8000/api/courses'),
+        axios.get('/api/courses'),
 
-        axios.get('http://127.0.0.1:8000/api/programs'),
+        axios.get('/api/programs'),
 
-        axios.get('http://127.0.0.1:8000/api/signatures?report_type=أعضاء هيئة التدريس'),
+        axios.get('/api/signatures?report_type=أعضاء هيئة التدريس'),
 
-        axios.get('http://127.0.0.1:8000/api/academic-years')
+        axios.get('/api/academic-years')
 
       ]);
 
@@ -1141,7 +1141,7 @@ const ProfessorsPage = () => {
 
     try {
 
-      const res = await axios.post('http://127.0.0.1:8000/api/professors/export-assignments', {
+      const res = await axios.post('/api/professors/export-assignments', {
 
         professor_ids: selectedProfs.map(p => p.id),
 
@@ -1840,7 +1840,7 @@ const ProfessorsPage = () => {
 
     try {
 
-      const res = await axios.post('http://127.0.0.1:8000/api/professors/export-assignments', {
+      const res = await axios.post('/api/professors/export-assignments', {
 
         professor_ids: selectedProfs.map(p => p.id),
 
@@ -3270,7 +3270,7 @@ const ProfessorsPage = () => {
 
     let assignmentsByProf = {};
     try {
-      const res = await axios.post('http://127.0.0.1:8000/api/professors/export-assignments', {
+      const res = await axios.post('/api/professors/export-assignments', {
         professor_ids: selectedProfs.map(p => p.id),
         academic_year: exportAcademicYear,
         semester: exportSemester !== 'الكل' ? exportSemester : undefined,
@@ -3625,13 +3625,13 @@ const ProfessorsPage = () => {
 
       if (modalMode === 'edit') {
 
-        await axios.put(`http://127.0.0.1:8000/api/professors/${selectedProfessorId}`, payload);
+        await axios.put(`/api/professors/${selectedProfessorId}`, payload);
 
         toast.success("تم تعديل البيانات بنجاح");
 
       } else {
 
-        await axios.post('http://127.0.0.1:8000/api/professors', payload);
+        await axios.post('/api/professors', payload);
 
         toast.success("تم الحفظ بنجاح");
 
@@ -4110,7 +4110,7 @@ const ProfessorsPage = () => {
 
         {/* عنوان الصفحة */}
 
-        <div className="col-9">
+        <div className="col-12 col-lg-9 mb-3 mb-lg-0">
 
           <h2 style={{ margin: 0, fontWeight: 'bold', color: '#2e7d32' }} className="d-flex align-items-center gap-3"><FaUserTie className="text-success" style={{ marginLeft: '15px' }} /> أعضاء هيئة التدريس</h2>
 
@@ -4118,13 +4118,13 @@ const ProfessorsPage = () => {
 
         {/* أزرار الاستيراد والطباعة */}
 
-        <div className="col-3">
+        <div className="col-12 col-lg-3">
 
-          <div className="d-flex gap-2">
+          <div className="d-flex flex-wrap gap-2">
 
             {(user?.role === 'admin' || user?.role === 'manager' || user?.role === 'faculty_professor' || (user?.role === 'faculty_admin' && user?.perm_view_prof_import_btn) || (user?.role === 'student_affairs' && user?.perm_view_prof_import_btn)) && (
 
-              <Button variant="info" className="w-50 text-nowrap" onClick={() => setShowImportModal(true)}>
+              <Button variant="info" className="flex-fill text-nowrap" onClick={() => setShowImportModal(true)}>
 
                 <i className="bi bi-file-earmark-excel"></i> استيراد
 
@@ -4134,7 +4134,7 @@ const ProfessorsPage = () => {
 
             {(user?.role === 'admin' || user?.role === 'manager' || user?.role === 'faculty_professor' || (user?.role === 'faculty_admin' && user?.perm_view_prof_print_btn) || (user?.role === 'student_affairs' && user?.perm_view_prof_print_btn)) && (
 
-            <Button variant="info" className="w-50 text-nowrap" onClick={() => setShowPrintModal(true)}>
+            <Button variant="info" className="flex-fill text-nowrap" onClick={() => setShowPrintModal(true)}>
 
               <i className="bi bi-box-arrow-up-right"></i> تصدير
 
@@ -4154,9 +4154,9 @@ const ProfessorsPage = () => {
 
         {/* السيرش وحالة البيانات */}
 
-        <div className="col-9">
+        <div className="col-12 col-lg-9 mb-3 mb-lg-0">
 
-          <div className="d-flex gap-2">
+          <div className="d-flex flex-wrap gap-2">
 
             <input
 
@@ -4208,7 +4208,7 @@ const ProfessorsPage = () => {
 
         {/* الزر على اليسار (يأخذ 3 أعمدة من أصل 12) */}
 
-        <div className="col-3">
+        <div className="col-12 col-lg-3">
 
           <Button
 
@@ -4230,7 +4230,7 @@ const ProfessorsPage = () => {
 
 
 
-      <Table striped bordered hover className="mt-3">
+      <Table responsive striped bordered hover className="mt-3">
 
         <thead>
 
@@ -5438,7 +5438,7 @@ const ProfessorsPage = () => {
 
                         </h6>
 
-                        <Table bordered hover striped size="sm" style={{ textAlign: 'center' }}>
+                        <Table responsive bordered hover striped size="sm" style={{ textAlign: 'center' }}>
 
                           <thead>
 
@@ -5691,34 +5691,21 @@ const ProfessorsPage = () => {
 
                 <input
 
-                  className="form-control"
-
+                  className="form-control w-100"
                   placeholder="بحث باسم الأستاذ /وظيفته/ الكلية"
-
                   value={printSearchTerm}
-
                   onChange={(e) => setPrintSearchTerm(e.target.value)}
-
-                  style={{ width: '290px' }}
-
                 />
-
                 
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '250px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 auto' }}>
 
                   <label style={{ margin: 0, fontWeight: 'bold', whiteSpace: 'nowrap' }}>الدرجة العلمية:</label>
 
                   <select
 
-                    className="form-select"
-
+                    className="form-select flex-fill"
                     value={printJobTitleFilter}
-
                     onChange={(e) => setPrintJobTitleFilter(e.target.value)}
-
-                    style={{ minWidth: '150px' }}
-
                   >
 
                     <option value="الكل">الكل</option>
@@ -5741,7 +5728,7 @@ const ProfessorsPage = () => {
 
 
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '260px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 auto' }}>
 
                   <label style={{ margin: 0, fontWeight: 'bold', whiteSpace: 'nowrap' }}>نوع التعاقد:</label>
 
@@ -5753,7 +5740,7 @@ const ProfessorsPage = () => {
 
                     onChange={(e) => setPrintContractFilter(e.target.value)}
 
-                    style={{ minWidth: '170px' }}
+                    style={{ flex: '1 1 auto' }}
 
                   >
 
@@ -5807,7 +5794,7 @@ const ProfessorsPage = () => {
 
               <div className="d-flex align-items-center flex-wrap gap-3">
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '250px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 auto' }}>
 
                   <label style={{ margin: 0, fontWeight: 'bold', whiteSpace: 'nowrap' }}>العام الجامعي:</label>
 
@@ -6193,7 +6180,7 @@ const ProfessorsPage = () => {
 
       {/* مودال استيراد البيانات من إكسيل */}
 
-      <Modal dialogClassName="modal-50w" show={showImportModal} onHide={() => {
+      <Modal size="lg" show={showImportModal} onHide={() => {
 
         setShowImportModal(false);
 
@@ -6203,7 +6190,7 @@ const ProfessorsPage = () => {
 
       }}>
 
-        <style>{`.modal-50w { max-width: 50vw !important; width: 50vw !important; }`}</style>
+        
 
         <Modal.Header closeButton>
 

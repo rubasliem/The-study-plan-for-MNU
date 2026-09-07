@@ -8,7 +8,7 @@ import { Container, Row, Col, Form, Button, Table, Modal, Card, Alert, Spinner }
 import { FaPlus, FaSave, FaTrash, FaPrint, FaFileExcel, FaFileUpload, FaInfoCircle, FaEdit, FaCalendarAlt, FaCopy, FaCheckCircle } from "react-icons/fa";
 import logo from '../assets/logo.png';
 
-const API = "http://localhost:8000";
+const API = "";
 const SEMESTERS = ["الفصل الدراسي الأول", "الفصل الدراسي الثاني", "الفصل الصيفي"];
 const YEARS = ["2024/2025", "2025/2026", "2026/2027", "2027/2028"];
 
@@ -3348,7 +3348,7 @@ ${signaturesHtml}
           {isMedicine ? (
             <Card className="shadow-sm mb-3" style={{ border: "1px solid #ddd", borderRadius: "10px", overflow: "hidden" }}>
               <div style={{ overflowX: "auto" }}>
-                <Table bordered className="m-0 text-center align-middle study-plan-custom-table" style={{ fontSize: "13.5px", minWidth: "1500px", borderColor: "#bbb" }}>
+                <Table responsive bordered className="m-0 text-center align-middle study-plan-custom-table" style={{ fontSize: "13.5px", minWidth: "1500px", borderColor: "#bbb" }}>
                   <thead style={{ fontSize: "14.5px" }}>
                     <tr style={{ backgroundColor: "#1b5e20", color: "#fff", fontWeight: "bold" }}>
                       <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} rowSpan={2}>المقرر / الحزمة</th>
@@ -3408,7 +3408,7 @@ ${signaturesHtml}
           ) : (
             <Card className="shadow-sm mb-3" style={{ border: "1px solid #ddd", borderRadius: "10px", overflow: "hidden" }}>
               <div style={{ overflowX: "auto" }}>
-                <Table bordered className="m-0 text-center align-middle study-plan-custom-table" style={{ fontSize: "13.5px", minWidth: isHealthTech ? "1650px" : "1200px", borderColor: "#bbb" }}>
+                <Table responsive bordered className="m-0 text-center align-middle study-plan-custom-table" style={{ fontSize: "13.5px", minWidth: isHealthTech ? "1650px" : "1200px", borderColor: "#bbb" }}>
                   <thead style={{ fontSize: "14.5px" }}>
                     <tr style={{ backgroundColor: "#1b5e20", color: "#fff", fontWeight: "bold" }}>
                       <th style={{ backgroundColor: "#1b5e20", color: "#fff", minWidth: "190px", width: "210px" }} rowSpan={2}>{isMedicine ? "المقرر / الحزمة" : "اسم المادة"}</th>
@@ -4104,7 +4104,7 @@ ${signaturesHtml}
                             <span style={{ color: "#166534" }}>🏛️ الأقسام العلمية وتوزيع الساعات التدريسية:</span>
                           </div>
                           <div style={{ overflowX: "auto" }}>
-                            <Table bordered hover size="sm" className="m-0 text-center align-middle" style={{ backgroundColor: "#ffffff", borderRadius: "8px", overflow: "hidden", fontSize: "12.5px" }}>
+                            <Table responsive bordered hover size="sm" className="m-0 text-center align-middle" style={{ backgroundColor: "#ffffff", borderRadius: "8px", overflow: "hidden", fontSize: "12.5px" }}>
                               <thead style={{ backgroundColor: "#dcfce7", color: "#14532d" }}>
                                 <tr>
                                   <th>م</th>
@@ -4239,7 +4239,7 @@ ${signaturesHtml}
                     المقرر مسجل لبرنامجه الأساسي. اضغط على <strong>"➕ إضافة برنامج آخر"</strong> إذا كان هذا المقرر مشتركاً مع برامج أخرى بالكلية.
                   </div>
                 ) : (
-                  <Table size="sm" bordered hover className="m-0 text-center align-middle">
+                  <Table responsive size="sm" bordered hover className="m-0 text-center align-middle">
                     <thead className="table-light">
                       <tr>
                         <th style={{ width: "45%" }}>البرنامج المشترك</th>

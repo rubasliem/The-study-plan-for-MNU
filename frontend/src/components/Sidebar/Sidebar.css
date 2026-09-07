@@ -195,3 +195,34 @@
   border-color: #ef4444 !important;
   transform: scale(1.02);
 }
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 1000; /* above backdrop */
+    transform: translateX(100%); /* hidden to the right in RTL */
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .sidebar.open {
+    transform: translateX(0); /* slide in */
+  }
+  
+  .sidebar-backdrop {
+    animation: fadeIn 0.3s ease;
+  }
+
+  /* Make main content full width */
+  .app-container main {
+    padding: 15px !important;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

@@ -10,8 +10,10 @@ import logo from '../../assets/logo.png';
  * Sidebar component for navigation
  * @param {string} activeTab - The current active tab ID
  * @param {function} setActiveTab - Handler to update the active tab
+ * @param {boolean} isOpen - Whether the sidebar is open on mobile
+ * @param {function} setIsOpen - Handler to toggle sidebar visibility
  */
-export default function Sidebar({ activeTab, setActiveTab }) {
+export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) {
   const { user, logout } = useContext(AuthContext);
   const [facultyName, setFacultyName] = useState('');
   const [facultiesList, setFacultiesList] = useState([]);
@@ -34,7 +36,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
     }
     try {
         const token = localStorage.getItem('token');
-        await axios.post('http://localhost:8000/api/auth/change-password', {
+        await axios.post(`/api/auth/change-password`, {
             old_password: oldPassword,
             new_password: newPassword
         }, { headers: { Authorization: `Bearer ${token}` } });
@@ -55,7 +57,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
     }
     try {
         const token = localStorage.getItem('token');
-        await axios.post('http://localhost:8000/api/auth/security-question', {
+        await axios.post(`/api/auth/security-question`, {
             security_question: securityQuestion,
             security_answer: securityAnswer
         }, { headers: { Authorization: `Bearer ${token}` } });
@@ -73,7 +75,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
-        const res = await axios.get('http://localhost:8000/api/recycle-bin', {
+        const res = await axios.get(`/api/recycle-bin`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setRecycleCount(res.data.length);
@@ -86,7 +88,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
-        const res = await axios.get('http://localhost:8000/api/notifications', {
+        const res = await axios.get(`/api/notifications`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -109,7 +111,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
-        const res = await axios.get('http://localhost:8000/api/logs/stats', {
+        const res = await axios.get(`/api/logs/stats`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setLogsCount(res.data.total || 0);
@@ -130,7 +132,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
         fetchLogsCount();
       }, 2000);
       
-      axios.get('http://localhost:8000/api/faculties')
+      axios.get(`/api/faculties`)
         .then(res => {
           const list = res.data || [];
           setFacultiesList(list);
@@ -397,17 +399,38 @@ export default function Sidebar({ activeTab, setActiveTab }) {
   };
 
   return (
-    <aside className="sidebar">
-      {/* Sidebar Header */}
-      <div className="sidebar-header">
-        <div className="logo-container">
-          <img src={logo} alt="MNU Logo" className="logo-image" />
-          <div className="logo-text">
-            <h1 className="logo-title" style={{ fontSize: '18px', fontWeight: 'bold', margin: '5px 0', color: '#2e7d32' }}>جامعة المنوفية الأهلية</h1>
-            
+    <>
+      {/* Mobile Backdrop */}
+      {isOpen && (
+        <div 
+          className="sidebar-backdrop d-md-none" 
+          onClick={() => setIsOpen(false)}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 99
+          }}
+        />
+      )}
+      
+      <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+        {/* Sidebar Header */}
+        <div className="sidebar-header position-relative">
+          {/* Mobile close button */}
+          <button 
+            className="btn-close-sidebar d-md-none position-absolute" 
+            style={{ top: '15px', left: '15px', background: 'transparent', border: 'none', color: '#6c757d' }}
+            onClick={() => setIsOpen(false)}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+          
+          <div className="logo-container">
+            <img src={logo} alt="MNU Logo" className="logo-image" />
+            <div className="logo-text">
+              <h1 className="logo-title" style={{ fontSize: '18px', fontWeight: 'bold', margin: '5px 0', color: '#2e7d32' }}>جامعة المنوفية الأهلية</h1>
+            </div>
           </div>
         </div>
-      </div>
 
       {/* Navigation Menu */}
       <nav className="sidebar-nav">
@@ -418,6 +441,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
                 className={`nav-button ${activeTab === item.id ? 'active' : ''}`}
                 onClick={() => {
                   setActiveTab(item.id);
+                  if (window.innerWidth <= 768 && setIsOpen) setIsOpen(false);
                 }}
               >
                 <span className="nav-icon">{item.icon}</span>
@@ -578,5 +602,6 @@ export default function Sidebar({ activeTab, setActiveTab }) {
         </Modal.Body>
       </Modal>
     </aside>
+    </>
   );
 }

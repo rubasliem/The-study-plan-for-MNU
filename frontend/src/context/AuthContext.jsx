@@ -9,7 +9,7 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     
     // Base URL of backend
-    const API = "http://localhost:8000";
+    const API = "";
 
     useEffect(() => {
         if (token) {

@@ -44,7 +44,7 @@ const LoginPage = () => {
         }
         setForgotLoading(true);
         try {
-            const res = await axios.get(`http://localhost:8000/api/auth/forgot-password/${encodeURIComponent(cleanName)}`);
+            const res = await axios.get(`/api/auth/forgot-password/${encodeURIComponent(cleanName)}`);
             setSecurityQuestion(res.data.security_question);
             setForgotOptions(res.data.options || []);
             setForgotStep(2);
@@ -68,7 +68,7 @@ const LoginPage = () => {
         }
         setForgotLoading(true);
         try {
-            await axios.post('http://localhost:8000/api/auth/reset-password', {
+            await axios.post(`/api/auth/reset-password`, {
                 username: forgotUsername.trim(),
                 security_answer: securityAnswer.trim(),
                 new_password: newPassword
@@ -131,9 +131,9 @@ const LoginPage = () => {
                         borderRadius: '50%',
                         backgroundImage: `url(${logo})`,
                         backgroundPosition: 'center',
-                        backgroundSize: 'cover',
+                        backgroundSize: 'contain',
                         backgroundRepeat: 'no-repeat',
-                        opacity: 0.1,
+                        opacity: 0.15,
                         zIndex: 1
                     }}
                 />

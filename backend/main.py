@@ -979,11 +979,25 @@ def delete_user(user_id: int, db: Session = Depends(get_db), admin: models.User 
         raise HTTPException(status_code=404, detail="المستخدم غير موجود")
     if user.username == "admin":
         raise HTTPException(status_code=400, detail="لا يمكن حذف مدير النظام الافتراضي")
-    db.delete(user)
-    
-    role_ar = "مدير عام" if user.role == "admin" else ("مدير شؤون الطلاب" if user.role == "student_affairs" else ("مسؤول كلية" if user.role == "faculty_admin" else ("مدير برنامج" if user.role == "faculty_professor" else "المراجع")))
-    create_notification(db, None, f"{admin.username.split('@')[0]} ({'مدير عام' if admin.role == models.UserRole.admin else 'مدير برنامج'})", f"[ADMIN_ONLY] قام بحذف المستخدم: {user.username} ({role_ar})")
-    db.commit()
+        
+    try:
+        # Save user details for notification before deleting
+        deleted_username = user.username
+        deleted_role = user.role
+        role_ar = "مدير عام" if deleted_role == "admin" else ("مدير شؤون الطلاب" if deleted_role == "student_affairs" else ("مسؤول كلية" if deleted_role == "faculty_admin" else ("مدير برنامج" if deleted_role == "faculty_professor" else "المراجع")))
+        
+        # Remove associations and detach logs to avoid foreign key constraints
+        user.assigned_faculties.clear()
+        db.query(models.ActivityLog).filter(models.ActivityLog.user_id == user_id).update({"user_id": None}, synchronize_session=False)
+        
+        db.delete(user)
+        create_notification(db, None, f"{admin.username.split('@')[0]} ({'مدير عام' if admin.role == models.UserRole.admin else 'مدير برنامج'})", f"[ADMIN_ONLY] قام بحذف المستخدم: {deleted_username} ({role_ar})")
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        import traceback
+        error_msg = str(e)
+        raise HTTPException(status_code=400, detail=f"Database Error: {error_msg}")
     
     return {"message": "تم الحذف بنجاح"}
 

@@ -13,7 +13,7 @@ import logo from '../assets/logo.png';
 import { confirmAction } from '../utils/confirmAlert';
 import toast from 'react-hot-toast';
 
-const API = "http://localhost:8000";
+const API = "";
 
 const LogsPage = () => {
     const { user } = useContext(AuthContext);
@@ -842,7 +842,7 @@ const LogsPage = () => {
                         </div>
                     ) : (
                         <div className="table-responsive">
-                            <Table hover className="align-middle mb-0 text-center logs-custom-table" style={{ fontSize: '0.92rem' }}>
+                            <Table responsive hover className="align-middle mb-0 text-center logs-custom-table" style={{ fontSize: '0.92rem' }}>
                                 <thead className="bg-light text-dark fw-bold border-bottom">
                                     <tr>
                                         {isAdmin && (

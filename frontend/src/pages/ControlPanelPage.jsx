@@ -19,7 +19,7 @@ const ControlPanelPage = () => {
     const [loading, setLoading] = useState(true);
     const [draggedYearIndex, setDraggedYearIndex] = useState(null);
 
-    const API = "http://localhost:8000";
+    const API = "";
 
     useEffect(() => {
         fetchData();
@@ -244,7 +244,7 @@ const ControlPanelPage = () => {
                         `}
                     </style>
                     <div className="table-responsive" style={{ width: '100%', overflowX: 'auto', margin: 0 }}>
-                        <Table striped bordered hover className="mb-0" style={{ width: 'max-content', minWidth: '100%' }}>
+                        <Table responsive striped bordered hover className="mb-0" style={{ width: 'max-content', minWidth: '100%' }}>
                             <thead className="bg-light">
                                 <tr style={{ borderBottom: '2.5px solid var(--secondary)', whiteSpace: 'nowrap', height: '80px' }}>
                                     <th className="sticky-col-1" style={{ overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'middle' }}>اسم المستخدم</th>
@@ -535,7 +535,7 @@ const ControlPanelPage = () => {
                         </div>
 
                         <div className="table-responsive">
-                            <Table striped bordered hover className="mb-0 text-center align-middle">
+                            <Table responsive striped bordered hover className="mb-0 text-center align-middle">
                                 <thead className="bg-light">
                                     <tr style={{ borderBottom: '2px solid #2e7d32' }}>
                                         <th style={{ textAlign: 'right' }}>العام الجامعي</th>

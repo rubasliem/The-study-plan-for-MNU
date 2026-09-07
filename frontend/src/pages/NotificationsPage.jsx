@@ -21,7 +21,7 @@ const NotificationsPage = () => {
     const [filterPage, setFilterPage] = useState('');
     const [academicYearsList, setAcademicYearsList] = useState([]);
 
-    const API = "http://localhost:8000";
+    const API = "";
 
     // جلب جميع الأعوام الجامعية المسجلة بالنظام مع دمج الأعوام الموجودة في الإشعارات
     const academicYears = Array.from(new Set([
@@ -715,7 +715,7 @@ const NotificationsPage = () => {
                         </div>
                     ) : (
                         <div className="table-responsive">
-                            <Table hover className="align-middle notif-custom-table" style={{ minWidth: '900px' }}>
+                            <Table responsive hover className="align-middle notif-custom-table" style={{ minWidth: '900px' }}>
                                 <thead className="table-light">
                                     <tr>
                                         {canDelete && (

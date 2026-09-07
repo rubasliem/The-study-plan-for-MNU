@@ -36,7 +36,7 @@ const AdminUsersPage = () => {
         setCurrentPage(1);
     }, [searchTerm, filterRole, filterFaculty]);
 
-    const API = "http://localhost:8000";
+    const API = "";
 
     useEffect(() => {
         fetchData();
@@ -202,8 +202,22 @@ const AdminUsersPage = () => {
             }
         }
         
-        if (filterRole && u.role !== filterRole) {
-            return false;
+        if (filterRole) {
+            let roleText = 'مدير برنامج';
+            if (u.role === 'admin') roleText = 'مدير عام';
+            else if (u.role === 'faculty_admin') roleText = 'مسؤول كلية';
+            else if (u.role === 'student_affairs') roleText = 'مدير شؤون الطلاب';
+            else if (u.role === 'reviewer') roleText = 'المراجع';
+            
+            const jobTitleText = u.job_title || roleText;
+            
+            if (filterRole === 'مدير عام (Super Admin)') {
+                if (u.role !== 'admin') return false;
+            } else if (filterRole === 'مسؤول كلية (Faculty Admin)') {
+                if (u.role !== 'faculty_admin') return false;
+            } else if (jobTitleText !== filterRole && roleText !== filterRole) {
+                return false;
+            }
         }
         
         if (filterFaculty) {
