@@ -996,13 +996,16 @@ const CoursesPage = () => {
 
 
 
-    if (!formData.program_id) errs.program_id = "البرنامج مطلوب";
+    if (!formData.program_id && !isMedicine) {
+      const facPrograms = programs.filter(p => String(p.faculty_id) === String(formData.faculty_id));
+      if (facPrograms.length > 0 && parseInt(formData.level) !== 0) {
+        errs.program_id = "البرنامج مطلوب";
+      }
+    }
 
-    if (formData.level === "") errs.level = "المستوى مطلوب";
+    if (formData.level === "" || formData.level === undefined || formData.level === null) errs.level = "المستوى مطلوب";
 
     if (!formData.semester || !formData.semester.trim()) errs.semester = "الفصل الدراسي مطلوب";
-
-
 
     if (!isMedicine) {
       if (formData.credit_hours === undefined || formData.credit_hours === null || String(formData.credit_hours).trim() === "") {
@@ -1015,74 +1018,41 @@ const CoursesPage = () => {
       }
     }
 
-
-
     // التحقق من أن نسبة النجاح عدد صحيح بين 50 و 65
-
     if (formData.success_rate !== undefined && formData.success_rate !== null && String(formData.success_rate).trim() !== "") {
-
       const val = parseFloat(formData.success_rate);
-
       if (isNaN(val) || !Number.isInteger(val) || val < 50 || val > 65) {
-
         errs.success_rate = "نسبة النجاح يجب أن تكون عدداً صحيحاً بين 50 و 65";
-
       }
-
     }
 
-
-
     // التحقق من صحة حقول الأرقام الاختيارية
-
     const optionalNumericFields = [
-
       { key: 'study_hours', name: 'الساعات الدراسية' },
-
       { key: 'midterm_grade', name: 'درجة منتصف الفصل' },
-
       { key: 'midterm_2_grade', name: 'درجة منتصف الفصل ٢' },
-
       { key: 'oral_grade', name: 'درجة الشفوي' },
-
       { key: 'written_grade', name: 'درجة التحريري خلال الفصل' },
-
       { key: 'clinical_grade', name: 'درجة الكلينك' },
-
       { key: 'final_eval_grade', name: 'درجة التقييم النهائي' },
-
       { key: 'attendance_activity_grade', name: 'درجة الحضور والأنشطة والسمات' }
-
     ];
 
-
-
     optionalNumericFields.forEach(f => {
-
       const val = formData[f.key];
-
       if (val !== undefined && val !== null && String(val).trim() !== "") {
-
         const num = parseFloat(val);
-
         if (isNaN(num) || num < 0) {
-
           errs[f.key] = `${f.name} يجب أن تكون رقماً أكبر من أو يساوي 0`;
-
         }
-
       }
-
     });
 
-
-
     if (Object.keys(errs).length > 0) {
-
       setErrors(errs);
-
+      const firstErr = Object.values(errs)[0];
+      toast.error(`يرجى مراجعة البيانات: ${firstErr}`);
       return;
-
     }
 
 

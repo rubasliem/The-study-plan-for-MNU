@@ -3535,76 +3535,46 @@ const ProfessorsPage = () => {
 
 
 
-    const nid = formData.national_id;
-
-    if (!nid || nid.length !== 14 || !['2', '3'].includes(nid[0])) {
-
+    const nid = formData.national_id ? String(formData.national_id).trim() : "";
+    if (!nid) {
+      newErrors.national_id = "الرقم القومي مطلوب";
+    } else if (modalMode === 'add' && (nid.length !== 14 || !['2', '3'].includes(nid[0]))) {
       newErrors.national_id = "يجب أن يكون 14 رقماً ويبدأ بـ 2 أو 3";
-
     } else {
-
       const isDuplicate = professors.some(p => p.national_id === nid && (modalMode === 'add' || String(p.id) !== String(selectedProfessorId)));
-
       if (isDuplicate) {
-
         newErrors.national_id = "عضو هيئة التدريس بهذا الرقم القومي مسجل بالفعل";
-
       }
-
     }
 
-
-
-    if (!formData.name_ar || formData.name_ar.trim().split(/\s+/).length < 3) {
-
-      newErrors.name_ar = "الاسم يجب أن يكون 3 كلمات على الأقل";
-
+    if (!formData.name_ar || formData.name_ar.trim().length < 2) {
+      newErrors.name_ar = "الاسم بالعربي مطلوب";
     }
-
-
 
     if (!formData.job_title) {
-
       newErrors.job_title = "يجب اختيار الدرجة العلمية";
-
     }
 
-
-
-    if (formData.original_workplace && formData.original_workplace.trim().length > 0 && formData.original_workplace.trim().length < 3) {
-
-      newErrors.original_workplace = "يجب أن تكون جهة العمل 3 أحرف على الأقل";
-
+    if (formData.original_workplace && formData.original_workplace.trim().length > 0 && formData.original_workplace.trim().length < 2) {
+      newErrors.original_workplace = "يجب أن تكون جهة العمل حرفين على الأقل";
     }
 
-
-
-        if (formData.phone && formData.phone.trim().length > 0) {
-
-      if (!formData.phone.startsWith("01") || formData.phone.length !== 11) {
-
-        newErrors.phone = "يجب ادخال رقم مصري صحيح (11 رقم يبدأ بـ 01)";
-
+    if (formData.phone && formData.phone.trim().length > 0) {
+      const cleanPhone = formData.phone.trim().replace(/[\s\-]/g, '');
+      if (cleanPhone.length < 8 || cleanPhone.length > 15) {
+        newErrors.phone = "يرجى إدخال رقم هاتف صحيح";
       }
-
     }
-
-
 
     if (!selectedFaculties || selectedFaculties.length === 0) {
-
       newErrors.faculties = "يجب اختيار كلية واحدة على الأقل";
-
     }
 
-
-
     if (Object.keys(newErrors).length > 0) {
-
       setErrors(newErrors);
-
+      const firstErr = Object.values(newErrors)[0];
+      toast.error(`يرجى مراجعة البيانات: ${firstErr}`);
       return;
-
     }
 
 
