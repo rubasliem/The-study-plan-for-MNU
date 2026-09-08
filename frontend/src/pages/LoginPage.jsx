@@ -141,8 +141,8 @@ const LoginPage = () => {
                 {/* Inner White Login Circle */}
                 <div 
                     style={{
-                        width: '660px',
-                        height: '660px',
+                        width: '800px',
+                        height: '800px',
                         maxWidth: '92%',
                         maxHeight: '92%',
                         borderRadius: '50%',
