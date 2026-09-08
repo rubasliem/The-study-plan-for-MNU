@@ -106,10 +106,10 @@ const LoginPage = () => {
             {/* Outer Circular Logo Frame */}
             <div 
                 style={{
-                    width: '720px',
-                    height: '720px',
-                    maxWidth: '88vh',
-                    maxHeight: '88vh',
+                    width: '840px',
+                    height: '840px',
+                    maxWidth: '92vh',
+                    maxHeight: '92vh',
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',
@@ -131,9 +131,9 @@ const LoginPage = () => {
                         borderRadius: '50%',
                         backgroundImage: `url(${logo})`,
                         backgroundPosition: 'center',
-                        backgroundSize: '82%',
+                        backgroundSize: '95%',
                         backgroundRepeat: 'no-repeat',
-                        opacity: 0.18,
+                        opacity: 0.16,
                         zIndex: 1
                     }}
                 />
