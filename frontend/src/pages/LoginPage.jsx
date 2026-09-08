@@ -106,10 +106,10 @@ const LoginPage = () => {
             {/* Outer Circular Logo Frame */}
             <div 
                 style={{
-                    width: '970px',
-                    height: '970px',
-                    maxWidth: '160vw',
-                    maxHeight: '160vw',
+                    width: '780px',
+                    height: '780px',
+                    maxWidth: '95vh',
+                    maxHeight: '95vh',
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',
@@ -131,7 +131,7 @@ const LoginPage = () => {
                         borderRadius: '50%',
                         backgroundImage: `url(${logo})`,
                         backgroundPosition: 'center',
-                        backgroundSize: 'contain',
+                        backgroundSize: '75%',
                         backgroundRepeat: 'no-repeat',
                         opacity: 0.15,
                         zIndex: 1
@@ -288,9 +288,9 @@ const LoginPage = () => {
                     </Form>
 
                     {/* Footer Copyright */}
-                    <div className="mt-4" style={{ fontSize: '0.95rem', color: '#888', lineHeight: '1.6' }}>
+                    <div className="mt-4" style={{ fontSize: '0.9rem', color: '#888', lineHeight: '1.8', whiteSpace: 'nowrap' }}>
                         <div>جميع الحقوق محفوظة © 2027/2026</div>
-                        <div>صُنِع بواسطة <strong>الفريق الهندسي والتقني</strong> التابع لإدارة <strong>شؤون الطلاب</strong></div>
+                        <div>صُنِع بواسطة <strong style={{ fontWeight: '700', padding: '0 4px' }}>الفريق الهندسي والتقني</strong> التابع لإدارة <strong style={{ fontWeight: '700', padding: '0 4px' }}>شؤون الطلاب</strong></div>
                     </div>
                 </div>
             </div>
