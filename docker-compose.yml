@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # 1. قاعدة البيانات (Database - PostgreSQL)
+  # 1. قاعدة البيانات (PostgreSQL)
   db:
     image: postgres:15-alpine
     container_name: mnu_postgres
@@ -16,6 +16,11 @@ services:
       - pgdata:/var/lib/postgresql/data
     networks:
       - mnu_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mnu_admin -d mnu_study_plan"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # 2. الخادم الخلفي (Backend - FastAPI)
   backend:
@@ -30,11 +35,12 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - mnu_network
 
-  # 3. الواجهة الأمامية (Frontend - React & Nginx)
+  # 3. الواجهة الأمامية (Frontend - React + Nginx)
   frontend:
     build:
       context: ./frontend
@@ -44,7 +50,6 @@ services:
     restart: always
     ports:
       - "80:80"
-      - "5173:80"
     depends_on:
       - backend
     networks:
@@ -52,6 +57,7 @@ services:
 
 volumes:
   pgdata:
+    driver: local
 
 networks:
   mnu_network:
