@@ -106,10 +106,10 @@ const LoginPage = () => {
             {/* Outer Circular Logo Frame */}
             <div 
                 style={{
-                    width: '780px',
-                    height: '780px',
-                    maxWidth: '95vh',
-                    maxHeight: '95vh',
+                    width: '640px',
+                    height: '640px',
+                    maxWidth: '85vh',
+                    maxHeight: '85vh',
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',
@@ -131,7 +131,7 @@ const LoginPage = () => {
                         borderRadius: '50%',
                         backgroundImage: `url(${logo})`,
                         backgroundPosition: 'center',
-                        backgroundSize: '75%',
+                        backgroundSize: 'contain',
                         backgroundRepeat: 'no-repeat',
                         opacity: 0.15,
                         zIndex: 1
@@ -141,10 +141,10 @@ const LoginPage = () => {
                 {/* Inner White Login Circle */}
                 <div 
                     style={{
-                        width: '630px',
-                        height: '630px',
-                        maxWidth: '92%',
-                        maxHeight: '92%',
+                        width: '500px',
+                        height: '500px',
+                        maxWidth: '85%',
+                        maxHeight: '85%',
                         borderRadius: '50%',
                         backgroundColor: '#ffffff',
                         border: 'none',
@@ -152,17 +152,17 @@ const LoginPage = () => {
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        padding: '40px 35px',
+                        padding: '30px 25px',
                         boxShadow: 'inset 0 0 20px rgba(0,0,0,0.03), 0 12px 35px rgba(0,0,0,0.1)',
                         textAlign: 'center',
                         zIndex: 2
                     }}
                 >
                     {/* Title */}
-                    <h3 className="fw-bold mb-3" style={{ color: '#2e7d32', fontSize: '2.5rem', marginTop: '-30px' }}>
+                    <h3 className="fw-bold mb-2" style={{ color: '#2e7d32', fontSize: '2rem', marginTop: '-15px' }}>
                         تسجيل الدخول
                     </h3>
-                    <p className="text-muted mb-5" style={{ fontSize: '0.95rem', fontWeight: '500' }}>
+                    <p className="text-muted mb-4" style={{ fontSize: '0.85rem', fontWeight: '500' }}>
                         برنامج لكل ما يخص جامعة المنوفية الأهلية <br /> أعضاء هيئة التدريس - المقرارات - الخطط الدراسية
                     </p>
 
