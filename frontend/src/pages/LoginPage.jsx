@@ -106,10 +106,10 @@ const LoginPage = () => {
             {/* Outer Circular Logo Frame */}
             <div 
                 style={{
-                    width: '640px',
-                    height: '640px',
-                    maxWidth: '85vh',
-                    maxHeight: '85vh',
+                    width: '800px',
+                    height: '800px',
+                    maxWidth: '90vh',
+                    maxHeight: '90vh',
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',
@@ -131,7 +131,7 @@ const LoginPage = () => {
                         borderRadius: '50%',
                         backgroundImage: `url(${logo})`,
                         backgroundPosition: 'center',
-                        backgroundSize: 'contain',
+                        backgroundSize: '55%',
                         backgroundRepeat: 'no-repeat',
                         opacity: 0.15,
                         zIndex: 1
@@ -141,8 +141,8 @@ const LoginPage = () => {
                 {/* Inner White Login Circle */}
                 <div 
                     style={{
-                        width: '500px',
-                        height: '500px',
+                        width: '450px',
+                        height: '450px',
                         maxWidth: '85%',
                         maxHeight: '85%',
                         borderRadius: '50%',
