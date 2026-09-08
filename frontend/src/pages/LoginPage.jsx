@@ -106,8 +106,8 @@ const LoginPage = () => {
             {/* Outer Circular Logo Frame */}
             <div 
                 style={{
-                    width: '980px',
-                    height: '980px',
+                    width: '950px',
+                    height: '950px',
                     maxWidth: '150vw',
                     maxHeight: '150vw',
                     borderRadius: '50%',
@@ -141,10 +141,10 @@ const LoginPage = () => {
                 {/* Inner White Login Circle */}
                 <div 
                     style={{
-                        width: '540px',
-                        height: '540px',
-                        maxWidth: '85%',
-                        maxHeight: '85%',
+                        width: '610px',
+                        height: '610px',
+                        maxWidth: '90%',
+                        maxHeight: '90%',
                         borderRadius: '50%',
                         backgroundColor: '#ffffff',
                         border: 'none',
