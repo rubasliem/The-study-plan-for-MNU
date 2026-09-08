@@ -131,7 +131,7 @@ const LoginPage = () => {
                         borderRadius: '50%',
                         backgroundImage: `url(${logo})`,
                         backgroundPosition: 'center',
-                        backgroundSize: '30%',
+                        backgroundSize: '10%',
                         backgroundRepeat: 'no-repeat',
                         opacity: 0.15,
                         zIndex: 1
