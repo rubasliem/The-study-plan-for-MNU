@@ -57,7 +57,7 @@ const formatWeekCountText = (count) => {
   return `${num} أسبوع`;
 };
 
-const getProfAttendanceWeeksForSemester = (profObj, targetYear, targetSemester, ayList = []) => {
+const getProfAttendanceWeeksForSemester = (profObj, targetYear, targetSemester, ayList = [], isMed = false) => {
   if (!profObj) return "--";
 
   const yName = targetYear || (ayList.length > 0 ? ayList[0].name : "2026/2027");
@@ -78,13 +78,17 @@ const getProfAttendanceWeeksForSemester = (profObj, targetYear, targetSemester, 
   const semStr = String(targetSemester || "").trim();
   let weeksNum = null;
 
+  const defaultS1 = isMed ? (ayObj.med_semester1_weeks ?? ayObj.semester1_weeks ?? 15) : (ayObj.semester1_weeks ?? 15);
+  const defaultS2 = isMed ? (ayObj.med_semester2_weeks ?? ayObj.semester2_weeks ?? 14) : (ayObj.semester2_weeks ?? 14);
+  const defaultS3 = isMed ? (ayObj.med_summer_weeks ?? ayObj.summer_weeks ?? 7) : (ayObj.summer_weeks ?? 7);
+
   if (semStr.includes("ثاني") || semStr.includes("ثانى") || semStr === "2") {
-    weeksNum = currentYearData.semester2_weeks ?? (isTargetYearMatch ? profObj.semester2_weeks : null) ?? ayObj.semester2_weeks ?? 15;
+    weeksNum = currentYearData.semester2_weeks ?? (isTargetYearMatch ? profObj.semester2_weeks : null) ?? defaultS2;
   } else if (semStr.includes("صيف") || semStr.includes("صيفي") || semStr === "3") {
-    weeksNum = currentYearData.summer_weeks ?? (isTargetYearMatch ? profObj.summer_weeks : null) ?? ayObj.summer_weeks ?? 8;
+    weeksNum = currentYearData.summer_weeks ?? (isTargetYearMatch ? profObj.summer_weeks : null) ?? defaultS3;
   } else {
     // Default to Semester 1
-    weeksNum = currentYearData.semester1_weeks ?? (isTargetYearMatch ? profObj.semester1_weeks : null) ?? ayObj.semester1_weeks ?? 15;
+    weeksNum = currentYearData.semester1_weeks ?? (isTargetYearMatch ? profObj.semester1_weeks : null) ?? defaultS1;
   }
 
   return formatWeekCountText(weeksNum) || `${weeksNum} أسابيع`;
@@ -175,12 +179,21 @@ const StudyPlanPage = () => {
   const [copyingPlan, setCopyingPlan] = useState(false);
 
   const isSuperAdmin = user?.role === "admin" || user?.role === "super_admin";
-  const isProgramDirector = user?.role === "faculty_professor";
+  const isManager = user?.role === "manager" || (user?.job_title && (user.job_title.trim() === "مدير" || (user.job_title.includes("مدير") && !user.job_title.includes("برنامج") && !user.job_title.includes("شؤون")) || user.job_title.includes("عميد")));
+  const isProgramDirector = user?.role === "faculty_professor" || (user?.job_title && user.job_title.includes("مدير برنامج"));
   const userFacultyId = user?.faculty_id || user?.faculty?.id;
-  const isMatchingFaculty = !userFacultyId || !selectedFaculty || String(userFacultyId) === String(selectedFaculty);
+  const isMatchingFaculty = !userFacultyId || !selectedFaculty || String(userFacultyId) === String(selectedFaculty) || user?.all_faculties_access || (user?.assigned_faculties && user.assigned_faculties.some(f => String(f.id) === String(selectedFaculty)));
 
-  // زر إنهاء الخطة يظهر فقط لمدير البرنامج الخاص بالكلية (أو السوبر أدمن)
-  const canFinish = Boolean(isSuperAdmin || (isProgramDirector && isMatchingFaculty));
+  // من يملك الصلاحية للضغط على زر إنهاء الخطة وإلغاء إنهاء الخطة:
+  // 1. المدير العام (Super Admin)
+  // 2. المدير (Manager)
+  // 3. مدير البرنامج الخاص بهذه الكلية (Program Director for this faculty)
+  const canFinish = Boolean(
+    isSuperAdmin ||
+    isManager ||
+    (isProgramDirector && isMatchingFaculty) ||
+    (user?.perm_finish_plan && isMatchingFaculty)
+  );
   const canReview1 = Boolean(isSuperAdmin || user?.perm_review_1);
   const canReview2 = Boolean(isSuperAdmin || user?.perm_review_2);
   const canApprove = Boolean(isSuperAdmin || user?.perm_approve_plan);
@@ -807,15 +820,21 @@ const StudyPlanPage = () => {
     }
   };
 
+  const [isCopyGlowActive, setIsCopyGlowActive] = useState(false);
+
   const handleOpenCopyModal = () => {
     if (!selectedFaculty) {
       toast.error("الرجاء اختيار الكلية أولاً");
       return;
     }
+    setIsCopyGlowActive(true);
     const otherYears = (academicYears.length > 0 ? academicYears : YEARS).filter(y => y !== selectedYear);
     setSourceAcademicYear(otherYears.length > 0 ? otherYears[0] : selectedYear);
     setSourceSemester(selectedSemester);
-    setShowCopyPlanModal(true);
+    setTimeout(() => {
+      setShowCopyPlanModal(true);
+      setIsCopyGlowActive(false);
+    }, 350);
   };
 
   const handleExecuteCopyPlan = async () => {
@@ -1157,8 +1176,14 @@ const StudyPlanPage = () => {
     }
   };
 
+  const [activeWorkflowAction, setActiveWorkflowAction] = useState("");
+
   const handleWorkflowAction = async (action, actionName) => {
     if (!selectedFaculty) return;
+    setActiveWorkflowAction(action);
+    setTimeout(() => {
+      setActiveWorkflowAction("");
+    }, 600);
     try {
       const payload = {
         faculty_id: Number(selectedFaculty),
@@ -3330,8 +3355,13 @@ ${signaturesHtml}
           <Button variant="warning" className="fw-bold text-white shadow-sm" onClick={openModal} style={{ backgroundColor: "#d97706", borderColor: "#d97706" }}>
             <FaPlus className="ms-2" /> إضافة مقرر للخطة
           </Button>
-          <Button variant="warning" className="fw-bold shadow-sm btn-copy-plan-glow" onClick={handleOpenCopyModal}>
-            <FaCopy className="ms-2" /> نسخ خطة من عام سابق
+          <Button 
+            variant="warning" 
+            className={`fw-bold shadow-sm btn-copy-plan-glow ${isCopyGlowActive ? 'glow-active' : ''}`} 
+            onClick={handleOpenCopyModal}
+            style={{ color: '#78350f' }}
+          >
+            <FaCopy className="ms-2" style={{ color: '#78350f' }} /> نسخ خطة من عام سابق
           </Button>
         </div>
       )}
@@ -3733,7 +3763,7 @@ ${signaturesHtml}
                 {canFinish && (
                   <Button
                     variant={currentPlan?.is_finished ? "success" : "outline-success"}
-                    className="fw-bold px-3 py-2"
+                    className={`fw-bold px-3 py-2 btn-workflow-sweep ${activeWorkflowAction === (currentPlan?.is_finished ? "cancel_finish" : "finish") ? "sweep-active" : ""}`}
                     disabled={!currentPlan || (currentPlan?.is_finished && currentPlan?.is_approved)}
                     title={
                       !currentPlan
@@ -3753,7 +3783,7 @@ ${signaturesHtml}
                 {canReview1 && (
                   <Button
                     variant={currentPlan?.is_reviewed_1 ? "primary" : "outline-primary"}
-                    className="fw-bold px-3 py-2"
+                    className={`fw-bold px-3 py-2 btn-workflow-sweep ${activeWorkflowAction === (currentPlan?.is_reviewed_1 ? "cancel_review1" : "review1") ? "sweep-active" : ""}`}
                     disabled={!currentPlan || (!currentPlan?.is_finished && !currentPlan?.is_reviewed_1) || (currentPlan?.is_reviewed_1 && currentPlan?.is_reviewed_2)}
                     title={!currentPlan?.is_finished && !currentPlan?.is_reviewed_1 ? "يجب إنهاء الخطة أولاً لتفعيل المراجعة الأولى" : (currentPlan?.is_reviewed_1 && currentPlan?.is_reviewed_2 ? "لا يمكن إلغاء المراجعة الأولى بعد إتمام المراجعة الثانية" : "")}
                     onClick={() => handleWorkflowAction(currentPlan?.is_reviewed_1 ? "cancel_review1" : "review1", currentPlan?.is_reviewed_1 ? "إلغاء المراجعة الأولى" : "مراجعة أولى")}
@@ -3765,7 +3795,7 @@ ${signaturesHtml}
                 {canReview2 && (
                   <Button
                     variant={currentPlan?.is_reviewed_2 ? "info" : "outline-info"}
-                    className={`fw-bold px-3 py-2 ${currentPlan?.is_reviewed_2 ? "text-white" : ""}`}
+                    className={`fw-bold px-3 py-2 btn-workflow-sweep ${currentPlan?.is_reviewed_2 ? "text-white" : ""} ${activeWorkflowAction === (currentPlan?.is_reviewed_2 ? "cancel_review2" : "review2") ? "sweep-active" : ""}`}
                     disabled={!currentPlan || (!currentPlan?.is_reviewed_1 && !currentPlan?.is_reviewed_2) || (currentPlan?.is_reviewed_2 && currentPlan?.is_approved)}
                     title={!currentPlan?.is_reviewed_1 && !currentPlan?.is_reviewed_2 ? "يجب إتمام المراجعة الأولى أولاً لتفعيل المراجعة الثانية" : (currentPlan?.is_reviewed_2 && currentPlan?.is_approved ? "لا يمكن إلغاء المراجعة الثانية بعد اعتماد الخطة" : "")}
                     onClick={() => handleWorkflowAction(currentPlan?.is_reviewed_2 ? "cancel_review2" : "review2", currentPlan?.is_reviewed_2 ? "إلغاء المراجعة الثانية" : "مراجعة ثانية")}
@@ -3777,7 +3807,7 @@ ${signaturesHtml}
                 {canApprove && (
                   <Button
                     variant={currentPlan?.is_approved ? "success" : "outline-success"}
-                    className="fw-bold px-3 py-2"
+                    className={`fw-bold px-3 py-2 btn-workflow-sweep ${activeWorkflowAction === (currentPlan?.is_approved ? "cancel_approve" : "approve") ? "sweep-active" : ""}`}
                     disabled={!currentPlan || (!isSuperAdmin && !currentPlan?.is_reviewed_2 && !currentPlan?.is_approved)}
                     title={!currentPlan ? "يجب حفظ الخطة أولاً" : (!isSuperAdmin && !currentPlan?.is_reviewed_2 && !currentPlan?.is_approved ? "يجب إتمام المراجعة الثانية أولاً لتفعيل اعتماد الخطة" : "")}
                     onClick={() => handleWorkflowAction(currentPlan?.is_approved ? "cancel_approve" : "approve", currentPlan?.is_approved ? "إلغاء اعتماد الخطة" : "إعتماد الخطة")}
@@ -5353,7 +5383,7 @@ ${signaturesHtml}
                           <div>• <strong>الدرجة العلمية :</strong> &nbsp;{getJobTitleFull(selectedProfObj.job_title) || "--"}</div>
                           <div>• <strong>جهة القدوم :</strong> &nbsp;{selectedProfObj.original_workplace || "--"}</div>
                           <div>• <strong>نوع الانتداب :</strong> &nbsp;{selectedProfObj.contract_type || "--"}</div>
-                          <div>• <strong>عدد أسابيع الحضور في {selectedSemester.startsWith("الفصل") ? selectedSemester : `الفصل الدراسي ${selectedSemester}`} :</strong> &nbsp;{getProfAttendanceWeeksForSemester(selectedProfObj, selectedYear, selectedSemester, academicYears)}</div>
+                          <div>• <strong>عدد أسابيع الحضور في {selectedSemester.startsWith("الفصل") ? selectedSemester : `الفصل الدراسي ${selectedSemester}`} :</strong> &nbsp;{getProfAttendanceWeeksForSemester(selectedProfObj, selectedYear, selectedSemester, academicYears, isMedicine)}</div>
                         </div>
                       </div>
                     )}

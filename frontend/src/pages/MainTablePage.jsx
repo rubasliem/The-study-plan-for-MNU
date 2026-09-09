@@ -106,9 +106,24 @@ const getProfWeeksBreakdown = (prof, targetYear, academicYears) => {
     const currentYearData = parsedAyWeeks[yName] || {};
     const isTargetYearMatch = (prof.academic_year === yName);
 
-    const s1 = currentYearData.semester1_weeks ?? (isTargetYearMatch ? prof.semester1_weeks : null) ?? ayObj.semester1_weeks ?? 15;
-    const s2 = currentYearData.semester2_weeks ?? (isTargetYearMatch ? prof.semester2_weeks : null) ?? ayObj.semester2_weeks ?? 14;
-    const s3 = currentYearData.summer_weeks ?? (isTargetYearMatch ? prof.summer_weeks : null) ?? ayObj.summer_weeks ?? 7;
+    const facName = getProfFacultyName(prof);
+    const isMed = Boolean(facName && (facName.includes("الطب والجراحة") || facName.includes("طب بشري") || facName.includes("كلية الطب")) && !facName.includes("البيطري") && !facName.includes("الأسنان") && !facName.includes("الاسنان") && !facName.includes("تكنولوجيا"));
+
+    const defaultS1 = isMed ? (ayObj.med_semester1_weeks ?? ayObj.semester1_weeks ?? 15) : (ayObj.semester1_weeks ?? 15);
+    const defaultS2 = isMed ? (ayObj.med_semester2_weeks ?? ayObj.semester2_weeks ?? 14) : (ayObj.semester2_weeks ?? 14);
+    const defaultS3 = isMed ? (ayObj.med_summer_weeks ?? ayObj.summer_weeks ?? 7) : (ayObj.summer_weeks ?? 7);
+
+    const hasS1 = currentYearData.semester1_weeks != null && currentYearData.semester1_weeks !== "" && Number(currentYearData.semester1_weeks) > 0;
+    const hasS2 = currentYearData.semester2_weeks != null && currentYearData.semester2_weeks !== "" && Number(currentYearData.semester2_weeks) > 0;
+    const hasS3 = currentYearData.summer_weeks != null && currentYearData.summer_weeks !== "" && Number(currentYearData.summer_weeks) > 0;
+
+    const profHasS1 = isTargetYearMatch && prof.semester1_weeks != null && prof.semester1_weeks !== "" && Number(prof.semester1_weeks) > 0;
+    const profHasS2 = isTargetYearMatch && prof.semester2_weeks != null && prof.semester2_weeks !== "" && Number(prof.semester2_weeks) > 0;
+    const profHasS3 = isTargetYearMatch && prof.summer_weeks != null && prof.summer_weeks !== "" && Number(prof.summer_weeks) > 0;
+
+    const s1 = hasS1 ? Number(currentYearData.semester1_weeks) : (profHasS1 ? Number(prof.semester1_weeks) : defaultS1);
+    const s2 = hasS2 ? Number(currentYearData.semester2_weeks) : (profHasS2 ? Number(prof.semester2_weeks) : defaultS2);
+    const s3 = hasS3 ? Number(currentYearData.summer_weeks) : (profHasS3 ? Number(prof.summer_weeks) : defaultS3);
 
     return {
         s1Num: s1,

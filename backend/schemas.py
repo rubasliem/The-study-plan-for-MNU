@@ -212,6 +212,7 @@ class UserBase(BaseModel):
     perm_review_2: bool = False
     perm_approve_plan: bool = False
     perm_finish_plan: bool = False
+    hidden_pages: Optional[str] = "[]"
 
 class UserCreate(UserBase):
     password: str
@@ -238,6 +239,10 @@ class UserUpdate(BaseModel):
     perm_review_2: Optional[bool] = None
     perm_approve_plan: Optional[bool] = None
     perm_finish_plan: Optional[bool] = None
+    hidden_pages: Optional[str] = None
+
+class UserHiddenPagesUpdate(BaseModel):
+    hidden_pages: List[str]
 
 class UserOut(UserBase):
     id: int
@@ -404,20 +409,34 @@ class AcademicYearBase(BaseModel):
     semester1_weeks: Optional[int] = 15
     semester2_weeks: Optional[int] = 14
     summer_weeks: Optional[int] = 7
+    med_semester1_weeks: Optional[int] = 15
+    med_semester2_weeks: Optional[int] = 14
+    med_summer_weeks: Optional[int] = 7
 
 class AcademicYearReorderItem(BaseModel):
     id: int
     order_index: int
 
-
 class AcademicYearCreate(AcademicYearBase):
     pass
+
+class AcademicYearUpdate(BaseModel):
+    name: Optional[str] = None
+    semester1_weeks: Optional[int] = None
+    semester2_weeks: Optional[int] = None
+    summer_weeks: Optional[int] = None
+    med_semester1_weeks: Optional[int] = None
+    med_semester2_weeks: Optional[int] = None
+    med_summer_weeks: Optional[int] = None
 
 class AcademicYearOut(AcademicYearBase):
     id: int
     semester1_weeks: Optional[int] = 15
     semester2_weeks: Optional[int] = 14
     summer_weeks: Optional[int] = 7
+    med_semester1_weeks: Optional[int] = 15
+    med_semester2_weeks: Optional[int] = 14
+    med_summer_weeks: Optional[int] = 7
     
     class Config:
         from_attributes = True

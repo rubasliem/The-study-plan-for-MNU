@@ -395,28 +395,31 @@ h1, h2, h3, h4, h5, h6, .modal-title, .h1, .h2, .h3, .h4, .h5, .h6 {
   color: #451a03 !important;
 }
 
-/* شعاع ضوئي متحرك Sweep Shimmer Light */
+/* شعاع ضوئي متحرك عريض Sweep Shimmer Light */
 .btn-copy-plan-glow::before {
   content: '';
   position: absolute;
   top: 0;
-  left: -100%;
-  width: 70%;
+  left: -115%;
+  width: 95%;
   height: 100%;
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.7),
+    rgba(255, 255, 255, 0.35) 20%,
+    rgba(255, 255, 255, 0.95) 50%,
+    rgba(255, 255, 255, 0.35) 80%,
     transparent
   );
   transform: skewX(-25deg);
-  transition: 0.6s ease-in-out;
+  transition: 0.65s ease-in-out;
   pointer-events: none;
 }
 
 .btn-copy-plan-glow:hover::before,
-.btn-copy-plan-glow:active::before {
-  left: 140%;
+.btn-copy-plan-glow:active::before,
+.btn-copy-plan-glow.glow-active::before {
+  left: 165%;
 }
 
 .btn-copy-plan-glow:hover,
@@ -723,12 +726,19 @@ h1, h2, h3, h4, h5, h6, .modal-title, .h1, .h2, .h3, .h4, .h5, .h6 {
 }
 
 /* Luminous Golden Shine Effect matching the Emblem Dove */
-.btn-copy-plan-glow {
+.btn-copy-plan-glow,
+.btn-copy-plan-glow:hover,
+.btn-copy-plan-glow:focus,
+.btn-copy-plan-glow:active,
+.btn-copy-plan-glow.glow-active {
   position: relative;
   overflow: hidden;
   background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 35%, #fde047 70%, #fef08a 100%) !important;
   border: none !important;
   color: #78350f !important;
+  --bs-btn-color: #78350f !important;
+  --bs-btn-hover-color: #78350f !important;
+  --bs-btn-active-color: #78350f !important;
   font-weight: 800 !important;
   letter-spacing: 0.2px;
   box-shadow: none !important;
@@ -736,22 +746,54 @@ h1, h2, h3, h4, h5, h6, .modal-title, .h1, .h2, .h3, .h4, .h5, .h6 {
   transition: opacity 0.2s ease, background 0.2s ease !important;
 }
 
-.btn-copy-plan-glow svg {
+.btn-copy-plan-glow *,
+.btn-copy-plan-glow:hover *,
+.btn-copy-plan-glow:focus *,
+.btn-copy-plan-glow:active *,
+.btn-copy-plan-glow.glow-active * {
   color: #78350f !important;
 }
 
+.btn-copy-plan-glow svg {
+  color: #78350f !important;
+  display: inline-block;
+  transform-origin: center;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* حركة تكبير الأيقونة ثم تصغيرها مجدداً عند الضغط */
+@keyframes copyIconPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.6);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.btn-copy-plan-glow:active svg,
+.btn-copy-plan-glow.glow-active svg {
+  animation: copyIconPulse 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+/* شعاع ضوئي عريض جداً وفخم يمر عبر الزر */
 .btn-copy-plan-glow::before {
   content: '';
   position: absolute;
-  top: -50%;
-  left: -60%;
-  width: 40%;
-  height: 200%;
+  top: -60%;
+  left: -115%;
+  width: 95%;
+  height: 240%;
   background: linear-gradient(
     60deg,
-    rgba(255, 255, 255, 0) 20%,
-    rgba(255, 255, 255, 0.7) 50%,
-    rgba(255, 255, 255, 0) 80%
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.35) 20%,
+    rgba(255, 255, 255, 0.95) 50%,
+    rgba(255, 255, 255, 0.35) 80%,
+    rgba(255, 255, 255, 0) 100%
   );
   transform: rotate(25deg);
   pointer-events: none;
@@ -769,13 +811,91 @@ h1, h2, h3, h4, h5, h6, .modal-title, .h1, .h2, .h3, .h4, .h5, .h6 {
   color: #78350f !important;
 }
 
-.btn-copy-plan-glow:hover::before {
-  left: 140%;
+.btn-copy-plan-glow:hover::before,
+.btn-copy-plan-glow:active::before,
+.btn-copy-plan-glow.glow-active::before {
+  left: 165%;
 }
 
 .btn-copy-plan-glow:active,
 .btn-copy-plan-glow.glow-active {
-  transform: none !important;
-  box-shadow: none !important;
-  opacity: 0.9 !important;
+  transform: scale(0.97) !important;
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.65) !important;
+  opacity: 0.95 !important;
+}
+
+/* Login Page Submit Button Glow Effect */
+.login-submit-btn {
+  background-color: #236c2e !important;
+  border: none !important;
+  border-radius: 25px !important;
+  padding: 9px !important;
+  font-size: 1.1rem !important;
+  color: #ffffff !important;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s ease-in-out !important;
+  cursor: pointer;
+}
+
+.login-submit-btn:hover {
+  background-color: #2a7e36 !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95), 
+              0 0 18px 4px rgba(255, 255, 255, 0.85), 
+              0 6px 20px rgba(35, 108, 46, 0.4), 
+              inset 0 0 12px rgba(255, 255, 255, 0.6) !important;
+  filter: brightness(1.08);
+}
+
+.login-submit-btn:active,
+.login-submit-btn:focus-visible {
+  background-color: #1b5624 !important;
+  transform: scale(0.98);
+  box-shadow: 0 0 0 3px #ffffff, 
+              0 0 26px 8px rgba(255, 255, 255, 1), 
+              0 0 40px rgba(255, 255, 255, 0.85), 
+              inset 0 0 16px rgba(255, 255, 255, 0.9) !important;
+  outline: none !important;
+}
+
+/* تأثير تمرير الضوء الرمادي لأزرار مسار الخطة (إنهاء، مراجعة، اعتماد) */
+.btn-workflow-sweep {
+  position: relative !important;
+  overflow: hidden !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* شعاع الضوء الرمادي المتحرك Sweep Shimmer Light */
+.btn-workflow-sweep::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -115%;
+  width: 90%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(148, 163, 184, 0.6),
+    rgba(226, 232, 240, 0.85),
+    rgba(148, 163, 184, 0.6),
+    transparent
+  );
+  transform: skewX(-25deg);
+  transition: 0.6s ease-in-out;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.btn-workflow-sweep:hover::before,
+.btn-workflow-sweep:active::before,
+.btn-workflow-sweep.sweep-active::before {
+  left: 165%;
+}
+
+.btn-workflow-sweep:active,
+.btn-workflow-sweep.sweep-active {
+  transform: scale(0.97) !important;
 }

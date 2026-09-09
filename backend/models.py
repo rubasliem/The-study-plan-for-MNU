@@ -81,6 +81,7 @@ class User(Base):
     perm_review_2 = Column(Boolean, default=False)
     perm_approve_plan = Column(Boolean, default=False)
     perm_finish_plan = Column(Boolean, default=False)
+    hidden_pages = Column(String, default="[]", nullable=True) # قائمة معرفات الصفحات المخفية كـ JSON
     
     faculty = relationship("Faculty", back_populates="users")
     assigned_faculties = relationship("Faculty", secondary=user_faculty_association, back_populates="reviewers")
@@ -327,9 +328,13 @@ class AcademicYear(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
     order_index = Column(Integer, default=0)
-    semester1_weeks = Column(Integer, default=15, nullable=True) # عدد أسابيع الفصل الأول
-    semester2_weeks = Column(Integer, default=15, nullable=True) # عدد أسابيع الفصل الثاني
-    summer_weeks = Column(Integer, default=8, nullable=True)    # عدد أسابيع الفصل الصيفي
+    semester1_weeks = Column(Integer, default=15, nullable=True) # عدد أسابيع الفصل الأول (الكليات العامة)
+    semester2_weeks = Column(Integer, default=15, nullable=True) # عدد أسابيع الفصل الثاني (الكليات العامة)
+    summer_weeks = Column(Integer, default=8, nullable=True)    # عدد أسابيع الفصل الصيفي (الكليات العامة)
+    
+    med_semester1_weeks = Column(Integer, default=15, nullable=True) # عدد أسابيع الفصل الأول (كلية الطب والجراحة)
+    med_semester2_weeks = Column(Integer, default=14, nullable=True) # عدد أسابيع الفصل الثاني (كلية الطب والجراحة)
+    med_summer_weeks = Column(Integer, default=7, nullable=True)    # عدد أسابيع الفصل الصيفي (كلية الطب والجراحة)
 
 # ==========================================
 # 12. جدول سجل العمليات والأنشطة (Activity & Audit Logs)

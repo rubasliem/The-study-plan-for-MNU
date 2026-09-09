@@ -404,135 +404,146 @@ const ProfessorsPage = () => {
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
 
   const [exportAcademicYear, setExportAcademicYear] = useState('');
-
   const [academicYears, setAcademicYears] = useState([]);
-
   const [exportSemester, setExportSemester] = useState('الكل');
-
   const [exportLevel, setExportLevel] = useState('الكل');
-
   const [modalActiveYear, setModalActiveYear] = useState('');
 
-
-
   const [showImportModal, setShowImportModal] = useState(false);
-
   const [excelFile, setExcelFile] = useState(null);
-
   const [importing, setImporting] = useState(false);
-
   const [importResult, setImportResult] = useState(null);
 
+  const isMedicineFacultyName = (name) => {
+    if (!name) return false;
+    const str = String(name).trim();
+    return (str.includes("الطب والجراحة") || str.includes("طب بشري") || str.includes("كلية الطب"))
+      && !str.includes("البيطري") && !str.includes("الأسنان") && !str.includes("الاسنان") && !str.includes("تكنولوجيا");
+  };
 
+  const getProfDisplayTermWeeks = (semKey, medSemKey, generalDefault, medDefault, ayObj, yDataObj, profFacs = []) => {
+    if (yDataObj && yDataObj[semKey] != null && yDataObj[semKey] !== "" && Number(yDataObj[semKey]) > 0) {
+      return {
+        text: formatWeekCountText(yDataObj[semKey]),
+        isCustom: true
+      };
+    }
+    const hasMed = (profFacs || []).some(f => isMedicineFacultyName(typeof f === 'string' ? f : f.name || f.name_ar));
+    const hasNonMed = (profFacs || []).some(f => !isMedicineFacultyName(typeof f === 'string' ? f : f.name || f.name_ar));
 
-  const getSemesterMultiplier = (semester, academicYearName = null, profOrProfId = null) => {
+    const genVal = ayObj?.[semKey] ?? generalDefault;
+    const medVal = ayObj?.[medSemKey] ?? ayObj?.[semKey] ?? medDefault;
 
+    if (hasMed && !hasNonMed) {
+      return {
+        text: `${formatWeekCountText(medVal)} (افتراضي - طب)`,
+        isCustom: false
+      };
+    }
+    if (!hasMed) {
+      return {
+        text: `${formatWeekCountText(genVal)} (افتراضي)`,
+        isCustom: false
+      };
+    }
+    if (genVal === medVal) {
+      return {
+        text: `${formatWeekCountText(genVal)} (افتراضي)`,
+        isCustom: false
+      };
+    }
+    return {
+      text: `عامة: ${genVal} / طب: ${medVal} (افتراضي)`,
+      isCustom: false
+    };
+  };
+
+  const getSemesterMultiplier = (semester, academicYearName = null, profOrProfId = null, facultyName = null) => {
     if (!semester) return 14;
 
     const s = String(semester).trim();
 
-    
-
     let targetYearObj = null;
-
     if (academicYearName && academicYearName !== "-" && academicYearName !== "الكل") {
-
       targetYearObj = academicYears.find(y => y.name === academicYearName);
-
     }
-
     if (!targetYearObj && exportAcademicYear && exportAcademicYear !== "الكل") {
-
       targetYearObj = academicYears.find(y => y.name === exportAcademicYear);
-
     }
-
     if (!targetYearObj && academicYears.length > 0) {
-
       targetYearObj = academicYears[0];
-
     }
-
-
 
     const yName = academicYearName || targetYearObj?.name;
 
     let targetProf = null;
-
     if (profOrProfId) {
-
       if (typeof profOrProfId === "object") targetProf = profOrProfId;
-
       else targetProf = professors.find(p => p.id === profOrProfId);
-
+    } else if (modalMode === "view" || modalMode === "edit") {
+      targetProf = formData;
     }
-
-
 
     let customWeeksObj = null;
-
     if (targetProf) {
-
       let ayWeeks = targetProf.academic_year_weeks;
-
       if (typeof ayWeeks === "string") {
-
         try { ayWeeks = JSON.parse(ayWeeks); } catch (e) { ayWeeks = null; }
-
       }
-
       if (ayWeeks && yName && ayWeeks[yName]) {
-
         customWeeksObj = ayWeeks[yName];
-
       } else if (targetProf.academic_year === yName) {
-
         customWeeksObj = {
-
           semester1_weeks: targetProf.semester1_weeks,
-
           semester2_weeks: targetProf.semester2_weeks,
-
           summer_weeks: targetProf.summer_weeks
-
         };
-
       }
-
     }
 
+    // Determine target faculty name for this course/professor calculation
+    let fName = facultyName;
+    if (!fName && targetProf) {
+      if (targetProf.faculty_name) {
+        fName = targetProf.faculty_name;
+      } else if (Array.isArray(targetProf.faculties) && targetProf.faculties.length > 0) {
+        fName = targetProf.faculties.map(f => typeof f === 'string' ? f : (f.name_ar || f.name || '')).filter(Boolean).join(' ');
+      }
+    }
 
+    const isMed = isMedicineFacultyName(fName);
 
-    const sem1Weeks = (customWeeksObj?.semester1_weeks != null && customWeeksObj.semester1_weeks !== "")
+    // Default semester weeks configured in Academic Years Management:
+    // Medicine & Surgery has its dedicated fields (med_semester1_weeks, med_semester2_weeks, med_summer_weeks)
+    // General faculties have (semester1_weeks, semester2_weeks, summer_weeks)
+    const defaultSem1Weeks = isMed
+      ? (targetYearObj?.med_semester1_weeks ?? targetYearObj?.semester1_weeks ?? 15)
+      : (targetYearObj?.semester1_weeks ?? 15);
 
-      ? Number(customWeeksObj.semester1_weeks)
-
-      : (targetYearObj?.semester1_weeks ?? 14);
-
-
-
-    const sem2Weeks = (customWeeksObj?.semester2_weeks != null && customWeeksObj.semester2_weeks !== "")
-
-      ? Number(customWeeksObj.semester2_weeks)
-
+    const defaultSem2Weeks = isMed
+      ? (targetYearObj?.med_semester2_weeks ?? targetYearObj?.semester2_weeks ?? 14)
       : (targetYearObj?.semester2_weeks ?? 14);
 
-
-
-    const summerWeeks = (customWeeksObj?.summer_weeks != null && customWeeksObj.summer_weeks !== "")
-
-      ? Number(customWeeksObj.summer_weeks)
-
+    const defaultSummerWeeks = isMed
+      ? (targetYearObj?.med_summer_weeks ?? targetYearObj?.summer_weeks ?? 7)
       : (targetYearObj?.summer_weeks ?? 7);
 
+    // Rule:
+    // 1. If professor recorded attendance weeks for this term in this academic year -> use professor's weeks
+    // 2. If professor did NOT record attendance weeks -> use academic year weeks based on course faculty:
+    //    - Medicine course -> med_semester... weeks
+    //    - Any other faculty -> general semester... weeks
+    const hasProfSem1 = customWeeksObj?.semester1_weeks != null && customWeeksObj.semester1_weeks !== "" && Number(customWeeksObj?.semester1_weeks) > 0;
+    const hasProfSem2 = customWeeksObj?.semester2_weeks != null && customWeeksObj.semester2_weeks !== "" && Number(customWeeksObj?.semester2_weeks) > 0;
+    const hasProfSummer = customWeeksObj?.summer_weeks != null && customWeeksObj.summer_weeks !== "" && Number(customWeeksObj?.summer_weeks) > 0;
 
+    const sem1Weeks = hasProfSem1 ? Number(customWeeksObj.semester1_weeks) : defaultSem1Weeks;
+    const sem2Weeks = hasProfSem2 ? Number(customWeeksObj.semester2_weeks) : defaultSem2Weeks;
+    const summerWeeks = hasProfSummer ? Number(customWeeksObj.summer_weeks) : defaultSummerWeeks;
 
     if (s.includes("صيف") || s.includes("الصيفي") || s.toLowerCase().includes("summer") || s.includes("ثالث") || s.includes("3")) {
-
       return summerWeeks;
-
     }
-
     if (s.includes("ثاني") || s.includes("ثانى") || s.includes("2") || s.toLowerCase().includes("second")) {
 
       return sem2Weeks;
@@ -545,11 +556,11 @@ const ProfessorsPage = () => {
 
 
 
-  const getTermTotalHours = (hours, semester, academicYearName = null, profOrProfId = null) => {
+  const getTermTotalHours = (hours, semester, academicYearName = null, profOrProfId = null, facultyName = null) => {
 
     const h = Number(hours) || 0;
 
-    return h * getSemesterMultiplier(semester, academicYearName, profOrProfId);
+    return h * getSemesterMultiplier(semester, academicYearName, profOrProfId, facultyName);
 
   };
 
@@ -751,15 +762,6 @@ const ProfessorsPage = () => {
 
       setSelectedProfessorId(null);
 
-      const initialAyWeeks = {};
-      academicYears.forEach(ay => {
-        initialAyWeeks[ay.name] = {
-          semester1_weeks: ay.semester1_weeks || 15,
-          semester2_weeks: ay.semester2_weeks || 15,
-          summer_weeks: ay.summer_weeks || 8
-        };
-      });
-
       const defaultAy = academicYears.length > 0 ? academicYears[0].name : "2026/2027";
 
       setFormData({
@@ -770,13 +772,13 @@ const ProfessorsPage = () => {
 
         academic_year: defaultAy,
 
-        semester1_weeks: initialAyWeeks[defaultAy]?.semester1_weeks ?? '',
+        semester1_weeks: '',
 
-        semester2_weeks: initialAyWeeks[defaultAy]?.semester2_weeks ?? '',
+        semester2_weeks: '',
 
-        summer_weeks: initialAyWeeks[defaultAy]?.summer_weeks ?? '',
+        summer_weeks: '',
 
-        academic_year_weeks: initialAyWeeks
+        academic_year_weeks: {}
 
       });
 
@@ -790,8 +792,6 @@ const ProfessorsPage = () => {
 
     } else {
 
-
-
       setSelectedProfessorId(professor.id);
 
       let parsedAyWeeks = {};
@@ -799,27 +799,19 @@ const ProfessorsPage = () => {
         if (typeof professor.academic_year_weeks === "string") {
           try { parsedAyWeeks = JSON.parse(professor.academic_year_weeks); } catch (e) { parsedAyWeeks = {}; }
         } else if (typeof professor.academic_year_weeks === "object") {
-          parsedAyWeeks = professor.academic_year_weeks;
+          parsedAyWeeks = { ...professor.academic_year_weeks };
         }
       }
 
-      academicYears.forEach(ay => {
-        if (!parsedAyWeeks[ay.name]) {
-          if (professor.academic_year === ay.name && (professor.semester1_weeks || professor.semester2_weeks || professor.summer_weeks)) {
-            parsedAyWeeks[ay.name] = {
-              semester1_weeks: professor.semester1_weeks ?? ay.semester1_weeks ?? 15,
-              semester2_weeks: professor.semester2_weeks ?? ay.semester2_weeks ?? 15,
-              summer_weeks: professor.summer_weeks ?? ay.summer_weeks ?? 8
-            };
-          } else {
-            parsedAyWeeks[ay.name] = {
-              semester1_weeks: ay.semester1_weeks ?? 15,
-              semester2_weeks: ay.semester2_weeks ?? 15,
-              summer_weeks: ay.summer_weeks ?? 8
-            };
-          }
+      if (professor.academic_year && (professor.semester1_weeks || professor.semester2_weeks || professor.summer_weeks)) {
+        if (!parsedAyWeeks[professor.academic_year]) {
+          parsedAyWeeks[professor.academic_year] = {
+            semester1_weeks: professor.semester1_weeks ?? '',
+            semester2_weeks: professor.semester2_weeks ?? '',
+            summer_weeks: professor.summer_weeks ?? ''
+          };
         }
-      });
+      }
 
       const currentAy = professor.academic_year || (academicYears.length > 0 ? academicYears[0].name : "2026/2027");
 
@@ -853,7 +845,11 @@ const ProfessorsPage = () => {
 
         summer_weeks: parsedAyWeeks[currentAy]?.summer_weeks ?? professor.summer_weeks ?? '',
 
-        academic_year_weeks: parsedAyWeeks
+        academic_year_weeks: parsedAyWeeks,
+
+        faculties: professor.faculties || [],
+
+        faculty_name: professor.faculty_name || ''
 
       });
 
@@ -1513,7 +1509,7 @@ const ProfessorsPage = () => {
 
           yearMap[yName].list.push(a);
 
-          yearMap[yName].totalHours += getTermTotalHours(a.hours, a.course_semester, yName, p);
+          yearMap[yName].totalHours += getTermTotalHours(a.hours, a.course_semester, yName, p, a.faculty_name);
 
         });
 
@@ -1535,11 +1531,11 @@ const ProfessorsPage = () => {
 
             facMap[fName].hours.push(formatHours(a.hours));
 
-            const wCount = getSemesterMultiplier(a.course_semester, yName, p);
+            const wCount = getSemesterMultiplier(a.course_semester, yName, p, a.faculty_name);
 
             facMap[fName].weeks.push(formatWeekCountText(wCount) || `${wCount} أسبوع`);
 
-            facMap[fName].termHours.push(formatHours(getTermTotalHours(a.hours, a.course_semester, yName, p)));
+            facMap[fName].termHours.push(formatHours(getTermTotalHours(a.hours, a.course_semester, yName, p, a.faculty_name)));
 
             if (a.program_name && !facMap[fName].progs.includes(a.program_name)) facMap[fName].progs.push(a.program_name);
 
@@ -2050,7 +2046,7 @@ const ProfessorsPage = () => {
 
           yearMap[yName].list.push(a);
 
-          yearMap[yName].totalHours += getTermTotalHours(a.hours, a.course_semester, yName);
+          yearMap[yName].totalHours += getTermTotalHours(a.hours, a.course_semester, yName, p, a.faculty_name);
 
         });
 
@@ -2072,7 +2068,7 @@ const ProfessorsPage = () => {
 
             facMap[fName].hours.push(formatHours(a.hours));
 
-            facMap[fName].termHours.push(formatHours(getTermTotalHours(a.hours, a.course_semester, yName)));
+            facMap[fName].termHours.push(formatHours(getTermTotalHours(a.hours, a.course_semester, yName, p, a.faculty_name)));
 
             if (a.program_name && !facMap[fName].progs.includes(a.program_name)) facMap[fName].progs.push(a.program_name);
 
@@ -2601,9 +2597,9 @@ const ProfessorsPage = () => {
             <tbody>
               ${academicYears.map(ay => {
                 const yData = formData.academic_year_weeks?.[ay.name] || {};
-                const sem1 = yData.semester1_weeks ? formatWeekCountText(yData.semester1_weeks) : formatWeekCountText(ay.semester1_weeks || 15);
-                const sem2 = yData.semester2_weeks ? formatWeekCountText(yData.semester2_weeks) : formatWeekCountText(ay.semester2_weeks || 15);
-                const sum = yData.summer_weeks ? formatWeekCountText(yData.summer_weeks) : formatWeekCountText(ay.summer_weeks || 8);
+                const sem1 = getProfDisplayTermWeeks('semester1_weeks', 'med_semester1_weeks', 15, 15, ay, yData, formData.faculties).text;
+                const sem2 = getProfDisplayTermWeeks('semester2_weeks', 'med_semester2_weeks', 14, 14, ay, yData, formData.faculties).text;
+                const sum = getProfDisplayTermWeeks('summer_weeks', 'med_summer_weeks', 7, 7, ay, yData, formData.faculties).text;
                 return `
                   <tr>
                     <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: bold; color: #222; font-size: 10pt; background-color: #ffffff;">${ay.name}</td>
@@ -2712,7 +2708,7 @@ const ProfessorsPage = () => {
 
                 const facTd = spanObj ? `<td rowspan="${spanObj.count}" style="vertical-align: middle; font-weight: bold;">${spanObj.name}</td>` : '';
 
-                const termHours = getTermTotalHours(a.hours, a.course_semester, a.academic_year || year);
+                const termHours = getTermTotalHours(a.hours, a.course_semester, a.academic_year || year, formData, a.faculty_name);
 
                 html += `
 
@@ -2742,7 +2738,7 @@ const ProfessorsPage = () => {
 
               const totalWeeklyHours = formatHours(assignmentsByYear[year].reduce((sum, current) => sum + (current.hours || 0), 0));
 
-              const totalTermHours = formatHours(assignmentsByYear[year].reduce((sum, current) => sum + getTermTotalHours(current.hours, current.course_semester, current.academic_year || year), 0));
+              const totalTermHours = formatHours(assignmentsByYear[year].reduce((sum, current) => sum + getTermTotalHours(current.hours, current.course_semester, current.academic_year || year, formData, current.faculty_name), 0));
 
               html += `
 
@@ -2764,7 +2760,7 @@ const ProfessorsPage = () => {
 
             
 
-            const grandTotalTerm = formatHours(professorAssignments.reduce((sum, curr) => sum + getTermTotalHours(curr.hours, curr.course_semester, curr.academic_year), 0));
+            const grandTotalTerm = formatHours(professorAssignments.reduce((sum, curr) => sum + getTermTotalHours(curr.hours, curr.course_semester, curr.academic_year, formData, curr.faculty_name), 0));
 
             html += `
 
@@ -2987,15 +2983,10 @@ const ProfessorsPage = () => {
         <tbody>
 
           ${academicYears.map(ay => {
-
             const yData = formData.academic_year_weeks?.[ay.name] || {};
-
-            const sem1 = yData.semester1_weeks ? formatWeekCountText(yData.semester1_weeks) : formatWeekCountText(ay.semester1_weeks || 15);
-
-            const sem2 = yData.semester2_weeks ? formatWeekCountText(yData.semester2_weeks) : formatWeekCountText(ay.semester2_weeks || 15);
-
-            const sum = yData.summer_weeks ? formatWeekCountText(yData.summer_weeks) : formatWeekCountText(ay.summer_weeks || 8);
-
+            const sem1 = getProfDisplayTermWeeks('semester1_weeks', 'med_semester1_weeks', 15, 15, ay, yData, formData.faculties).text;
+            const sem2 = getProfDisplayTermWeeks('semester2_weeks', 'med_semester2_weeks', 14, 14, ay, yData, formData.faculties).text;
+            const sum = getProfDisplayTermWeeks('summer_weeks', 'med_summer_weeks', 7, 7, ay, yData, formData.faculties).text;
             return `
 
               <tr>
@@ -3114,7 +3105,7 @@ const ProfessorsPage = () => {
 
                 const facTd = spanObj ? `<td rowspan="${spanObj.count}" style="vertical-align: middle; font-weight: bold;">${spanObj.name}</td>` : '';
 
-                const termHours = getTermTotalHours(a.hours, a.course_semester, a.academic_year || year);
+                const termHours = getTermTotalHours(a.hours, a.course_semester, a.academic_year || year, formData, a.faculty_name);
 
                 html += `
 
@@ -3144,7 +3135,7 @@ const ProfessorsPage = () => {
 
               const totalWeeklyHours = formatHours(assignmentsByYear[year].reduce((sum, current) => sum + (current.hours || 0), 0));
 
-              const totalTermHours = formatHours(assignmentsByYear[year].reduce((sum, current) => sum + getTermTotalHours(current.hours, current.course_semester, current.academic_year || year), 0));
+              const totalTermHours = formatHours(assignmentsByYear[year].reduce((sum, current) => sum + getTermTotalHours(current.hours, current.course_semester, current.academic_year || year, formData, current.faculty_name), 0));
 
               html += `
 
@@ -3166,7 +3157,7 @@ const ProfessorsPage = () => {
 
             
 
-            const grandTotalTerm = formatHours(professorAssignments.reduce((sum, curr) => sum + getTermTotalHours(curr.hours, curr.course_semester, curr.academic_year), 0));
+            const grandTotalTerm = formatHours(professorAssignments.reduce((sum, curr) => sum + getTermTotalHours(curr.hours, curr.course_semester, curr.academic_year, formData, curr.faculty_name), 0));
 
             html += `
 
@@ -3373,7 +3364,7 @@ const ProfessorsPage = () => {
           const yName = a.academic_year || (exportAcademicYear !== "الكل" ? exportAcademicYear : "-");
           if (!yearMap[yName]) yearMap[yName] = { list: [], totalHours: 0 };
           yearMap[yName].list.push(a);
-          yearMap[yName].totalHours += getTermTotalHours(a.hours, a.course_semester, yName, p);
+          yearMap[yName].totalHours += getTermTotalHours(a.hours, a.course_semester, yName, p, a.faculty_name);
         });
         Object.keys(yearMap).forEach(yName => {
           yearGroups.push({
@@ -3422,7 +3413,7 @@ const ProfessorsPage = () => {
             excelRowsHtml += `<td style="text-align: center; vertical-align: middle;">${a.program_name || ""}</td>`;
             excelRowsHtml += `<td style="text-align: right; vertical-align: middle;">${a.course_name || ""}</td>`;
             excelRowsHtml += `<td style="text-align: center; vertical-align: middle;">${formatHours(a.hours)}</td>`;
-            excelRowsHtml += `<td style="text-align: center; font-weight: bold; color: #1e40af; vertical-align: middle;">${formatHours(getTermTotalHours(a.hours, a.course_semester, yg.yearName, p))}</td>`;
+            excelRowsHtml += `<td style="text-align: center; font-weight: bold; color: #1e40af; vertical-align: middle;">${formatHours(getTermTotalHours(a.hours, a.course_semester, yg.yearName, p, a.faculty_name))}</td>`;
             excelRowsHtml += `<td style="text-align: center; vertical-align: middle;">${formatLvl(a.level) || ""}</td>`;
             excelRowsHtml += `<td style="text-align: center; vertical-align: middle;">${a.course_semester || ""}</td>`;
           } else {
@@ -4156,13 +4147,13 @@ const ProfessorsPage = () => {
 
         <div className="col-12 col-lg-9 mb-3 mb-lg-0">
 
-          <div className="d-flex flex-wrap gap-2">
+          <div className="d-flex align-items-center gap-2">
 
             <input
 
               type="text"
 
-              className="form-control"
+              className="form-control flex-grow-1"
 
               placeholder="بحث باسم عضو هيئة التدريس، الرقم القومي، الوظيفة، الكلية ..."
 
@@ -4174,9 +4165,9 @@ const ProfessorsPage = () => {
 
             <select
 
-              className="form-select border-success text-success fw-bold"
+              className="form-select border-success text-success fw-bold flex-shrink-0"
 
-              style={{ width: '240px', shrink: 0 }}
+              style={{ width: '230px' }}
 
               value={mainStatusFilter}
 
@@ -4930,11 +4921,10 @@ const ProfessorsPage = () => {
 
                     const currentYearObj = academicYears.find(y => y.name === activeYear) || academicYears[0] || {};
 
-                    const s1Max = currentYearObj.semester1_weeks || 15;
-
-                    const s2Max = currentYearObj.semester2_weeks || 15;
-
-                    const summerMax = currentYearObj.summer_weeks || 8;
+                    const isProfMed = (formData.faculties || []).some(f => isMedicineFacultyName(typeof f === 'string' ? f : f.name || f.name_ar));
+                    const s1Max = 20;
+                    const s2Max = 20;
+                    const summerMax = 15;
 
 
 
@@ -5171,45 +5161,24 @@ const ProfessorsPage = () => {
                                 <td style={{ padding: '7px 10px', border: '1px solid #dee2e6', fontWeight: '600' }}>{ay.name}</td>
 
                                 <td style={{ padding: '7px 10px', border: '1px solid #dee2e6' }}>
-
-                                  {yData.semester1_weeks ? (
-
-                                    <span style={{ color: '#1b5e20', fontWeight: 'bold' }}>{formatWeekCountText(yData.semester1_weeks)}</span>
-
-                                  ) : (
-
-                                    <span style={{ color: '#777' }}>{formatWeekCountText(ay.semester1_weeks || 15)} (افتراضي)</span>
-
-                                  )}
-
+                                  {(() => {
+                                    const d = getProfDisplayTermWeeks('semester1_weeks', 'med_semester1_weeks', 15, 15, ay, yData, formData.faculties);
+                                    return <span style={{ color: d.isCustom ? '#1b5e20' : '#777', fontWeight: d.isCustom ? 'bold' : 'normal' }}>{d.text}</span>;
+                                  })()}
                                 </td>
 
                                 <td style={{ padding: '7px 10px', border: '1px solid #dee2e6' }}>
-
-                                  {yData.semester2_weeks ? (
-
-                                    <span style={{ color: '#1b5e20', fontWeight: 'bold' }}>{formatWeekCountText(yData.semester2_weeks)}</span>
-
-                                  ) : (
-
-                                    <span style={{ color: '#777' }}>{formatWeekCountText(ay.semester2_weeks || 15)} (افتراضي)</span>
-
-                                  )}
-
+                                  {(() => {
+                                    const d = getProfDisplayTermWeeks('semester2_weeks', 'med_semester2_weeks', 14, 14, ay, yData, formData.faculties);
+                                    return <span style={{ color: d.isCustom ? '#1b5e20' : '#777', fontWeight: d.isCustom ? 'bold' : 'normal' }}>{d.text}</span>;
+                                  })()}
                                 </td>
 
                                 <td style={{ padding: '7px 10px', border: '1px solid #dee2e6' }}>
-
-                                  {yData.summer_weeks ? (
-
-                                    <span style={{ color: '#1b5e20', fontWeight: 'bold' }}>{formatWeekCountText(yData.summer_weeks)}</span>
-
-                                  ) : (
-
-                                    <span style={{ color: '#777' }}>{formatWeekCountText(ay.summer_weeks || 8)} (افتراضي)</span>
-
-                                  )}
-
+                                  {(() => {
+                                    const d = getProfDisplayTermWeeks('summer_weeks', 'med_summer_weeks', 7, 7, ay, yData, formData.faculties);
+                                    return <span style={{ color: d.isCustom ? '#1b5e20' : '#777', fontWeight: d.isCustom ? 'bold' : 'normal' }}>{d.text}</span>;
+                                  })()}
                                 </td>
 
                                 <td style={{ padding: '7px 10px', border: '1px solid #dee2e6' }}>
@@ -5301,33 +5270,24 @@ const ProfessorsPage = () => {
                               <td style={{ padding: '9px 12px', border: '1px solid #e0e0e0', fontWeight: 'bold', color: '#333' }}>{ay.name}</td>
 
                               <td style={{ padding: '9px 12px', border: '1px solid #e0e0e0' }}>
-
-                                <span style={{ color: yData.semester1_weeks ? '#1b5e20' : '#444', fontWeight: 'bold' }}>
-
-                                  {yData.semester1_weeks ? formatWeekCountText(yData.semester1_weeks) : formatWeekCountText(ay.semester1_weeks || 15)}
-
-                                </span>
-
+                                {(() => {
+                                  const d = getProfDisplayTermWeeks('semester1_weeks', 'med_semester1_weeks', 15, 15, ay, yData, formData.faculties);
+                                  return <span style={{ color: d.isCustom ? '#1b5e20' : '#444', fontWeight: d.isCustom ? 'bold' : 'normal' }}>{d.text}</span>;
+                                })()}
                               </td>
 
                               <td style={{ padding: '9px 12px', border: '1px solid #e0e0e0' }}>
-
-                                <span style={{ color: yData.semester2_weeks ? '#1b5e20' : '#444', fontWeight: 'bold' }}>
-
-                                  {yData.semester2_weeks ? formatWeekCountText(yData.semester2_weeks) : formatWeekCountText(ay.semester2_weeks || 15)}
-
-                                </span>
-
+                                {(() => {
+                                  const d = getProfDisplayTermWeeks('semester2_weeks', 'med_semester2_weeks', 14, 14, ay, yData, formData.faculties);
+                                  return <span style={{ color: d.isCustom ? '#1b5e20' : '#444', fontWeight: d.isCustom ? 'bold' : 'normal' }}>{d.text}</span>;
+                                })()}
                               </td>
 
                               <td style={{ padding: '9px 12px', border: '1px solid #e0e0e0' }}>
-
-                                <span style={{ color: yData.summer_weeks ? '#1b5e20' : '#444', fontWeight: 'bold' }}>
-
-                                  {yData.summer_weeks ? formatWeekCountText(yData.summer_weeks) : formatWeekCountText(ay.summer_weeks || 8)}
-
-                                </span>
-
+                                {(() => {
+                                  const d = getProfDisplayTermWeeks('summer_weeks', 'med_summer_weeks', 7, 7, ay, yData, formData.faculties);
+                                  return <span style={{ color: d.isCustom ? '#1b5e20' : '#444', fontWeight: d.isCustom ? 'bold' : 'normal' }}>{d.text}</span>;
+                                })()}
                               </td>
 
                             </tr>
@@ -5496,7 +5456,7 @@ const ProfessorsPage = () => {
 
                                 const spanObj = facultySpans.find(s => s.index === idx);
 
-                                const termHours = getTermTotalHours(assignment.hours, assignment.course_semester, assignment.academic_year || year);
+                                const termHours = getTermTotalHours(assignment.hours, assignment.course_semester, assignment.academic_year || year, formData, assignment.faculty_name);
 
                                 return (
 
@@ -5564,7 +5524,7 @@ const ProfessorsPage = () => {
 
                               <td style={{ textAlign: 'center', color: '#1e40af' }}>
 
-                                {formatHours(assignmentsByYear[year].reduce((sum, current) => sum + getTermTotalHours(current.hours, current.course_semester, current.academic_year || year), 0))} ساعة
+                                {formatHours(assignmentsByYear[year].reduce((sum, current) => sum + getTermTotalHours(current.hours, current.course_semester, current.academic_year || year, formData, current.faculty_name), 0))} ساعة
 
                               </td>
 
@@ -5580,7 +5540,7 @@ const ProfessorsPage = () => {
 
                     
 
-                    const grandTotalTerm = formatHours(professorAssignments.reduce((sum, curr) => sum + getTermTotalHours(curr.hours, curr.course_semester, curr.academic_year), 0));
+                    const grandTotalTerm = formatHours(professorAssignments.reduce((sum, curr) => sum + getTermTotalHours(curr.hours, curr.course_semester, curr.academic_year, formData, curr.faculty_name), 0));
 
                     return (
 

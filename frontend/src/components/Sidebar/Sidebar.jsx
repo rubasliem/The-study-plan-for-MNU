@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useMemo } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import axios from 'axios';
 import { Modal, Form, Button } from 'react-bootstrap';
@@ -22,11 +22,20 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
   const [logsCount, setLogsCount] = useState(0);
   
   const [showSettings, setShowSettings] = useState(false);
+  const [isSettingsGlowing, setIsSettingsGlowing] = useState(false);
   const [settingsTab, setSettingsTab] = useState('password'); // 'password' or 'security'
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [securityQuestion, setSecurityQuestion] = useState('');
   const [securityAnswer, setSecurityAnswer] = useState('');
+
+  const handleSettingsClick = () => {
+    setIsSettingsGlowing(true);
+    setTimeout(() => {
+      setShowSettings(true);
+      setIsSettingsGlowing(false);
+    }, 420);
+  };
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
@@ -317,6 +326,27 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
     });
   }
 
+  // تصفية الصفحات المخفية عن المستخدم الحالي من القائمة الجانبية
+  const hiddenPages = useMemo(() => {
+    try {
+      if (!user?.hidden_pages) return [];
+      const parsed = typeof user.hidden_pages === 'string' ? JSON.parse(user.hidden_pages) : user.hidden_pages;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }, [user?.hidden_pages]);
+
+  const visibleMenuItems = useMemo(() => {
+    return menuItems.filter(item => !hiddenPages.includes(item.id));
+  }, [menuItems, hiddenPages]);
+
+  useEffect(() => {
+    if (hiddenPages.includes(activeTab) && visibleMenuItems.length > 0) {
+      setActiveTab(visibleMenuItems[0].id);
+    }
+  }, [hiddenPages, activeTab, visibleMenuItems, setActiveTab]);
+
   const getUserJobTitle = () => {
     if (user?.job_title) {
       return user.job_title.replace(/\s*\(Faculty Admin\)/i, '').trim();
@@ -435,7 +465,7 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
       {/* Navigation Menu */}
       <nav className="sidebar-nav">
         <ul className="nav-list">
-          {menuItems.map((item) => (
+          {visibleMenuItems.map((item) => (
             <li key={item.id} className="nav-item">
               <button
                 className={`nav-button ${activeTab === item.id ? 'active' : ''}`}
@@ -501,16 +531,8 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
           </div>
           {/* زر الإعدادات */}
           <button 
-            onClick={() => setShowSettings(true)} 
-            className="btn-settings d-flex align-items-center gap-2 justify-content-center w-100 py-2"
-            style={{
-              backgroundColor: 'transparent',
-              border: '1px solid var(--border-color)',
-              borderRadius: '8px',
-              color: 'var(--text-title)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer'
-            }}
+            onClick={handleSettingsClick} 
+            className={`btn-settings d-flex align-items-center gap-2 justify-content-center w-100 py-2 ${isSettingsGlowing ? 'sweep-active' : ''}`}
             title="إعدادات الحساب"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

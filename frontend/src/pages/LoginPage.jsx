@@ -106,8 +106,8 @@ const LoginPage = () => {
             {/* Outer Circular Logo Frame */}
             <div 
                 style={{
-                    width: '1000px',
-                    height: '1000px',
+                    width: '980px',
+                    height: '980px',
                     maxWidth: '150vw',
                     maxHeight: '150vw',
                     borderRadius: '50%',
@@ -141,8 +141,8 @@ const LoginPage = () => {
                 {/* Inner White Login Circle */}
                 <div 
                     style={{
-                        width: '700px',
-                        height: '700px',
+                        width: '620px',
+                        height: '620px',
                         maxWidth: '92%',
                         maxHeight: '92%',
                         borderRadius: '50%',
@@ -159,11 +159,11 @@ const LoginPage = () => {
                     }}
                 >
                     {/* Title */}
-                    <h3 className="fw-bold mb-2" style={{ color: '#2e7d32', fontSize: '2rem', marginTop: '-15px' }}>
+                    <h3 className="fw-bold mb-2" style={{ color: '#2e7d32', fontSize: '2rem', marginTop: '-4px' }}>
                         تسجيل الدخول
                     </h3>
-                    <p className="text-muted mb-4" style={{ fontSize: '0.85rem', fontWeight: '500' }}>
-                        برنامج لكل ما يخص جامعة المنوفية الأهلية <br /> أعضاء هيئة التدريس - المقرارات - الخطط الدراسية
+                    <p className="text-muted  mt-1 mb-4" style={{ fontSize: '0.85rem', fontWeight: '500' }}>
+                        المنصة الإلكترونية المتكاملة لإدارة الخطط الدراسية <br /> مقررات وأعضاء هيئة التدريس - جامعة المنوفية الأهلية
                     </p>
 
                     {error && (
@@ -255,12 +255,11 @@ const LoginPage = () => {
                         {/* Submit Button */}
                         <Button 
                             type="submit" 
-                            className="w-100 fw-bold text-white shadow-sm"
+                            className="w-100 fw-bold text-white shadow-sm login-submit-btn"
                             style={{ 
                                 borderRadius: '25px', 
                                 padding: '9px', 
                                 fontSize: '1.1rem', 
-                                backgroundColor: '#236c2e', 
                                 border: 'none' 
                             }}
                         >
@@ -290,7 +289,7 @@ const LoginPage = () => {
                     {/* Footer Copyright */}
                     <div className="mt-4" style={{ fontSize: '0.9rem', color: '#888', lineHeight: '1.8', whiteSpace: 'nowrap' }}>
                         <div>جميع الحقوق محفوظة © 2027/2026</div>
-                        <div>صُنِع بواسطة <strong style={{ fontWeight: '700', padding: '0 4px' }}>الفريق الهندسي والتقني</strong> التابع لإدارة <strong style={{ fontWeight: '700', padding: '0 4px' }}>شؤون الطلاب</strong></div>
+                        <div>صُنِع بواسطة <strong style={{ fontWeight: '700' }}>الفريق الهندسي والتقني</strong> التابع لإدارة <strong style={{ fontWeight: '700' }}>شؤون الطلاب</strong></div>
                     </div>
                 </div>
             </div>

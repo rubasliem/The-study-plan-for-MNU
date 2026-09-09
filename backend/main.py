@@ -471,6 +471,12 @@ def migrate_db_add_academic_years():
                 db.execute(text("ALTER TABLE academic_years ADD COLUMN semester2_weeks INTEGER DEFAULT 15;"))
             if 'summer_weeks' not in cols:
                 db.execute(text("ALTER TABLE academic_years ADD COLUMN summer_weeks INTEGER DEFAULT 8;"))
+            if 'med_semester1_weeks' not in cols:
+                db.execute(text("ALTER TABLE academic_years ADD COLUMN med_semester1_weeks INTEGER DEFAULT 15;"))
+            if 'med_semester2_weeks' not in cols:
+                db.execute(text("ALTER TABLE academic_years ADD COLUMN med_semester2_weeks INTEGER DEFAULT 14;"))
+            if 'med_summer_weeks' not in cols:
+                db.execute(text("ALTER TABLE academic_years ADD COLUMN med_summer_weeks INTEGER DEFAULT 7;"))
             db.commit()
 
         count = db.query(models.AcademicYear).count()
@@ -508,6 +514,20 @@ def migrate_db_add_contract_fields():
         print("Successfully added contract and semester weeks fields to 'professors' table.")
     except Exception as e:
         print(f"Error checking/adding contract/semester fields: {e}")
+    finally:
+        db.close()
+
+def migrate_db_add_hidden_pages():
+    db = SessionLocal()
+    try:
+        inspector = inspect(engine)
+        cols = [c['name'] for c in inspector.get_columns('users')]
+        if 'hidden_pages' not in cols:
+            db.execute(text("ALTER TABLE users ADD COLUMN hidden_pages VARCHAR DEFAULT '[]';"))
+            db.commit()
+            print("Successfully added hidden_pages column to 'users' table.")
+    except Exception as e:
+        print(f"Error checking/adding hidden_pages column: {e}")
     finally:
         db.close()
 
@@ -593,6 +613,7 @@ def startup_event():
     migrate_db_add_medicine_plan_fields()
     migrate_db_add_user_security_columns()
     migrate_db_add_contract_fields()
+    migrate_db_add_hidden_pages()
     migrate_db_init_activity_logs()
 
 
@@ -967,6 +988,21 @@ def update_user(user_id: int, user_data: schemas.UserUpdate, db: Session = Depen
         action_text = f"قام ب{changes_str} لمسؤول الكلية ({short_target})"
         create_notification(db, db_user.faculty_id, f"{short_actor} ({actor_role_ar})", action_text)
         
+    if user_data.hidden_pages is not None:
+        db_user.hidden_pages = user_data.hidden_pages
+
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+@app.put("/api/users/{user_id}/hidden-pages", response_model=schemas.UserOut)
+def update_user_hidden_pages(user_id: int, payload: schemas.UserHiddenPagesUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role not in [models.UserRole.admin, models.UserRole.faculty_professor]:
+        raise HTTPException(status_code=403, detail="ليس لديك صلاحية لتحديث بيانات المسؤولين")
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+    db_user.hidden_pages = json.dumps(payload.hidden_pages, ensure_ascii=False)
     db.commit()
     db.refresh(db_user)
     return db_user
@@ -3702,26 +3738,56 @@ def update_study_plan_status(
 
     role_ar_map = {
         models.UserRole.admin: "مدير عام",
+        models.UserRole.manager: "مدير",
         models.UserRole.faculty_admin: "مسؤول كلية",
         models.UserRole.faculty_professor: "مدير برنامج",
         models.UserRole.student_affairs: "مدير شؤون الطلاب",
     }
-    role_str = role_ar_map.get(current_user.role, "مسؤول")
+    role_str = current_user.job_title if current_user.job_title else role_ar_map.get(current_user.role, "مسؤول")
     user_full_name = f"{role_str} ({current_user.username.split('@')[0]})".strip()
     faculty_name = plan.faculty.name if plan.faculty else "الكلية"
 
     action_text = ""
 
+    is_super_admin = current_user.role in [models.UserRole.admin]
+    is_manager = (
+        current_user.role == models.UserRole.manager
+        or (current_user.job_title and ("مدير" in current_user.job_title and "برنامج" not in current_user.job_title and "شؤون" not in current_user.job_title))
+        or (current_user.job_title and "عميد" in current_user.job_title)
+    )
+    is_program_director = (
+        current_user.role == models.UserRole.faculty_professor
+        or (current_user.job_title and "مدير برنامج" in current_user.job_title)
+    )
+
+    is_matching_faculty = True
+    if is_program_director and not is_super_admin and not is_manager:
+        if current_user.faculty_id and current_user.faculty_id != plan.faculty_id:
+            assigned_ids = [f.id for f in current_user.assigned_faculties] if current_user.assigned_faculties else []
+            if plan.faculty_id not in assigned_ids:
+                is_matching_faculty = False
+
+    is_finish_allowed = (
+        is_super_admin
+        or is_manager
+        or (is_program_director and is_matching_faculty)
+        or bool(current_user.perm_finish_plan)
+    )
+
     if status_data.action == "finish":
-        if current_user.role != models.UserRole.admin and current_user.role != models.UserRole.faculty_professor and not current_user.perm_finish_plan:
-            raise HTTPException(status_code=403, detail="لا تملك صلاحية إنهاء الخطة (خاص بمدير البرنامج أو من يملك الصلاحية).")
+        if not is_finish_allowed:
+            if is_program_director and not is_matching_faculty:
+                raise HTTPException(status_code=403, detail="لا تملك صلاحية إنهاء الخطة لهذه الكلية (خاص بمدير البرنامج التابع لهذه الكلية).")
+            raise HTTPException(status_code=403, detail="لا تملك صلاحية إنهاء الخطة (الصلاحية للمدير العام والمدير ومدير البرنامج الخاص بالكلية).")
         plan.is_finished = True
         plan.finished_by = user_full_name
         action_text = f"قام بإنهاء الخطة الدراسية ل{faculty_name} - {plan.semester} - العام الجامعي {plan.academic_year}"
 
     elif status_data.action == "cancel_finish":
-        if current_user.role != models.UserRole.admin and current_user.role != models.UserRole.faculty_professor and not current_user.perm_finish_plan:
-            raise HTTPException(status_code=403, detail="لا تملك صلاحية إلغاء إنهاء الخطة.")
+        if not is_finish_allowed:
+            if is_program_director and not is_matching_faculty:
+                raise HTTPException(status_code=403, detail="لا تملك صلاحية إلغاء إنهاء الخطة لهذه الكلية (خاص بمدير البرنامج التابع لهذه الكلية).")
+            raise HTTPException(status_code=403, detail="لا تملك صلاحية إلغاء إنهاء الخطة (الصلاحية للمدير العام والمدير ومدير البرنامج الخاص بالكلية).")
         if plan.is_approved:
             raise HTTPException(status_code=400, detail="لا يمكن إلغاء إنهاء الخطة بعد اعتمادها. يمكن ذلك فقط بعد إلغاء اعتماد الخطة بواسطة المسؤول.")
         plan.is_finished = False
@@ -5101,7 +5167,10 @@ def create_academic_year(
         name=year.name,
         semester1_weeks=year.semester1_weeks if year.semester1_weeks is not None else 15,
         semester2_weeks=year.semester2_weeks if year.semester2_weeks is not None else 14,
-        summer_weeks=year.summer_weeks if year.summer_weeks is not None else 7
+        summer_weeks=year.summer_weeks if year.summer_weeks is not None else 7,
+        med_semester1_weeks=year.med_semester1_weeks if year.med_semester1_weeks is not None else (year.semester1_weeks if year.semester1_weeks is not None else 15),
+        med_semester2_weeks=year.med_semester2_weeks if year.med_semester2_weeks is not None else (year.semester2_weeks if year.semester2_weeks is not None else 14),
+        med_summer_weeks=year.med_summer_weeks if year.med_summer_weeks is not None else (year.summer_weeks if year.summer_weeks is not None else 7),
     )
     db.add(new_year)
     db.commit()
@@ -5111,7 +5180,7 @@ def create_academic_year(
 @app.put("/api/academic-years/{year_id}", response_model=schemas.AcademicYearOut)
 def update_academic_year(
     year_id: int,
-    year_update: schemas.AcademicYearCreate,
+    year_update: schemas.AcademicYearUpdate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
@@ -5122,17 +5191,25 @@ def update_academic_year(
     if not db_year:
         raise HTTPException(status_code=404, detail="العام الجامعي غير موجود")
         
-    existing_year = db.query(models.AcademicYear).filter(models.AcademicYear.name == year_update.name, models.AcademicYear.id != year_id).first()
-    if existing_year:
-        raise HTTPException(status_code=400, detail="يوجد عام جامعي آخر بنفس الاسم")
+    if year_update.name is not None and year_update.name != db_year.name:
+        existing_year = db.query(models.AcademicYear).filter(models.AcademicYear.name == year_update.name, models.AcademicYear.id != year_id).first()
+        if existing_year:
+            raise HTTPException(status_code=400, detail="يوجد عام جامعي آخر بنفس الاسم")
+        db_year.name = year_update.name
         
-    db_year.name = year_update.name
     if year_update.semester1_weeks is not None:
         db_year.semester1_weeks = year_update.semester1_weeks
     if year_update.semester2_weeks is not None:
         db_year.semester2_weeks = year_update.semester2_weeks
     if year_update.summer_weeks is not None:
         db_year.summer_weeks = year_update.summer_weeks
+
+    if year_update.med_semester1_weeks is not None:
+        db_year.med_semester1_weeks = year_update.med_semester1_weeks
+    if year_update.med_semester2_weeks is not None:
+        db_year.med_semester2_weeks = year_update.med_semester2_weeks
+    if year_update.med_summer_weeks is not None:
+        db_year.med_summer_weeks = year_update.med_summer_weeks
 
     db.commit()
     db.refresh(db_year)

@@ -24,6 +24,24 @@ function App() {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  const hiddenPages = React.useMemo(() => {
+    try {
+      if (!user?.hidden_pages) return [];
+      const parsed = typeof user.hidden_pages === 'string' ? JSON.parse(user.hidden_pages) : user.hidden_pages;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }, [user?.hidden_pages]);
+
+  useEffect(() => {
+    if (user && hiddenPages.includes(activeTab)) {
+      const allowedOrder = ['dashboard', 'professors', 'courses', 'study-plan', 'signatures', 'statistics', 'notifications', 'recycle-bin', 'guidelines'];
+      const fallback = allowedOrder.find(t => !hiddenPages.includes(t));
+      if (fallback) setActiveTab(fallback);
+    }
+  }, [user, activeTab, hiddenPages]);
+
   useEffect(() => {
     if (user) {
       const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?tab=' + activeTab;
@@ -51,18 +69,18 @@ function App() {
           <h5 className="mb-0 text-success fw-bold">جامعة المنوفية الأهلية</h5>
           <div style={{width: '42px'}}></div> {/* Spacer for centering */}
         </div>
-        {activeTab === 'dashboard' && <MainTablePage />}
-        {activeTab === 'professors' && <ProfessorsPage />}
-        {activeTab === 'courses' && <CoursesPage />}
-        {activeTab === 'study-plan' && <StudyPlanPage />}
-        {activeTab === 'signatures' && <SignaturesPage />}
-        {activeTab === 'statistics' && <StatisticsPage />}
-        {activeTab === 'notifications' && <NotificationsPage />}
-        {activeTab === 'recycle-bin' && <RecycleBinPage />}
-        {activeTab === 'logs' && <LogsPage />}
-        {activeTab === 'admin' && user.role === 'admin' && <AdminUsersPage />}
-        {activeTab === 'control-panel' && <ControlPanelPage />}
-        {activeTab === 'guidelines' && <GuidelinesPage />}
+        {activeTab === 'dashboard' && !hiddenPages.includes('dashboard') && <MainTablePage />}
+        {activeTab === 'professors' && !hiddenPages.includes('professors') && <ProfessorsPage />}
+        {activeTab === 'courses' && !hiddenPages.includes('courses') && <CoursesPage />}
+        {activeTab === 'study-plan' && !hiddenPages.includes('study-plan') && <StudyPlanPage />}
+        {activeTab === 'signatures' && !hiddenPages.includes('signatures') && <SignaturesPage />}
+        {activeTab === 'statistics' && !hiddenPages.includes('statistics') && <StatisticsPage />}
+        {activeTab === 'notifications' && !hiddenPages.includes('notifications') && <NotificationsPage />}
+        {activeTab === 'recycle-bin' && !hiddenPages.includes('recycle-bin') && <RecycleBinPage />}
+        {activeTab === 'logs' && !hiddenPages.includes('logs') && <LogsPage />}
+        {activeTab === 'admin' && user.role === 'admin' && !hiddenPages.includes('admin') && <AdminUsersPage />}
+        {activeTab === 'control-panel' && !hiddenPages.includes('control-panel') && <ControlPanelPage />}
+        {activeTab === 'guidelines' && !hiddenPages.includes('guidelines') && <GuidelinesPage />}
       </main>
     </div>
   );
