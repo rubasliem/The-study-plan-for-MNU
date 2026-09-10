@@ -6,7 +6,7 @@ import { FaTrash, FaUndo, FaTrashRestore } from 'react-icons/fa';
 import { confirmAction } from '../utils/confirmAlert';
 import { AuthContext } from '../context/AuthContext';
 
-const API = 'http://127.0.0.1:8000';
+const API = '';
 
 const RecycleBinPage = () => {
     const { user } = useContext(AuthContext);
