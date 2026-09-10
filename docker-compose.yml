@@ -55,6 +55,17 @@ services:
     networks:
       - mnu_network
 
+  # 4. نفق الاتصال الخارجي العام (Cloudflare Tunnel)
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: mnu_tunnel
+    restart: always
+    command: tunnel --no-autoupdate --url http://frontend:80
+    depends_on:
+      - frontend
+    networks:
+      - mnu_network
+
 volumes:
   pgdata:
     driver: local
