@@ -14,6 +14,7 @@ import NotificationsPage from './pages/NotificationsPage';
 import RecycleBinPage from './pages/RecycleBinPage';
 import GuidelinesPage from './pages/GuidelinesPage';
 import LogsPage from './pages/LogsPage';
+import WorkloadPage from './pages/WorkloadPage';
 import { Spinner } from 'react-bootstrap';
 import { Toaster } from 'react-hot-toast';
 
@@ -73,6 +74,9 @@ function App() {
         {activeTab === 'professors' && !hiddenPages.includes('professors') && <ProfessorsPage />}
         {activeTab === 'courses' && !hiddenPages.includes('courses') && <CoursesPage />}
         {activeTab === 'study-plan' && !hiddenPages.includes('study-plan') && <StudyPlanPage />}
+        {activeTab === 'workload' && !hiddenPages.includes('workload') && (
+          <WorkloadPage isReadOnly={['faculty_admin', 'student_affairs', 'reviewer'].includes(user?.role) && !user?.perm_view_professors_load} />
+        )}
         {activeTab === 'signatures' && !hiddenPages.includes('signatures') && <SignaturesPage />}
         {activeTab === 'statistics' && !hiddenPages.includes('statistics') && <StatisticsPage />}
         {activeTab === 'notifications' && !hiddenPages.includes('notifications') && <NotificationsPage />}

@@ -146,23 +146,121 @@ const formatHours = (hours) => {
 
 const formatLvl = (l) => {
 
-  if (l === 0 || l === "0" || String(l).includes("عام")) return "المستوى العام";
+  if (l === 0 || l === "0" || String(l).includes("عام")) return "العام";
 
-  if (l === 1 || l === "1" || String(l).includes("أول") || String(l).includes("اول") || String(l).toLowerCase() === "first") return "المستوى الأول";
+  if (l === 1 || l === "1" || String(l).includes("أول") || String(l).includes("اول") || String(l).toLowerCase() === "first") return "الأول";
 
-  if (l === 2 || l === "2" || String(l).includes("ثاني") || String(l).includes("ثانى") || String(l).toLowerCase() === "second") return "المستوى الثاني";
+  if (l === 2 || l === "2" || String(l).includes("ثاني") || String(l).includes("ثانى") || String(l).toLowerCase() === "second") return "الثاني";
 
-  if (l === 3 || l === "3" || String(l).includes("ثالث") || String(l).toLowerCase() === "third") return "المستوى الثالث";
+  if (l === 3 || l === "3" || String(l).includes("ثالث") || String(l).toLowerCase() === "third") return "الثالث";
 
-  if (l === 4 || l === "4" || String(l).includes("رابع") || String(l).toLowerCase() === "fourth") return "المستوى الرابع";
+  if (l === 4 || l === "4" || String(l).includes("رابع") || String(l).toLowerCase() === "fourth") return "الرابع";
 
-  if (l === 5 || l === "5" || String(l).includes("خامس") || String(l).toLowerCase() === "fifth") return "المستوى الخامس";
+  if (l === 5 || l === "5" || String(l).includes("خامس") || String(l).toLowerCase() === "fifth") return "الخامس";
 
-  if (l === 6 || l === "6" || String(l).includes("سادس")) return "المستوى السادس";
+  if (l === 6 || l === "6" || String(l).includes("سادس")) return "السادس";
 
   if (!l && l !== 0) return "–";
 
-  return `المستوى ${l}`;
+  return String(l).replace(/المستوى\s*/g, "").trim();
+
+};
+
+
+
+const formatSem = (s) => {
+
+  if (!s) return "–";
+
+  const str = String(s).trim();
+
+  if (str.includes("الأول") || str.includes("الاول")) return "الأول";
+
+  if (str.includes("الثاني") || str.includes("ثاني") || str.includes("ثانى")) return "الثاني";
+
+  if (str.includes("الصيفي") || str.includes("صيفي")) return "الصيفي";
+
+  return str.replace(/الفصل\s*(الدراسي)?\s*/g, "").trim();
+
+};
+
+
+
+const getCourseDeductions = (assignment, yearDeductions, yearAssignments) => {
+
+  if (!yearDeductions || yearDeductions.length === 0) return [];
+
+  return yearDeductions.filter(d => {
+
+    const dSem = (d.semester || "").trim();
+
+    const aSem = (assignment.course_semester || assignment.semester || "").trim();
+
+    
+
+    const semMatch = !dSem || !aSem ||
+
+      (dSem.includes("الأول") && aSem.includes("الأول")) ||
+
+      (dSem.includes("الثاني") && aSem.includes("الثاني")) ||
+
+      (dSem.includes("الصيفي") && aSem.includes("الصيفي")) ||
+
+      dSem === aSem;
+
+    if (!semMatch) return false;
+
+
+
+    if (d.course_id && assignment.course_id && String(d.course_id) === String(assignment.course_id)) {
+
+      return true;
+
+    }
+
+
+
+    if (d.course_name && assignment.course_name) {
+
+      const cleanD = d.course_name.trim().toLowerCase();
+
+      const cleanA = assignment.course_name.trim().toLowerCase();
+
+      if (cleanD === cleanA || cleanA.includes(cleanD) || cleanD.includes(cleanA)) return true;
+
+    }
+
+
+
+    if (!d.course_name && !d.course_id && yearAssignments) {
+
+      const sameSemCourses = yearAssignments.filter(ya => {
+
+        const yaSem = (ya.course_semester || ya.semester || "").trim();
+
+        return (
+
+          (dSem.includes("الأول") && yaSem.includes("الأول")) ||
+
+          (dSem.includes("الثاني") && yaSem.includes("الثاني")) ||
+
+          (dSem.includes("الصيفي") && yaSem.includes("الصيفي")) ||
+
+          dSem === yaSem
+
+        );
+
+      });
+
+      if (sameSemCourses.length === 1 && sameSemCourses[0] === assignment) return true;
+
+    }
+
+
+
+    return false;
+
+  });
 
 };
 
@@ -400,6 +498,7 @@ const ProfessorsPage = () => {
   const [selectedFaculties, setSelectedFaculties] = useState([]);
 
   const [professorAssignments, setProfessorAssignments] = useState([]);
+  const [professorDeductions, setProfessorDeductions] = useState([]);
 
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
 
@@ -877,17 +976,25 @@ const ProfessorsPage = () => {
 
 
 
-      // Fetch assignments for this professor
+      // Fetch assignments and deductions for this professor
 
       try {
 
-        const res = await axios.get(`/api/professors/${professor.id}/assignments`);
+        const [res, dedRes] = await Promise.all([
+
+          axios.get(`/api/professors/${professor.id}/assignments`),
+
+          axios.get(`/api/workload/deductions?professor_id=${professor.id}`)
+
+        ]);
 
         setProfessorAssignments(res.data);
 
+        setProfessorDeductions(dedRes.data || []);
+
       } catch (err) {
 
-        console.error("خطأ في جلب تكليفات الدكتور:", err);
+        console.error("خطأ في جلب تكليفات أو استقطاعات الدكتور:", err);
 
       }
 
@@ -2666,7 +2773,9 @@ const ProfessorsPage = () => {
 
                     <th>ساعات التدريس كل اسبوع</th>
 
-                    <th>إجمالي الساعات في الترم للمقرر</th>
+                    <th>الساعات المنتقصة</th>
+
+                    <th>إجمالي الساعات الفعلية في الترم للمقرر</th>
 
                   </tr>
 
@@ -2677,6 +2786,10 @@ const ProfessorsPage = () => {
               
 
               const yearAssignments = assignmentsByYear[year];
+
+              const yearDeductions = (professorDeductions || []).filter(d => d.academic_year === year);
+
+              const totalYearDeductions = yearDeductions.reduce((sum, d) => sum + (d.deducted_hours || 0), 0);
 
               const facultySpans = [];
 
@@ -2710,6 +2823,34 @@ const ProfessorsPage = () => {
 
                 const termHours = getTermTotalHours(a.hours, a.course_semester, a.academic_year || year, formData, a.faculty_name);
 
+                const courseDeds = getCourseDeductions(a, yearDeductions, yearAssignments);
+
+                const courseDeductedHours = courseDeds.reduce((sum, d) => sum + (d.deducted_hours || 0), 0);
+
+                const actualTermHours = Math.max(0, termHours - courseDeductedHours);
+
+
+
+                const dedTd = courseDeductedHours > 0
+
+                  ? `<div style="color: #dc3545; font-weight: bold;">- ${courseDeductedHours} ساعة</div>` +
+
+                    `<div style="font-size: 8.5pt; color: #555; font-weight: normal; margin-top: 2px;">` +
+
+                    courseDeds.map(d => {
+
+                      const weekStr = d.week_name || (d.week_number ? `الأسبوع ${d.week_number}` : '');
+
+                      return `<div>[${weekStr}${d.hour_type ? ` (${d.hour_type})` : ''}: خصم ${d.deducted_hours} س${d.reason ? ` - السبب: ${d.reason}` : ''}]</div>`;
+
+                    }).join('') +
+
+                    `</div>`
+
+                  : `-`;
+
+
+
                 html += `
 
                   <tr>
@@ -2720,13 +2861,15 @@ const ProfessorsPage = () => {
 
                     <td>${a.course_name}</td>
 
-                    <td>${a.level}</td>
+                    <td>${formatLvl(a.level)}</td>
 
-                    <td>${a.course_semester}</td>
+                    <td>${formatSem(a.course_semester)}</td>
 
                     <td>${formatHours(a.hours)}</td>
 
-                    <td style="font-weight: bold; color: #1e40af;">${formatHours(termHours)}</td>
+                    <td style="text-align: center;">${dedTd}</td>
+
+                    <td style="font-weight: bold; color: #1e40af; text-align: center;">${formatHours(actualTermHours)}</td>
 
                   </tr>
 
@@ -2738,17 +2881,51 @@ const ProfessorsPage = () => {
 
               const totalWeeklyHours = formatHours(assignmentsByYear[year].reduce((sum, current) => sum + (current.hours || 0), 0));
 
-              const totalTermHours = formatHours(assignmentsByYear[year].reduce((sum, current) => sum + getTermTotalHours(current.hours, current.course_semester, current.academic_year || year, formData, current.faculty_name), 0));
+              const rawTotalTerm = assignmentsByYear[year].reduce((sum, current) => sum + getTermTotalHours(current.hours, current.course_semester, current.academic_year || year, formData, current.faculty_name), 0);
+
+              const netTotalTerm = formatHours(Math.max(0, rawTotalTerm - totalYearDeductions));
+
+
+
+              if (totalYearDeductions > 0) {
+
+                html += `
+
+                  <tr style="background-color: #fff3cd; color: #856404; font-size: 9pt;">
+
+                    <td colspan="5" style="text-align: center; font-weight: bold;">⚠️ إجمالي الساعات المنتقصة لهذا العام الجامعي: ${yearDeductions.map(d => {
+
+                      const weekStr = d.week_name || (d.week_number ? `الأسبوع ${d.week_number}` : '');
+
+                      return `[${d.semester}${weekStr ? ` - ${weekStr}` : ''}${d.hour_type ? ` (${d.hour_type})` : ''}: خصم ${d.deducted_hours} س ${d.reason ? `- السبب: ${d.reason}` : ''}]`;
+
+                    }).join(' ')}</td>
+
+                    <td style="text-align: center;">-</td>
+
+                    <td style="text-align: center; font-weight: bold; color: #dc3545;">- ${totalYearDeductions} ساعة</td>
+
+                    <td style="text-align: center;">-</td>
+
+                  </tr>
+
+                `;
+
+              }
+
+
 
               html += `
 
                   <tr style="background-color: #e9ecef; font-weight: bold;">
 
-                    <td colspan="5" style="text-align: center; color: #2e7d32;">إجمالي ساعات التدريس لهذا العام الجامعي</td>
+                    <td colspan="5" style="text-align: center; color: #2e7d32;">إجمالي ساعات التدريس لهذا العام الجامعي ${totalYearDeductions > 0 ? '(الصافي بعد الانتقاص)' : ''}</td>
 
                     <td style="text-align: center; color: #2e7d32;">${totalWeeklyHours} ساعة</td>
 
-                    <td style="text-align: center; color: #1e40af;">${totalTermHours} ساعة</td>
+                    <td style="text-align: center; color: ${totalYearDeductions > 0 ? '#dc3545' : '#6b7280'};">${totalYearDeductions > 0 ? `- ${totalYearDeductions} ساعة` : '-'}</td>
+
+                    <td style="text-align: center; color: #1e40af;">${netTotalTerm} ساعة</td>
 
                   </tr>
 
@@ -3063,7 +3240,9 @@ const ProfessorsPage = () => {
 
                     <th>ساعات التدريس كل اسبوع</th>
 
-                    <th>إجمالي الساعات في الترم للمقرر</th>
+                    <th>الساعات المنتقصة</th>
+
+                    <th>إجمالي الساعات الفعلية في الترم للمقرر</th>
 
                   </tr>
 
@@ -3074,6 +3253,10 @@ const ProfessorsPage = () => {
               
 
               const yearAssignments = assignmentsByYear[year];
+
+              const yearDeductions = (professorDeductions || []).filter(d => d.academic_year === year);
+
+              const totalYearDeductions = yearDeductions.reduce((sum, d) => sum + (d.deducted_hours || 0), 0);
 
               const facultySpans = [];
 
@@ -3107,6 +3290,34 @@ const ProfessorsPage = () => {
 
                 const termHours = getTermTotalHours(a.hours, a.course_semester, a.academic_year || year, formData, a.faculty_name);
 
+                const courseDeds = getCourseDeductions(a, yearDeductions, yearAssignments);
+
+                const courseDeductedHours = courseDeds.reduce((sum, d) => sum + (d.deducted_hours || 0), 0);
+
+                const actualTermHours = Math.max(0, termHours - courseDeductedHours);
+
+
+
+                const dedTd = courseDeductedHours > 0
+
+                  ? `<div style="color: #dc3545; font-weight: bold;">- ${courseDeductedHours} ساعة</div>` +
+
+                    `<div style="font-size: 8.5pt; color: #555; font-weight: normal; margin-top: 2px;">` +
+
+                    courseDeds.map(d => {
+
+                      const weekStr = d.week_name || (d.week_number ? `الأسبوع ${d.week_number}` : '');
+
+                      return `<div>[${weekStr}${d.hour_type ? ` (${d.hour_type})` : ''}: خصم ${d.deducted_hours} س${d.reason ? ` - السبب: ${d.reason}` : ''}]</div>`;
+
+                    }).join('') +
+
+                    `</div>`
+
+                  : `-`;
+
+
+
                 html += `
 
                   <tr>
@@ -3117,13 +3328,15 @@ const ProfessorsPage = () => {
 
                     <td>${a.course_name}</td>
 
-                    <td>${a.level}</td>
+                    <td>${formatLvl(a.level)}</td>
 
-                    <td>${a.course_semester}</td>
+                    <td>${formatSem(a.course_semester)}</td>
 
                     <td>${formatHours(a.hours)}</td>
 
-                    <td style="font-weight: bold; color: #1e40af;">${formatHours(termHours)}</td>
+                    <td style="text-align: center;">${dedTd}</td>
+
+                    <td style="font-weight: bold; color: #1e40af; text-align: center;">${formatHours(actualTermHours)}</td>
 
                   </tr>
 
@@ -3135,17 +3348,51 @@ const ProfessorsPage = () => {
 
               const totalWeeklyHours = formatHours(assignmentsByYear[year].reduce((sum, current) => sum + (current.hours || 0), 0));
 
-              const totalTermHours = formatHours(assignmentsByYear[year].reduce((sum, current) => sum + getTermTotalHours(current.hours, current.course_semester, current.academic_year || year, formData, current.faculty_name), 0));
+              const rawTotalTerm = assignmentsByYear[year].reduce((sum, current) => sum + getTermTotalHours(current.hours, current.course_semester, current.academic_year || year, formData, current.faculty_name), 0);
+
+              const netTotalTerm = formatHours(Math.max(0, rawTotalTerm - totalYearDeductions));
+
+
+
+              if (totalYearDeductions > 0) {
+
+                html += `
+
+                  <tr style="background-color: #fff3cd; color: #856404; font-size: 9pt;">
+
+                    <td colspan="5" style="text-align: center; font-weight: bold;">⚠️ إجمالي الساعات المنتقصة لهذا العام الجامعي: ${yearDeductions.map(d => {
+
+                      const weekStr = d.week_name || (d.week_number ? `الأسبوع ${d.week_number}` : '');
+
+                      return `[${d.semester}${weekStr ? ` - ${weekStr}` : ''}${d.hour_type ? ` (${d.hour_type})` : ''}: خصم ${d.deducted_hours} س ${d.reason ? `- السبب: ${d.reason}` : ''}]`;
+
+                    }).join(' ')}</td>
+
+                    <td style="text-align: center;">-</td>
+
+                    <td style="text-align: center; font-weight: bold; color: #dc3545;">- ${totalYearDeductions} ساعة</td>
+
+                    <td style="text-align: center;">-</td>
+
+                  </tr>
+
+                `;
+
+              }
+
+
 
               html += `
 
                   <tr style="background-color: #e9ecef; font-weight: bold;">
 
-                    <td colspan="5" style="text-align: center; color: #2e7d32;">إجمالي ساعات التدريس لهذا العام الجامعي</td>
+                    <td colspan="5" style="text-align: center; color: #2e7d32;">إجمالي ساعات التدريس لهذا العام الجامعي ${totalYearDeductions > 0 ? '(الصافي بعد الانتقاص)' : ''}</td>
 
                     <td style="text-align: center; color: #2e7d32;">${totalWeeklyHours} ساعة</td>
 
-                    <td style="text-align: center; color: #1e40af;">${totalTermHours} ساعة</td>
+                    <td style="text-align: center; color: ${totalYearDeductions > 0 ? '#dc3545' : '#6b7280'};">${totalYearDeductions > 0 ? `- ${totalYearDeductions} ساعة` : '-'}</td>
+
+                    <td style="text-align: center; color: #1e40af;">${netTotalTerm} ساعة</td>
 
                   </tr>
 
@@ -3260,14 +3507,19 @@ const ProfessorsPage = () => {
     logAction(`قام بتصدير إكسيل لبيانات ${selectedRows.length} من أعضاء هيئة التدريس`, fids.length > 0 ? fids : null, exportAcademicYear);
 
     let assignmentsByProf = {};
+    let allDeductions = [];
     try {
-      const res = await axios.post('/api/professors/export-assignments', {
-        professor_ids: selectedProfs.map(p => p.id),
-        academic_year: exportAcademicYear,
-        semester: exportSemester !== 'الكل' ? exportSemester : undefined,
-        level: exportLevel !== 'الكل' ? exportLevel : undefined
-      });
+      const [res, dedRes] = await Promise.all([
+        axios.post('/api/professors/export-assignments', {
+          professor_ids: selectedProfs.map(p => p.id),
+          academic_year: exportAcademicYear,
+          semester: exportSemester !== 'الكل' ? exportSemester : undefined,
+          level: exportLevel !== 'الكل' ? exportLevel : undefined
+        }),
+        axios.get('/api/workload/deductions')
+      ]);
       assignmentsByProf = res.data;
+      allDeductions = dedRes.data || [];
     } catch (err) {
       console.error(err);
       toast.error("حدث خطأ أثناء جلب التكليفات.");
@@ -3339,7 +3591,7 @@ const ProfessorsPage = () => {
       "نوع التعاقد والأيام",
       "جهة القدوم",
       "رقم الهاتف", "البريد الإلكتروني",
-      "الكلية التابع لها", "اسم البرنامج", "المقررات المكلف بها", "ساعات التدريس كل اسبوع", "إجمالي الساعات في الترم للمقرر", "المستوى", "الفصل الدراسي",
+      "الكلية التابع لها", "اسم البرنامج", "المقررات المكلف بها", "ساعات التدريس كل اسبوع", "الساعات المنتقصة", "إجمالي الساعات الفعليه في الترم للمقرر", "المستوى", "الفصل الدراسي",
       "العام الجامعي", "عدد أسابيع حضور الأستاذ", "إجمالي ساعات تدريسه في العام الجامعي"
     ];
 
@@ -3356,6 +3608,9 @@ const ProfessorsPage = () => {
     let excelRowsHtml = "";
     profsToExport.forEach((p, index) => {
       const assignments = assignmentsByProf[p.id] || [];
+
+      const pDeductions = (allDeductions || []).filter(d => d.professor_id === p.id);
+
       const yearGroups = [];
 
       if (assignments.length > 0) {
@@ -3367,9 +3622,12 @@ const ProfessorsPage = () => {
           yearMap[yName].totalHours += getTermTotalHours(a.hours, a.course_semester, yName, p, a.faculty_name);
         });
         Object.keys(yearMap).forEach(yName => {
+          const yDeds = pDeductions.filter(d => d.academic_year === yName);
+          const yDedTotal = yDeds.reduce((sum, d) => sum + (d.deducted_hours || 0), 0);
+          const netTotalHours = Math.max(0, yearMap[yName].totalHours - yDedTotal);
           yearGroups.push({
             yearName: yName,
-            totalHours: formatHours(yearMap[yName].totalHours),
+            totalHours: formatHours(netTotalHours),
             list: yearMap[yName].list
           });
         });
@@ -3409,16 +3667,23 @@ const ProfessorsPage = () => {
 
           if (yg.list.length > 0) {
             const a = yg.list[i];
+            const yearDeductions = pDeductions.filter(d => d.academic_year === yg.yearName);
+            const termHours = getTermTotalHours(a.hours, a.course_semester, yg.yearName, p, a.faculty_name);
+            const courseDeds = getCourseDeductions(a, yearDeductions, yg.list);
+            const courseDeductedHours = courseDeds.reduce((sum, d) => sum + (d.deducted_hours || 0), 0);
+            const actualTermHours = Math.max(0, termHours - courseDeductedHours);
+
             excelRowsHtml += `<td style="text-align: center; vertical-align: middle;">${a.faculty_name || ""}</td>`;
             excelRowsHtml += `<td style="text-align: center; vertical-align: middle;">${a.program_name || ""}</td>`;
             excelRowsHtml += `<td style="text-align: right; vertical-align: middle;">${a.course_name || ""}</td>`;
             excelRowsHtml += `<td style="text-align: center; vertical-align: middle;">${formatHours(a.hours)}</td>`;
-            excelRowsHtml += `<td style="text-align: center; font-weight: bold; color: #1e40af; vertical-align: middle;">${formatHours(getTermTotalHours(a.hours, a.course_semester, yg.yearName, p, a.faculty_name))}</td>`;
+            excelRowsHtml += `<td style="text-align: center; vertical-align: middle; ${courseDeductedHours > 0 ? 'color: #dc3545; font-weight: bold;' : ''}">${courseDeductedHours > 0 ? courseDeductedHours : "-"}</td>`;
+            excelRowsHtml += `<td style="text-align: center; font-weight: bold; color: #1e40af; vertical-align: middle;">${formatHours(actualTermHours)}</td>`;
             excelRowsHtml += `<td style="text-align: center; vertical-align: middle;">${formatLvl(a.level) || ""}</td>`;
-            excelRowsHtml += `<td style="text-align: center; vertical-align: middle;">${a.course_semester || ""}</td>`;
+            excelRowsHtml += `<td style="text-align: center; vertical-align: middle;">${formatSem(a.course_semester) || ""}</td>`;
           } else {
             const profFacs = (p.faculties && p.faculties.length > 0) ? p.faculties.map(f => f.name).join(" - ") : "-";
-            excelRowsHtml += `<td style="text-align: center; vertical-align: middle;">${profFacs}</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>`;
+            excelRowsHtml += `<td style="text-align: center; vertical-align: middle;">${profFacs}</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>`;
           }
 
           if (i === 0) {
@@ -5416,7 +5681,9 @@ const ProfessorsPage = () => {
 
                               <th>ساعات التدريس كل اسبوع</th>
 
-                              <th>إجمالي الساعات في الترم للمقرر</th>
+                              <th>الساعات المنتقصة</th>
+
+                              <th>إجمالي الساعات الفعلية في الترم للمقرر</th>
 
                             </tr>
 
@@ -5452,11 +5719,21 @@ const ProfessorsPage = () => {
 
 
 
+                              const yearDeductions = (professorDeductions || []).filter(d => d.academic_year === year);
+
+
+
                               return yearAssignments.map((assignment, idx) => {
 
                                 const spanObj = facultySpans.find(s => s.index === idx);
 
                                 const termHours = getTermTotalHours(assignment.hours, assignment.course_semester, assignment.academic_year || year, formData, assignment.faculty_name);
+
+                                const courseDeds = getCourseDeductions(assignment, yearDeductions, yearAssignments);
+
+                                const courseDeductedHours = courseDeds.reduce((sum, d) => sum + (d.deducted_hours || 0), 0);
+
+                                const actualTermHours = Math.max(0, termHours - courseDeductedHours);
 
                                 return (
 
@@ -5494,11 +5771,53 @@ const ProfessorsPage = () => {
 
                                     <td>{formatLvl(assignment.level)}</td>
 
-                                    <td>{assignment.course_semester}</td>
+                                    <td>{formatSem(assignment.course_semester)}</td>
 
                                     <td>{formatHours(assignment.hours)}</td>
 
-                                    <td style={{ fontWeight: 'bold', color: '#1e40af' }}>{formatHours(termHours)}</td>
+                                    <td>
+
+                                      {courseDeductedHours > 0 ? (
+
+                                        <div style={{ color: '#dc3545', fontWeight: 'bold' }}>
+
+                                          <div>- {courseDeductedHours} ساعة</div>
+
+                                          <div style={{ fontSize: '11px', color: '#666', fontWeight: 'normal', marginTop: '2px' }}>
+
+                                            {courseDeds.map((d, dIdx) => {
+
+                                              const weekStr = d.week_name || (d.week_number ? `الأسبوع ${d.week_number}` : '');
+
+                                              return (
+
+                                                <div key={dIdx} style={{ lineHeight: '1.3' }}>
+
+                                                  [{weekStr ? `${weekStr}` : ''}{d.hour_type ? ` (${d.hour_type})` : ''}: خصم {d.deducted_hours} س{d.reason ? ` - السبب: ${d.reason}` : ''}]
+
+                                                </div>
+
+                                              );
+
+                                            })}
+
+                                          </div>
+
+                                        </div>
+
+                                      ) : (
+
+                                        <span style={{ color: '#9ca3af' }}>-</span>
+
+                                      )}
+
+                                    </td>
+
+                                    <td style={{ fontWeight: 'bold', color: '#1e40af' }}>
+
+                                      {formatHours(actualTermHours)}
+
+                                    </td>
 
                                   </tr>
 
@@ -5512,23 +5831,97 @@ const ProfessorsPage = () => {
 
                           <tfoot>
 
-                            <tr style={{ fontWeight: 'bold', backgroundColor: '#e9ecef' }}>
+                            {(() => {
 
-                              <td colSpan="5" style={{ textAlign: 'center', color: '#2e7d32' }}>إجمالي ساعات التدريس لهذا العام الجامعي</td>
+                              const yearDeductions = (professorDeductions || []).filter(d => d.academic_year === year);
 
-                              <td style={{ textAlign: 'center', color: '#2e7d32' }}>
+                              const totalYearDeductions = yearDeductions.reduce((sum, d) => sum + (d.deducted_hours || 0), 0);
 
-                                {formatHours(assignmentsByYear[year].reduce((sum, current) => sum + (current.hours || 0), 0))} ساعة
+                              const rawTotalWeekly = assignmentsByYear[year].reduce((sum, current) => sum + (current.hours || 0), 0);
 
-                              </td>
+                              const rawTotalTerm = assignmentsByYear[year].reduce((sum, current) => sum + getTermTotalHours(current.hours, current.course_semester, current.academic_year || year, formData, current.faculty_name), 0);
 
-                              <td style={{ textAlign: 'center', color: '#1e40af' }}>
+                              const netTotalTerm = Math.max(0, rawTotalTerm - totalYearDeductions);
 
-                                {formatHours(assignmentsByYear[year].reduce((sum, current) => sum + getTermTotalHours(current.hours, current.course_semester, current.academic_year || year, formData, current.faculty_name), 0))} ساعة
 
-                              </td>
 
-                            </tr>
+                              return (
+
+                                <>
+
+                                  {totalYearDeductions > 0 && (
+
+                                    <tr style={{ backgroundColor: '#fff3cd', color: '#856404' }}>
+
+                                      <td colSpan="5" style={{ textAlign: 'center', fontWeight: 'bold' }}>
+
+                                        ⚠️ إجمالي الساعات المنتقصة لهذا العام الجامعي:
+
+                                        {yearDeductions.map((d, dIdx) => {
+
+                                          const weekStr = d.week_name || (d.week_number ? `الأسبوع ${d.week_number}` : '');
+
+                                          return (
+
+                                            <span key={dIdx} style={{ marginRight: '10px', fontSize: '12px' }}>
+
+                                              [{d.semester}{weekStr ? ` - ${weekStr}` : ''}{d.hour_type ? ` (${d.hour_type})` : ''}: خصم {d.deducted_hours} س {d.reason ? `- السبب: ${d.reason}` : ''}]
+
+                                            </span>
+
+                                          );
+
+                                        })}
+
+                                      </td>
+
+                                      <td style={{ textAlign: 'center' }}>-</td>
+
+                                      <td style={{ textAlign: 'center', fontWeight: 'bold', color: '#dc3545' }}>
+
+                                        - {totalYearDeductions} ساعة
+
+                                      </td>
+
+                                      <td style={{ textAlign: 'center' }}>-</td>
+
+                                    </tr>
+
+                                  )}
+
+                                  <tr style={{ fontWeight: 'bold', backgroundColor: '#e9ecef' }}>
+
+                                    <td colSpan="5" style={{ textAlign: 'center', color: '#2e7d32' }}>
+
+                                      إجمالي ساعات التدريس لهذا العام الجامعي {totalYearDeductions > 0 ? '(الصافي بعد الانتقاص)' : ''}
+
+                                    </td>
+
+                                    <td style={{ textAlign: 'center', color: '#2e7d32' }}>
+
+                                      {formatHours(rawTotalWeekly)} ساعة
+
+                                    </td>
+
+                                    <td style={{ textAlign: 'center', color: totalYearDeductions > 0 ? '#dc3545' : '#6b7280' }}>
+
+                                      {totalYearDeductions > 0 ? `- ${totalYearDeductions} ساعة` : '-'}
+
+                                    </td>
+
+                                    <td style={{ textAlign: 'center', color: '#1e40af' }}>
+
+                                      {formatHours(netTotalTerm)} ساعة
+
+                                    </td>
+
+                                  </tr>
+
+                                </>
+
+                              );
+
+                            })()}
 
                           </tfoot>
 
@@ -5540,7 +5933,11 @@ const ProfessorsPage = () => {
 
                     
 
-                    const grandTotalTerm = formatHours(professorAssignments.reduce((sum, curr) => sum + getTermTotalHours(curr.hours, curr.course_semester, curr.academic_year, formData, curr.faculty_name), 0));
+                    const totalAllDeductions = (professorDeductions || []).reduce((sum, d) => sum + (d.deducted_hours || 0), 0);
+
+                    const rawGrandTotal = professorAssignments.reduce((sum, curr) => sum + getTermTotalHours(curr.hours, curr.course_semester, curr.academic_year, formData, curr.faculty_name), 0);
+
+                    const grandTotalTerm = formatHours(Math.max(0, rawGrandTotal - totalAllDeductions));
 
                     return (
 
@@ -5552,8 +5949,9 @@ const ProfessorsPage = () => {
 
                           <div style={{ marginTop: '10px', padding: '12px 15px', backgroundColor: '#d4edda', borderRadius: '5px', border: '1px solid #c3e6cb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
 
-                            <h5 style={{ margin: 0, fontWeight: 'bold', color: '#155724', fontSize: '16px' }}>إجمالي ساعات تدريس عضو هيئة التدريس في جامعة المنوفية الأهلية عبر السنين</h5>
-                            <h5 style={{ margin: 0, fontWeight: 'bold', color: '#155724', fontSize: '16px' }}>{grandTotalTerm} ساعة</h5>
+                            <h5 style={{ margin: 0, fontWeight: 'bold', color: '#155724', fontSize: '16px' }}>إجمالي ساعات تدريس عضو هيئة التدريس في جامعة المنوفية الأهلية عبر السنين {totalAllDeductions > 0 ? '(الصافي)' : ''}</h5>
+
+                            <h5 style={{ margin: 0, fontWeight: 'bold', color: '#155724', fontSize: '16px' }}>{grandTotalTerm} ساعة {totalAllDeductions > 0 ? `(تم خصم ${totalAllDeductions} س إجمالي)` : ''}</h5>
 
                           </div>
 
@@ -6364,9 +6762,9 @@ const submitBtnStyle = {};
 
 const cancelStyle = {};
 
-const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center' };
+const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1050 };
 
-const modalContentStyle = { backgroundColor: 'white', padding: '30px', borderRadius: '15px', width: '850px', maxWidth: '95%', minHeight: '620px', maxHeight: '92vh', overflowY: 'auto' };
+const modalContentStyle = { backgroundColor: 'white', padding: '30px', borderRadius: '15px', width: '1020px', maxWidth: '96%', minHeight: '620px', maxHeight: '92vh', overflowY: 'auto' };
 
 
 

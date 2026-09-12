@@ -824,6 +824,7 @@ const MainTablePage = () => {
                 ? (prof.courses_t1 || []).map(renderCourseItemHTML).join('') + `
                     <div style="margin-top:6px; font-weight:bold; color:#1b5e20; border-top:1px solid #eee; padding-top:4px;">
                         <div>إجمالي الساعات في الأسبوع: ${formatHours(prof.hours_t1)} ساعة</div>
+                        ${prof.deducted_hours_t1 > 0 ? `<div style="font-size:7.5pt; color:#c62828; margin-top:2px;">(تم تخفيض ${prof.deducted_hours_t1} س${prof.reason_t1 ? ` - ${prof.reason_t1}` : ''})</div>` : ''}
                         <div style="font-size:8.5pt; color:#155724; margin-top:2px;">إجمالي الساعات في الترم = ${formatHours(t1TermHours)} ساعة</div>
                     </div>`
                 : "-";
@@ -832,6 +833,7 @@ const MainTablePage = () => {
                 ? (prof.courses_t2 || []).map(renderCourseItemHTML).join('') + `
                     <div style="margin-top:6px; font-weight:bold; color:#1b5e20; border-top:1px solid #eee; padding-top:4px;">
                         <div>إجمالي الساعات في الأسبوع: ${formatHours(prof.hours_t2)} ساعة</div>
+                        ${prof.deducted_hours_t2 > 0 ? `<div style="font-size:7.5pt; color:#c62828; margin-top:2px;">(تم تخفيض ${prof.deducted_hours_t2} س${prof.reason_t2 ? ` - ${prof.reason_t2}` : ''})</div>` : ''}
                         <div style="font-size:8.5pt; color:#155724; margin-top:2px;">إجمالي الساعات في الترم = ${formatHours(t2TermHours)} ساعة</div>
                     </div>`
                 : "-";
@@ -840,6 +842,7 @@ const MainTablePage = () => {
                 ? (prof.courses_t3 || []).map(renderCourseItemHTML).join('') + `
                     <div style="margin-top:6px; font-weight:bold; color:#1b5e20; border-top:1px solid #eee; padding-top:4px;">
                         <div>إجمالي الساعات في الأسبوع: ${formatHours(prof.hours_t3)} ساعة</div>
+                        ${prof.deducted_hours_t3 > 0 ? `<div style="font-size:7.5pt; color:#c62828; margin-top:2px;">(تم تخفيض ${prof.deducted_hours_t3} س${prof.reason_t3 ? ` - ${prof.reason_t3}` : ''})</div>` : ''}
                         <div style="font-size:8.5pt; color:#155724; margin-top:2px;">إجمالي الساعات في الترم = ${formatHours(t3TermHours)} ساعة</div>
                     </div>`
                 : "-";
@@ -1527,6 +1530,11 @@ const MainTablePage = () => {
                                                                     {prof.courses_t1.map(renderCourseItemUI)}
                                                                     <div className="mt-2 pt-2 fw-bold text-center" style={{ fontSize: '0.85rem', color: '#2e7d32', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
                                                                         <div>إجمالي الساعات في الأسبوع: {formatHours(prof.hours_t1)} ساعة</div>
+                                                                        {prof.deducted_hours_t1 > 0 && (
+                                                                            <div style={{ fontSize: '0.78rem', color: '#c62828' }}>
+                                                                                (تم تخفيض {prof.deducted_hours_t1} س{prof.reason_t1 ? ` - ${prof.reason_t1}` : ''})
+                                                                            </div>
+                                                                        )}
                                                                         <div className="mt-1" style={{ fontSize: '0.82rem', color: '#155724' }}>
                                                                             إجمالي الساعات في الترم = {formatHours(t1TermHours)} ساعة
                                                                         </div>
@@ -1543,6 +1551,11 @@ const MainTablePage = () => {
                                                                     {prof.courses_t2.map(renderCourseItemUI)}
                                                                     <div className="mt-2 pt-2 fw-bold text-center" style={{ fontSize: '0.85rem', color: '#2e7d32', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
                                                                         <div>إجمالي الساعات في الأسبوع: {formatHours(prof.hours_t2)} ساعة</div>
+                                                                        {prof.deducted_hours_t2 > 0 && (
+                                                                            <div style={{ fontSize: '0.78rem', color: '#c62828' }}>
+                                                                                (تم تخفيض {prof.deducted_hours_t2} س{prof.reason_t2 ? ` - ${prof.reason_t2}` : ''})
+                                                                            </div>
+                                                                        )}
                                                                         <div className="mt-1" style={{ fontSize: '0.82rem', color: '#155724' }}>
                                                                             إجمالي الساعات في الترم = {formatHours(t2TermHours)} ساعة
                                                                         </div>
@@ -1559,6 +1572,11 @@ const MainTablePage = () => {
                                                                     {prof.courses_t3.map(renderCourseItemUI)}
                                                                     <div className="mt-2 pt-2 fw-bold text-center" style={{ fontSize: '0.85rem', color: '#2e7d32', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
                                                                         <div>إجمالي الساعات في الأسبوع: {formatHours(prof.hours_t3)} ساعة</div>
+                                                                        {prof.deducted_hours_t3 > 0 && (
+                                                                            <div style={{ fontSize: '0.78rem', color: '#c62828' }}>
+                                                                                (تم تخفيض {prof.deducted_hours_t3} س{prof.reason_t3 ? ` - ${prof.reason_t3}` : ''})
+                                                                            </div>
+                                                                        )}
                                                                         <div className="mt-1" style={{ fontSize: '0.82rem', color: '#155724' }}>
                                                                             إجمالي الساعات في الترم = {formatHours(t3TermHours)} ساعة
                                                                         </div>

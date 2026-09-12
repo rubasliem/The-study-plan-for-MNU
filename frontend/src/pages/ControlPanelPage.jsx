@@ -16,6 +16,7 @@ const SIDEBAR_PAGES = [
     { id: 'statistics', label: 'الإحصائيات', icon: '📈' },
     { id: 'notifications', label: 'الإشعارات', icon: '🔔' },
     { id: 'recycle-bin', label: 'استرجاع المحذوف', icon: '🗑️' },
+    { id: 'workload', label: 'تحديد الأعباء', icon: '⚖️' },
     { id: 'guidelines', label: 'الإرشادات', icon: 'ℹ️' },
     { id: 'control-panel', label: 'لوحة التحكم', icon: '⚙️' },
     { id: 'logs', label: 'العمليات (Logs)', icon: '📋' },
@@ -532,6 +533,10 @@ const ControlPanelPage = () => {
                                         <div>الحذف النهائي</div>
                                         <small className="fw-semibold" style={{ fontSize: '0.78rem', color: '#ffe082', display: 'block', marginTop: '2px' }}>(المحذوفات)</small>
                                     </th>
+                                    <th className="text-center" style={{ verticalAlign: 'middle' }}>
+                                        <div>أعباء الأساتذة</div>
+                                        <small className="fw-semibold" style={{ fontSize: '0.78rem', color: '#ffe082', display: 'block', marginTop: '2px' }}>(تعديل الصفحة)</small>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -691,11 +696,18 @@ const ControlPanelPage = () => {
                                                 onChange={() => handleTogglePermission(u.id, 'perm_recycle_delete_btn', u.perm_recycle_delete_btn)}
                                             />
                                         </td>
+                                        <td className="text-center" style={{ verticalAlign: 'middle' }}>
+                                            <Form.Check 
+                                                type="switch"
+                                                checked={u.perm_view_professors_load}
+                                                onChange={() => handleTogglePermission(u.id, 'perm_view_professors_load', u.perm_view_professors_load)}
+                                            />
+                                        </td>
                                     </tr>
                                 ))}
                                 {users.length === 0 && (
                                     <tr style={{ height: '100px' }}>
-                                        <td colSpan="14" className="text-muted text-center" style={{ verticalAlign: 'middle' }}>
+                                        <td colSpan="15" className="text-muted text-center" style={{ verticalAlign: 'middle' }}>
                                             لا يوجد مسؤولي كليات حالياً.
                                         </td>
                                     </tr>

@@ -357,7 +357,12 @@ def migrate_db_add_user_permissions():
             "perm_view_prof_import_btn",
             "perm_delete_notif_btn",
             "perm_recycle_restore_btn",
-            "perm_recycle_delete_btn"
+            "perm_recycle_delete_btn",
+            "perm_review_1",
+            "perm_review_2",
+            "perm_approve_plan",
+            "perm_finish_plan",
+            "perm_view_professors_load"
         ]
         
         added_any = False
@@ -531,6 +536,80 @@ def migrate_db_add_hidden_pages():
     finally:
         db.close()
 
+def migrate_db_add_workload_fields():
+    db = SessionLocal()
+    try:
+        models.Base.metadata.create_all(bind=engine)
+        inspector = inspect(engine)
+        
+        # 1. faculty_workload_limits table
+        if inspector.has_table('faculty_workload_limits'):
+            cols = [c['name'] for c in inspector.get_columns('faculty_workload_limits')]
+            new_cols = [
+                ("min_theory_hours_per_day", "FLOAT DEFAULT 0.0"),
+                ("max_theory_hours_per_day", "FLOAT DEFAULT 0.0"),
+                ("min_practical_hours_per_day", "FLOAT DEFAULT 0.0"),
+                ("max_practical_hours_per_day", "FLOAT DEFAULT 0.0"),
+                ("min_tutorial_hours_per_day", "FLOAT DEFAULT 0.0"),
+                ("max_tutorial_hours_per_day", "FLOAT DEFAULT 0.0"),
+                ("min_field_hours_per_day", "FLOAT DEFAULT 0.0"),
+                ("max_field_hours_per_day", "FLOAT DEFAULT 0.0"),
+                ("max_theory_hours_per_course", "FLOAT DEFAULT 0.0"),
+                ("max_practical_hours_per_course", "FLOAT DEFAULT 0.0"),
+                ("max_tutorial_hours_per_course", "FLOAT DEFAULT 0.0"),
+                ("max_field_hours_per_course", "FLOAT DEFAULT 0.0"),
+            ]
+            for col_name, col_type in new_cols:
+                if col_name not in cols:
+                    db.execute(text(f"ALTER TABLE faculty_workload_limits ADD COLUMN {col_name} {col_type};"))
+                    db.commit()
+
+        # 2. professor_load_deductions table
+        if inspector.has_table('professor_load_deductions'):
+            cols_d = [c['name'] for c in inspector.get_columns('professor_load_deductions')]
+            if "week_number" not in cols_d:
+                db.execute(text("ALTER TABLE professor_load_deductions ADD COLUMN week_number INTEGER;"))
+                db.commit()
+            if "week_name" not in cols_d:
+                db.execute(text("ALTER TABLE professor_load_deductions ADD COLUMN week_name VARCHAR;"))
+                db.commit()
+            if "hour_type" not in cols_d:
+                db.execute(text("ALTER TABLE professor_load_deductions ADD COLUMN hour_type VARCHAR;"))
+                db.commit()
+            if "course_id" not in cols_d:
+                db.execute(text("ALTER TABLE professor_load_deductions ADD COLUMN course_id INTEGER;"))
+                db.commit()
+            if "course_name" not in cols_d:
+                db.execute(text("ALTER TABLE professor_load_deductions ADD COLUMN course_name VARCHAR;"))
+                db.commit()
+
+        # 3. course_workload_weeks table
+        if not inspector.has_table('course_workload_weeks'):
+            db.execute(text("""
+                CREATE TABLE course_workload_weeks (
+                    id SERIAL PRIMARY KEY,
+                    faculty_id INTEGER NOT NULL REFERENCES faculties(id),
+                    academic_year VARCHAR NOT NULL,
+                    semester VARCHAR NOT NULL,
+                    course_key VARCHAR NOT NULL,
+                    course_id INTEGER REFERENCES courses(id),
+                    module_id INTEGER REFERENCES course_modules(id),
+                    course_name VARCHAR NOT NULL,
+                    course_code VARCHAR,
+                    weeks_count INTEGER NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS ix_course_workload_weeks_fac_sem ON course_workload_weeks (faculty_id, academic_year, semester);
+                CREATE INDEX IF NOT EXISTS ix_course_workload_weeks_key ON course_workload_weeks (course_key);
+            """))
+            db.commit()
+        print("Successfully verified/added workload fields.")
+    except Exception as e:
+        print(f"Error checking/adding workload fields: {e}")
+    finally:
+        db.close()
+
 def migrate_db_init_activity_logs():
     db = SessionLocal()
     try:
@@ -601,6 +680,7 @@ def migrate_db_init_activity_logs():
 
 @app.on_event("startup")
 def startup_event():
+    models.Base.metadata.create_all(bind=engine)
     migrate_db_add_academic_years()
     migrate_db_add_signature_report_type()
     migrate_db_add_email()
@@ -615,6 +695,7 @@ def startup_event():
     migrate_db_add_contract_fields()
     migrate_db_add_hidden_pages()
     migrate_db_init_activity_logs()
+    migrate_db_add_workload_fields()
 
 
     db = SessionLocal()
@@ -979,6 +1060,11 @@ def update_user(user_id: int, user_data: schemas.UserUpdate, db: Session = Depen
         db_user.perm_finish_plan = user_data.perm_finish_plan
         status = "تفعيل" if user_data.perm_finish_plan else "إلغاء"
         permission_changes.append(f"{status} صلاحية 'إنهاء الخطة'")
+        
+    if user_data.perm_view_professors_load is not None and db_user.perm_view_professors_load != user_data.perm_view_professors_load:
+        db_user.perm_view_professors_load = user_data.perm_view_professors_load
+        status = "تفعيل" if user_data.perm_view_professors_load else "إلغاء"
+        permission_changes.append(f"{status} صلاحية 'تعديل صفحة أعباء الأساتذة'")
         
     if permission_changes and db_user.faculty_id:
         short_target = db_user.username.split('@')[0]
@@ -3534,6 +3620,7 @@ def export_professors_assignments(request: ExportAssignmentsRequest, db: Session
         final_course_name = " - ".join(course_names) if course_names else (course.name_ar or (course.name_en if course else ""))
 
         assignments_by_prof[item.professor_id].append({
+            "course_id": item.course_id or item.base_course_id,
             "faculty_name": faculty.name if faculty else "",
             "program_name": final_prog_name,
             "course_name": final_course_name,
@@ -4051,11 +4138,51 @@ def bulk_delete_study_plan(faculty_id: int, semester: str, academic_year: str, d
     return {"message": "تم مسح الخطة الدراسية بالكامل"}
 
 @app.get("/api/professors/by-faculty/{faculty_id}")
-def get_professors_by_faculty(faculty_id: int, db: Session = Depends(get_db)):
-    """جلب الدكاترة المنتمين لكلية معينة"""
+def get_professors_by_faculty(
+    faculty_id: int,
+    academic_year: Optional[str] = None,
+    semester: Optional[str] = None,
+    assigned_only: Optional[bool] = False,
+    db: Session = Depends(get_db)
+):
+    """جلب الدكاترة المنتمين لكلية معينة، أو المخصص لهم مقررات بالخطة الدراسية لهذا الفصل والعام فقط"""
+    if assigned_only or (academic_year and semester):
+        items_query = db.query(models.StudyPlanItem.professor_id).join(models.StudyPlan).filter(
+            models.StudyPlan.faculty_id == faculty_id,
+            models.StudyPlan.is_deleted == False,
+            models.StudyPlanItem.professor_id.isnot(None)
+        )
+        if academic_year:
+            items_query = items_query.filter(models.StudyPlan.academic_year == academic_year)
+        if semester:
+            if "الصيفي" in semester or "صيف" in semester:
+                items_query = items_query.filter(or_(
+                    models.StudyPlan.semester.like("%الصيفي%"),
+                    models.StudyPlan.semester.like("%صيف%")
+                ))
+            elif "الأول" in semester or "اول" in semester:
+                items_query = items_query.filter(or_(
+                    models.StudyPlan.semester.like("%الأول%"),
+                    models.StudyPlan.semester.like("%اول%")
+                ))
+            elif "الثاني" in semester or "ثان" in semester:
+                items_query = items_query.filter(or_(
+                    models.StudyPlan.semester.like("%الثاني%"),
+                    models.StudyPlan.semester.like("%ثان%")
+                ))
+            else:
+                items_query = items_query.filter(models.StudyPlan.semester == semester)
+                
+        prof_ids = {row[0] for row in items_query.all() if row[0]}
+        if not prof_ids:
+            return []
+            
+        profs = db.query(models.Professor).filter(models.Professor.id.in_(prof_ids)).order_by(models.Professor.name_ar).all()
+        return [{"id": p.id, "name_ar": p.name_ar, "job_title": p.job_title, "original_workplace": p.original_workplace} for p in profs]
+        
     profs = db.query(models.Professor).filter(
         models.Professor.faculties.any(models.Faculty.id == faculty_id)
-    ).all()
+    ).order_by(models.Professor.name_ar).all()
     return [{"id": p.id, "name_ar": p.name_ar, "job_title": p.job_title, "original_workplace": p.original_workplace} for p in profs]
 
 @app.get("/api/professors/{id}/assignments")
@@ -4132,6 +4259,7 @@ def get_professor_assignments(id: int, db: Session = Depends(get_db)):
         
         result.append({
             "id": item.id,
+            "course_id": item.course_id or item.base_course_id,
             "academic_year": sp.academic_year if sp else "",
             "semester": sp.semester if sp else "",
             "faculty_id": faculty.id if faculty else None,
@@ -4228,6 +4356,668 @@ def delete_signature(signature_id: int, db: Session = Depends(get_db), current_u
     return {"message": "تم الحذف بنجاح"}
 
 # ==========================================
+# 11.1 مسارات تحديد الأعباء (Workload APIs)
+# ==========================================
+
+@app.get("/api/workload/limits")
+def get_workload_limits(
+    faculty_id: int,
+    academic_year: str,
+    semester: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    limit = db.query(models.FacultyWorkloadLimit).filter(
+        models.FacultyWorkloadLimit.faculty_id == faculty_id,
+        models.FacultyWorkloadLimit.academic_year == academic_year,
+        models.FacultyWorkloadLimit.semester == semester
+    ).first()
+    if not limit:
+        return {
+            "faculty_id": faculty_id,
+            "academic_year": academic_year,
+            "semester": semester,
+            "min_theory_hours_per_day": 0.0,
+            "max_theory_hours_per_day": 0.0,
+            "min_practical_hours_per_day": 0.0,
+            "max_practical_hours_per_day": 0.0,
+            "min_tutorial_hours_per_day": 0.0,
+            "max_tutorial_hours_per_day": 0.0,
+            "min_field_hours_per_day": 0.0,
+            "max_field_hours_per_day": 0.0,
+            "max_theory_hours_per_course": 0.0,
+            "max_practical_hours_per_course": 0.0,
+            "max_tutorial_hours_per_course": 0.0,
+            "max_field_hours_per_course": 0.0,
+            "max_hours_per_day": 0.0,
+            "min_hours_per_day": 0.0
+        }
+    return limit
+
+@app.post("/api/workload/limits")
+def save_workload_limits(
+    data: schemas.FacultyWorkloadLimitCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if current_user.role in [models.UserRole.faculty_admin, models.UserRole.student_affairs, models.UserRole.reviewer] and not getattr(current_user, 'perm_view_professors_load', False):
+        raise HTTPException(status_code=403, detail="لا تمتلك صلاحية تعديل حدود الأعباء التدريسية (عرض فقط)")
+        
+    limit = db.query(models.FacultyWorkloadLimit).filter(
+        models.FacultyWorkloadLimit.faculty_id == data.faculty_id,
+        models.FacultyWorkloadLimit.academic_year == data.academic_year,
+        models.FacultyWorkloadLimit.semester == data.semester
+    ).first()
+    
+    if limit:
+        limit.min_theory_hours_per_day = data.min_theory_hours_per_day
+        limit.max_theory_hours_per_day = data.max_theory_hours_per_day
+        limit.min_practical_hours_per_day = data.min_practical_hours_per_day
+        limit.max_practical_hours_per_day = data.max_practical_hours_per_day
+        limit.min_tutorial_hours_per_day = data.min_tutorial_hours_per_day
+        limit.max_tutorial_hours_per_day = data.max_tutorial_hours_per_day
+        limit.min_field_hours_per_day = data.min_field_hours_per_day
+        limit.max_field_hours_per_day = data.max_field_hours_per_day
+        limit.max_theory_hours_per_course = data.max_theory_hours_per_course or 0.0
+        limit.max_practical_hours_per_course = data.max_practical_hours_per_course or 0.0
+        limit.max_tutorial_hours_per_course = data.max_tutorial_hours_per_course or 0.0
+        limit.max_field_hours_per_course = data.max_field_hours_per_course or 0.0
+        limit.max_hours_per_day = data.max_hours_per_day or (data.max_theory_hours_per_day + data.max_practical_hours_per_day + data.max_tutorial_hours_per_day + data.max_field_hours_per_day)
+        limit.min_hours_per_day = data.min_hours_per_day or (data.min_theory_hours_per_day + data.min_practical_hours_per_day + data.min_tutorial_hours_per_day + data.min_field_hours_per_day)
+        limit.updated_at = datetime.utcnow()
+    else:
+        limit = models.FacultyWorkloadLimit(
+            faculty_id=data.faculty_id,
+            academic_year=data.academic_year,
+            semester=data.semester,
+            min_theory_hours_per_day=data.min_theory_hours_per_day,
+            max_theory_hours_per_day=data.max_theory_hours_per_day,
+            min_practical_hours_per_day=data.min_practical_hours_per_day,
+            max_practical_hours_per_day=data.max_practical_hours_per_day,
+            min_tutorial_hours_per_day=data.min_tutorial_hours_per_day,
+            max_tutorial_hours_per_day=data.max_tutorial_hours_per_day,
+            min_field_hours_per_day=data.min_field_hours_per_day,
+            max_field_hours_per_day=data.max_field_hours_per_day,
+            max_theory_hours_per_course=data.max_theory_hours_per_course or 0.0,
+            max_practical_hours_per_course=data.max_practical_hours_per_course or 0.0,
+            max_tutorial_hours_per_course=data.max_tutorial_hours_per_course or 0.0,
+            max_field_hours_per_course=data.max_field_hours_per_course or 0.0,
+            max_hours_per_day=data.max_hours_per_day or (data.max_theory_hours_per_day + data.max_practical_hours_per_day + data.max_tutorial_hours_per_day + data.max_field_hours_per_day),
+            min_hours_per_day=data.min_hours_per_day or (data.min_theory_hours_per_day + data.min_practical_hours_per_day + data.min_tutorial_hours_per_day + data.min_field_hours_per_day),
+        )
+        db.add(limit)
+        
+    db.commit()
+    db.refresh(limit)
+    
+    fac = db.query(models.Faculty).filter(models.Faculty.id == data.faculty_id).first()
+    fac_name = fac.name if fac else ""
+    user_role_str = get_user_role_display(current_user)
+    action_text = f"قام بتحديث حدود الأعباء التدريسية لكلية {fac_name} ({data.semester} - {data.academic_year})"
+    create_notification(db, data.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=data.academic_year, semester=data.semester)
+    db.commit()
+    
+    return limit
+
+@app.get("/api/workload/professor-courses")
+def get_workload_professor_courses(
+    professor_id: int,
+    academic_year: str,
+    semester: str,
+    faculty_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """جلب مقررات عضو هيئة التدريس وساعاته لهذا الفصل والعام المحدد مع الخصم المسجل"""
+    prof = db.query(models.Professor).filter(models.Professor.id == professor_id).first()
+    if not prof:
+        raise HTTPException(status_code=404, detail="عضو هيئة التدريس غير موجود")
+        
+    items_query = db.query(models.StudyPlanItem).join(models.StudyPlan).filter(
+        models.StudyPlanItem.professor_id == professor_id,
+        models.StudyPlan.academic_year == academic_year,
+        models.StudyPlan.is_deleted == False
+    )
+    if "الصيفي" in semester:
+        items_query = items_query.filter(models.StudyPlan.semester.like("%الصيفي%"))
+    elif "الأول" in semester:
+        items_query = items_query.filter(models.StudyPlan.semester.like("%الأول%"))
+    elif "الثاني" in semester:
+        items_query = items_query.filter(models.StudyPlan.semester.like("%الثاني%"))
+    else:
+        items_query = items_query.filter(models.StudyPlan.semester == semester)
+        
+    if faculty_id:
+        items_query = items_query.filter(models.StudyPlan.faculty_id == faculty_id)
+        
+    items = items_query.all()
+    
+    ay_obj = db.query(models.AcademicYear).filter(models.AcademicYear.name == academic_year).first()
+    is_med = any("الطب والجراحة" in f.name for f in prof.faculties) if prof.faculties else False
+    
+    def get_weeks_count():
+        import json
+        ay_weeks = {}
+        if prof.academic_year_weeks:
+            try:
+                ay_weeks = json.loads(prof.academic_year_weeks) if isinstance(prof.academic_year_weeks, str) else prof.academic_year_weeks
+            except:
+                ay_weeks = {}
+        y_data = ay_weeks.get(academic_year, {}) if isinstance(ay_weeks, dict) else {}
+        
+        if "الأول" in semester:
+            if y_data.get("semester1_weeks"): return int(y_data["semester1_weeks"])
+            if prof.academic_year == academic_year and prof.semester1_weeks: return prof.semester1_weeks
+            if ay_obj:
+                return ay_obj.med_semester1_weeks if (is_med and ay_obj.med_semester1_weeks) else (ay_obj.semester1_weeks or 15)
+            return 15
+        elif "الثاني" in semester:
+            if y_data.get("semester2_weeks"): return int(y_data["semester2_weeks"])
+            if prof.academic_year == academic_year and prof.semester2_weeks: return prof.semester2_weeks
+            if ay_obj:
+                return ay_obj.med_semester2_weeks if (is_med and ay_obj.med_semester2_weeks) else (ay_obj.semester2_weeks or 14)
+            return 14
+        else:
+            if y_data.get("summer_weeks"): return int(y_data["summer_weeks"])
+            if prof.academic_year == academic_year and prof.summer_weeks: return prof.summer_weeks
+            if ay_obj:
+                return ay_obj.med_summer_weeks if (is_med and ay_obj.med_summer_weeks) else (ay_obj.summer_weeks or 7)
+            return 7
+            
+    weeks_count = get_weeks_count()
+    
+    # Check custom course weeks for this faculty/year/semester
+    custom_cw_map = {}
+    cw_query = db.query(models.CourseWorkloadWeek).filter(
+        models.CourseWorkloadWeek.academic_year == academic_year,
+        models.CourseWorkloadWeek.semester == semester
+    )
+    if faculty_id:
+        cw_query = cw_query.filter(models.CourseWorkloadWeek.faculty_id == faculty_id)
+    cw_records = cw_query.all()
+    custom_cw_map = {cw.course_key: cw.weeks_count for cw in cw_records}
+    
+    courses_list = []
+    total_weekly_hours = 0.0
+    
+    for itm in items:
+        course = itm.course or itm.base_course
+        c_id = itm.course_id or itm.base_course_id
+        m_id = itm.module_id
+        
+        c_name = ""
+        c_code = ""
+        if course:
+            c_name = course.name_ar or course.name_en or ""
+            c_code = course.code or ""
+        if itm.module and itm.module.department_name:
+            dept_n = itm.module.department_name.strip()
+            if dept_n and dept_n not in ['-', '']:
+                c_name = f"{c_name} ({dept_n})" if c_name else dept_n
+                
+        p_name = itm.program.name if itm.program else ""
+        fac_name = itm.study_plan.faculty.name if (itm.study_plan and itm.study_plan.faculty) else ""
+        
+        course_key = f"mod_{m_id}" if m_id else f"crs_{c_id}" if c_id else f"name_{c_name}"
+        course_weeks = custom_cw_map.get(course_key, weeks_count)
+        is_custom_weeks = course_key in custom_cw_map
+        
+        w_hours = round(
+            (itm.hours_actual_theory or 0.0) +
+            (itm.hours_actual_practical or 0.0) +
+            (itm.hours_actual_exercise or 0.0) +
+            (itm.hours_actual_activity or 0.0),
+            2
+        )
+        total_weekly_hours += w_hours
+        sem_hours = round(w_hours * course_weeks, 2)
+        
+        # Resolve course level: check course level or itm.level
+        raw_level = None
+        if course and course.level is not None and str(course.level).strip() not in ['', '-']:
+            raw_level = course.level
+        elif itm.level is not None and str(itm.level).strip() not in ['', '-']:
+            raw_level = itm.level
+
+        level_str = "-"
+        if raw_level is not None:
+            l_map = {
+                "0": "التمهيدي",
+                "1": "الأول",
+                "2": "الثاني",
+                "3": "الثالث",
+                "4": "الرابع",
+                "5": "الخامس",
+                0: "التمهيدي",
+                1: "الأول",
+                2: "الثاني",
+                3: "الثالث",
+                4: "الرابع",
+                5: "الخامس"
+            }
+            level_str = l_map.get(raw_level, l_map.get(str(raw_level).strip(), str(raw_level)))
+
+        courses_list.append({
+            "item_id": itm.id,
+            "course_key": course_key,
+            "faculty_name": fac_name,
+            "program_name": p_name,
+            "course_name": c_name,
+            "course_code": c_code,
+            "course_id": c_id,
+            "module_id": m_id,
+            "level": level_str,
+            "weekly_hours": w_hours,
+            "weeks_count": course_weeks,
+            "is_custom_weeks": is_custom_weeks,
+            "default_semester_weeks": weeks_count,
+            "semester_hours": sem_hours,
+            "hours_theory": float(itm.hours_actual_theory or 0.0),
+            "hours_practical": float(itm.hours_actual_practical or 0.0),
+            "hours_exercise": float(itm.hours_actual_exercise or 0.0),
+            "hours_activity": float(itm.hours_actual_activity or 0.0)
+        })
+        
+    total_semester_hours = round(sum(c["semester_hours"] for c in courses_list), 2)
+    
+    # Check existing deductions for this professor, year and semester
+    ded_query = db.query(models.ProfessorLoadDeduction).filter(
+        models.ProfessorLoadDeduction.professor_id == professor_id,
+        models.ProfessorLoadDeduction.academic_year == academic_year,
+        models.ProfessorLoadDeduction.semester == semester
+    )
+    if faculty_id:
+        ded_query = ded_query.filter(
+            (models.ProfessorLoadDeduction.faculty_id == faculty_id) | (models.ProfessorLoadDeduction.faculty_id == None)
+        )
+    deductions = ded_query.order_by(models.ProfessorLoadDeduction.week_number.asc()).all()
+    
+    total_deducted_hours = sum(d.deducted_hours for d in deductions)
+    net_semester_hours = max(0.0, round(total_semester_hours - total_deducted_hours, 2))
+    
+    deductions_list = [
+        {
+            "id": d.id,
+            "deducted_hours": d.deducted_hours,
+            "week_number": d.week_number,
+            "week_name": d.week_name or (f"الأسبوع {d.week_number}" if d.week_number else "أسبوع غير محدد"),
+            "hour_type": d.hour_type or "",
+            "course_id": d.course_id,
+            "course_name": d.course_name or (d.course.name_ar if d.course else ""),
+            "reason": d.reason or "",
+            "created_by": d.created_by,
+            "created_at": d.created_at.isoformat() if d.created_at else None
+        }
+        for d in deductions
+    ]
+    
+    return {
+        "professor_id": professor_id,
+        "professor_name": prof.name_ar,
+        "academic_year": academic_year,
+        "semester": semester,
+        "weeks_count": weeks_count,
+        "courses": courses_list,
+        "total_weekly_hours": round(total_weekly_hours, 2),
+        "total_semester_hours": total_semester_hours,
+        "deductions": deductions_list,
+        "total_deducted_hours": total_deducted_hours,
+        "net_semester_hours": net_semester_hours
+    }
+
+@app.get("/api/workload/deductions")
+def get_workload_deductions(
+    faculty_id: Optional[int] = None,
+    academic_year: Optional[str] = None,
+    semester: Optional[str] = None,
+    professor_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    query = db.query(models.ProfessorLoadDeduction)
+    if faculty_id:
+        query = query.filter(models.ProfessorLoadDeduction.faculty_id == faculty_id)
+    if academic_year:
+        query = query.filter(models.ProfessorLoadDeduction.academic_year == academic_year)
+    if semester:
+        query = query.filter(models.ProfessorLoadDeduction.semester == semester)
+    if professor_id:
+        query = query.filter(models.ProfessorLoadDeduction.professor_id == professor_id)
+        
+    deductions = query.order_by(models.ProfessorLoadDeduction.id.desc()).all()
+    res = []
+    for d in deductions:
+        res.append({
+            "id": d.id,
+            "professor_id": d.professor_id,
+            "professor_name": d.professor.name_ar if d.professor else "",
+            "faculty_id": d.faculty_id,
+            "faculty_name": d.faculty.name if d.faculty else "",
+            "academic_year": d.academic_year,
+            "semester": d.semester,
+            "week_number": d.week_number,
+            "week_name": d.week_name or (f"الأسبوع {d.week_number}" if d.week_number else "أسبوع غير محدد"),
+            "hour_type": d.hour_type or "",
+            "course_id": d.course_id,
+            "course_name": d.course_name or (d.course.name_ar if d.course else ""),
+            "deducted_hours": d.deducted_hours,
+            "reason": d.reason,
+            "created_by": d.created_by,
+            "created_at": d.created_at.isoformat() if d.created_at else None,
+            "updated_at": d.updated_at.isoformat() if d.updated_at else None
+        })
+    return res
+
+@app.post("/api/workload/deductions")
+def save_workload_deduction(
+    data: schemas.ProfessorLoadDeductionCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if current_user.role in [models.UserRole.faculty_admin, models.UserRole.student_affairs, models.UserRole.reviewer] and not getattr(current_user, 'perm_view_professors_load', False):
+        raise HTTPException(status_code=403, detail="لا تمتلك صلاحية تعديل أو خصم الساعات (عرض فقط)")
+        
+    # Format hour_type string
+    hour_type_str = data.hour_type
+    if not hour_type_str and data.hour_types:
+        hour_type_str = "، ".join(data.hour_types)
+
+    # Determine list of weeks to process
+    weeks_to_process = []
+    if data.week_numbers and len(data.week_numbers) > 0:
+        for idx, w_num in enumerate(data.week_numbers):
+            w_name = data.week_names[idx] if (data.week_names and idx < len(data.week_names)) else f"الأسبوع {w_num}"
+            weeks_to_process.append((w_num, w_name))
+    elif data.week_number is not None:
+        weeks_to_process.append((data.week_number, data.week_name or f"الأسبوع {data.week_number}"))
+    else:
+        weeks_to_process.append((None, data.week_name or "أسبوع محدد"))
+
+    user_action_by_str = get_user_action_by(current_user, db)
+    saved_deds = []
+    
+    for w_num, w_name in weeks_to_process:
+        query = db.query(models.ProfessorLoadDeduction).filter(
+            models.ProfessorLoadDeduction.professor_id == data.professor_id,
+            models.ProfessorLoadDeduction.academic_year == data.academic_year,
+            models.ProfessorLoadDeduction.semester == data.semester
+        )
+        if w_num is not None:
+            query = query.filter(models.ProfessorLoadDeduction.week_number == w_num)
+        ded = query.first()
+
+        if ded:
+            ded.faculty_id = data.faculty_id or ded.faculty_id
+            ded.deducted_hours = data.deducted_hours
+            ded.week_number = w_num
+            ded.week_name = w_name
+            ded.hour_type = hour_type_str
+            ded.course_id = data.course_id or ded.course_id
+            ded.course_name = data.course_name or ded.course_name
+            ded.reason = data.reason
+            ded.created_by = user_action_by_str
+            ded.updated_at = datetime.utcnow()
+        else:
+            ded = models.ProfessorLoadDeduction(
+                professor_id=data.professor_id,
+                faculty_id=data.faculty_id,
+                academic_year=data.academic_year,
+                semester=data.semester,
+                deducted_hours=data.deducted_hours,
+                week_number=w_num,
+                week_name=w_name,
+                hour_type=hour_type_str,
+                course_id=data.course_id,
+                course_name=data.course_name,
+                reason=data.reason,
+                created_by=user_action_by_str
+            )
+            db.add(ded)
+        saved_deds.append(ded)
+
+    db.commit()
+    for d in saved_deds:
+        db.refresh(d)
+        
+    prof = db.query(models.Professor).filter(models.Professor.id == data.professor_id).first()
+    prof_name = prof.name_ar if prof else ""
+    user_role_str = get_user_role_display(current_user)
+    weeks_str = "، ".join([w[1] for w in weeks_to_process])
+    type_info = f" ({hour_type_str})" if hour_type_str else ""
+    course_info = f" من مقرر ({data.course_name})" if data.course_name else ""
+    action_text = f"قام بخصم/انتقاص {data.deducted_hours} ساعة{type_info}{course_info} في ({weeks_str}) من عبء التدريس للدكتور {prof_name} ({data.semester} - {data.academic_year}) - السبب: {data.reason or 'بدون سبب'}"
+    create_notification(db, data.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=data.academic_year, semester=data.semester)
+    db.commit()
+    
+    return {
+        "message": f"تم حفظ انتقاص الساعات لعدد {len(saved_deds)} أسبوع بنجاح",
+        "count": len(saved_deds),
+        "hour_type": hour_type_str
+    }
+
+@app.delete("/api/workload/deductions/{id}")
+def delete_workload_deduction(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if current_user.role in [models.UserRole.faculty_admin, models.UserRole.student_affairs, models.UserRole.reviewer] and not getattr(current_user, 'perm_view_professors_load', False):
+        raise HTTPException(status_code=403, detail="لا تمتلك صلاحية حذف تخفيض الساعات (عرض فقط)")
+        
+    ded = db.query(models.ProfessorLoadDeduction).filter(models.ProfessorLoadDeduction.id == id).first()
+    if not ded:
+        raise HTTPException(status_code=404, detail="سجل الخصم غير موجود")
+        
+    prof_name = ded.professor.name_ar if ded.professor else ""
+    user_role_str = get_user_role_display(current_user)
+    action_text = f"قام بإلغاء خصم الساعات ({ded.deducted_hours} س) للدكتور {prof_name} ({ded.semester} - {ded.academic_year})"
+    create_notification(db, ded.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=ded.academic_year, semester=ded.semester)
+    
+    db.delete(ded)
+    db.commit()
+    return {"message": "تم إلغاء خصم الساعات بنجاح"}
+
+# ==========================================
+# مسارات تخصيص عدد أسابيع المقررات الدراسية (Course Workload Weeks)
+# ==========================================
+
+@app.get("/api/workload/course-weeks")
+def get_course_workload_weeks(
+    faculty_id: int,
+    academic_year: str,
+    semester: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    # 1. Determine default semester weeks for this faculty & year & semester
+    fac = db.query(models.Faculty).filter(models.Faculty.id == faculty_id).first()
+    ay = db.query(models.AcademicYear).filter(models.AcademicYear.name == academic_year).first()
+    is_med = ("الطب والجراحة" in fac.name or "الطب" in fac.name) if fac else False
+    
+    default_weeks = 15
+    if "الصيفي" in semester or "صيف" in semester:
+        default_weeks = (ay.med_summer_weeks if (is_med and ay and ay.med_summer_weeks) else (ay.summer_weeks or 7)) if ay else 7
+    elif "الثاني" in semester:
+        default_weeks = (ay.med_semester2_weeks if (is_med and ay and ay.med_semester2_weeks) else (ay.semester2_weeks or 14)) if ay else 14
+    else:
+        default_weeks = (ay.med_semester1_weeks if (is_med and ay and ay.med_semester1_weeks) else (ay.semester1_weeks or 15)) if ay else 15
+
+    # 2. Get all study plan items for this faculty, academic_year, and semester
+    plan_query = db.query(models.StudyPlanItem).join(models.StudyPlan).filter(
+        models.StudyPlan.faculty_id == faculty_id,
+        models.StudyPlan.academic_year == academic_year,
+        models.StudyPlan.is_deleted == False
+    )
+    if "الصيفي" in semester:
+        plan_query = plan_query.filter(models.StudyPlan.semester.like("%الصيفي%"))
+    elif "الأول" in semester:
+        plan_query = plan_query.filter(models.StudyPlan.semester.like("%الأول%"))
+    elif "الثاني" in semester:
+        plan_query = plan_query.filter(models.StudyPlan.semester.like("%الثاني%"))
+    else:
+        plan_query = plan_query.filter(models.StudyPlan.semester == semester)
+        
+    items = plan_query.all()
+    
+    # 3. Get existing custom weeks from DB
+    custom_records = db.query(models.CourseWorkloadWeek).filter(
+        models.CourseWorkloadWeek.faculty_id == faculty_id,
+        models.CourseWorkloadWeek.academic_year == academic_year,
+        models.CourseWorkloadWeek.semester == semester
+    ).all()
+    custom_map = {cw.course_key: cw for cw in custom_records}
+    
+    # 4. Build unique course list from study plan items
+    courses_dict = {}
+    for itm in items:
+        course = itm.course or itm.base_course
+        c_id = itm.course_id or itm.base_course_id
+        m_id = itm.module_id
+        
+        c_name = ""
+        c_code = ""
+        if course:
+            c_name = course.name_ar or course.name_en or ""
+            c_code = course.code or ""
+        if itm.module and itm.module.department_name:
+            dept_n = itm.module.department_name.strip()
+            if dept_n and dept_n not in ['-', '']:
+                c_name = f"{c_name} ({dept_n})" if c_name else dept_n
+                
+        if not c_name:
+            continue
+            
+        key = f"mod_{m_id}" if m_id else f"crs_{c_id}" if c_id else f"name_{c_name}"
+        
+        if key not in courses_dict:
+            custom_entry = custom_map.get(key)
+            w_count = custom_entry.weeks_count if custom_entry else default_weeks
+            is_custom = True if custom_entry else False
+            custom_id = custom_entry.id if custom_entry else None
+            
+            p_name = itm.program.name if itm.program else ""
+            
+            # Resolve course level
+            raw_lvl = course.level if (course and course.level not in [None, '', '-']) else itm.level
+            l_map = {"0": "التمهيدي", "1": "الأول", "2": "الثاني", "3": "الثالث", "4": "الرابع", "5": "الخامس", 0: "التمهيدي", 1: "الأول", 2: "الثاني", 3: "الثالث", 4: "الرابع", 5: "الخامس"}
+            lvl_str = l_map.get(raw_lvl, str(raw_lvl)) if raw_lvl not in [None, '', '-'] else "-"
+
+            courses_dict[key] = {
+                "course_key": key,
+                "course_id": c_id,
+                "module_id": m_id,
+                "course_name": c_name,
+                "course_code": c_code,
+                "program_name": p_name,
+                "level": lvl_str,
+                "weeks_count": w_count,
+                "default_weeks": default_weeks,
+                "is_custom": is_custom,
+                "custom_id": custom_id
+            }
+            
+    courses_list = sorted(list(courses_dict.values()), key=lambda x: x["course_name"])
+    customized_list = [c for c in courses_list if c["is_custom"]]
+    
+    return {
+        "faculty_id": faculty_id,
+        "academic_year": academic_year,
+        "semester": semester,
+        "default_weeks": default_weeks,
+        "courses": courses_list,
+        "customized_courses": customized_list
+    }
+
+@app.post("/api/workload/course-weeks")
+def save_course_workload_weeks(
+    data: schemas.CourseWorkloadWeekCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if current_user.role in [models.UserRole.faculty_admin, models.UserRole.student_affairs, models.UserRole.reviewer] and not getattr(current_user, 'perm_view_professors_load', False):
+        raise HTTPException(status_code=403, detail="لا تمتلك صلاحية تعديل أسابيع المقررات (عرض فقط)")
+        
+    if data.weeks_count <= 0 or data.weeks_count > 30:
+        raise HTTPException(status_code=400, detail="عدد الأسابيع يجب أن يكون رقماً صحيحاً بين 1 و 30")
+        
+    record = db.query(models.CourseWorkloadWeek).filter(
+        models.CourseWorkloadWeek.faculty_id == data.faculty_id,
+        models.CourseWorkloadWeek.academic_year == data.academic_year,
+        models.CourseWorkloadWeek.semester == data.semester,
+        models.CourseWorkloadWeek.course_key == data.course_key
+    ).first()
+    
+    if record:
+        record.weeks_count = data.weeks_count
+        record.course_name = data.course_name
+        record.course_code = data.course_code or record.course_code
+        record.course_id = data.course_id or record.course_id
+        record.module_id = data.module_id or record.module_id
+        record.updated_at = datetime.utcnow()
+    else:
+        record = models.CourseWorkloadWeek(
+            faculty_id=data.faculty_id,
+            academic_year=data.academic_year,
+            semester=data.semester,
+            course_key=data.course_key,
+            course_id=data.course_id,
+            module_id=data.module_id,
+            course_name=data.course_name,
+            course_code=data.course_code,
+            weeks_count=data.weeks_count
+        )
+        db.add(record)
+        
+    db.commit()
+    db.refresh(record)
+    
+    fac = db.query(models.Faculty).filter(models.Faculty.id == data.faculty_id).first()
+    fac_name = fac.name if fac else ""
+    user_role_str = get_user_role_display(current_user)
+    action_text = f"قام بتحديد عدد أسابيع مقرر ({data.course_name}) بـ {data.weeks_count} أسبوع لكلية {fac_name} ({data.semester} - {data.academic_year})"
+    create_notification(db, data.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=data.academic_year, semester=data.semester)
+    db.commit()
+    
+    return {
+        "message": f"تم تحديد عدد أسابيع مقرر ({data.course_name}) بـ {data.weeks_count} أسبوع بنجاح",
+        "record": {
+            "id": record.id,
+            "course_key": record.course_key,
+            "weeks_count": record.weeks_count,
+            "course_name": record.course_name
+        }
+    }
+
+@app.delete("/api/workload/course-weeks/{id}")
+def delete_course_workload_weeks(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if current_user.role in [models.UserRole.faculty_admin, models.UserRole.student_affairs, models.UserRole.reviewer] and not getattr(current_user, 'perm_view_professors_load', False):
+        raise HTTPException(status_code=403, detail="لا تمتلك صلاحية تعديل أسابيع المقررات (عرض فقط)")
+        
+    record = db.query(models.CourseWorkloadWeek).filter(models.CourseWorkloadWeek.id == id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="سجل أسابيع المقرر غير موجود")
+        
+    c_name = record.course_name
+    fac_id = record.faculty_id
+    ay = record.academic_year
+    sem = record.semester
+    
+    db.delete(record)
+    db.commit()
+    
+    user_role_str = get_user_role_display(current_user)
+    action_text = f"قام بإلغاء تخصيص أسابيع مقرر ({c_name}) واستعادة العدد الافتراضي للفصل ({sem} - {ay})"
+    create_notification(db, fac_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=ay, semester=sem)
+    db.commit()
+    
+    return {"message": f"تم استعادة العدد الافتراضي لأسابيع المقرر ({c_name}) بنجاح"}
+
+# ==========================================
+
 # مسار الإحصائيات (Statistics API)
 # ==========================================
 
@@ -4867,6 +5657,43 @@ def get_professors_report(
         courses_t3 = [format_course_group(group) for group in grouped_t3.values() if format_course_group(group)]
                 
         if courses_t1 or courses_t2 or courses_t3:
+            # Query deductions for this professor
+            prof_ded_query = db.query(models.ProfessorLoadDeduction).filter(
+                models.ProfessorLoadDeduction.professor_id == prof.id
+            )
+            if academic_year:
+                prof_ded_query = prof_ded_query.filter(models.ProfessorLoadDeduction.academic_year == academic_year)
+            prof_deds = prof_ded_query.all()
+            
+            deds_t1 = [d for d in prof_deds if "الأول" in (d.semester or "")]
+            deds_t2 = [d for d in prof_deds if "الثاني" in (d.semester or "")]
+            deds_t3 = [d for d in prof_deds if "الصيفي" in (d.semester or "")]
+            
+            deducted_hours_t1 = sum(d.deducted_hours for d in deds_t1)
+            deducted_hours_t2 = sum(d.deducted_hours for d in deds_t2)
+            deducted_hours_t3 = sum(d.deducted_hours for d in deds_t3)
+            
+            def format_ded_reasons(d_list):
+                if not d_list: return None
+                parts = []
+                for d in d_list:
+                    w = d.week_name or (f"الأسبوع {d.week_number}" if d.week_number else "")
+                    ht = f" ({d.hour_type})" if d.hour_type else ""
+                    r = f" - {d.reason}" if d.reason else ""
+                    if w:
+                        parts.append(f"{w}{ht}: خصم {d.deducted_hours:g} س{r}")
+                    else:
+                        parts.append(f"خصم {d.deducted_hours:g} س{ht}{r}")
+                return "، ".join(parts)
+                
+            reason_t1 = format_ded_reasons(deds_t1)
+            reason_t2 = format_ded_reasons(deds_t2)
+            reason_t3 = format_ded_reasons(deds_t3)
+            
+            net_hours_t1 = max(0.0, round(hours_t1 - deducted_hours_t1, 2))
+            net_hours_t2 = max(0.0, round(hours_t2 - deducted_hours_t2, 2))
+            net_hours_t3 = max(0.0, round(hours_t3 - deducted_hours_t3, 2))
+
             result.append({
                 "professor_id": prof.id,
                 "professor_name": prof.name_ar,
@@ -4878,9 +5705,18 @@ def get_professors_report(
                 "courses_t1": courses_t1,
                 "courses_t2": courses_t2,
                 "courses_t3": courses_t3,
-                "hours_t1": round(hours_t1, 2),
-                "hours_t2": round(hours_t2, 2),
-                "hours_t3": round(hours_t3, 2),
+                "hours_t1": round(net_hours_t1, 2),
+                "hours_t2": round(net_hours_t2, 2),
+                "hours_t3": round(net_hours_t3, 2),
+                "raw_hours_t1": round(hours_t1, 2),
+                "raw_hours_t2": round(hours_t2, 2),
+                "raw_hours_t3": round(hours_t3, 2),
+                "deducted_hours_t1": deducted_hours_t1,
+                "deducted_hours_t2": deducted_hours_t2,
+                "deducted_hours_t3": deducted_hours_t3,
+                "reason_t1": reason_t1,
+                "reason_t2": reason_t2,
+                "reason_t3": reason_t3,
                 "academic_year": prof.academic_year,
                 "semester1_weeks": prof.semester1_weeks,
                 "semester2_weeks": prof.semester2_weeks,

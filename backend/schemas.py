@@ -212,6 +212,7 @@ class UserBase(BaseModel):
     perm_review_2: bool = False
     perm_approve_plan: bool = False
     perm_finish_plan: bool = False
+    perm_view_professors_load: bool = False
     hidden_pages: Optional[str] = "[]"
 
 class UserCreate(UserBase):
@@ -239,6 +240,7 @@ class UserUpdate(BaseModel):
     perm_review_2: Optional[bool] = None
     perm_approve_plan: Optional[bool] = None
     perm_finish_plan: Optional[bool] = None
+    perm_view_professors_load: Optional[bool] = None
     hidden_pages: Optional[str] = None
 
 class UserHiddenPagesUpdate(BaseModel):
@@ -467,4 +469,96 @@ class BulkDeleteLogsRequest(BaseModel):
     ids: List[int]
 
 ProfessorOut.update_forward_refs()
+
+# ==========================================
+# 12. Schemas الخاص بحدود الأعباء (Faculty Workload Limits)
+# ==========================================
+class FacultyWorkloadLimitBase(BaseModel):
+    faculty_id: int
+    academic_year: str
+    semester: str
+    min_theory_hours_per_day: float = 0.0
+    max_theory_hours_per_day: float = 0.0
+    min_practical_hours_per_day: float = 0.0
+    max_practical_hours_per_day: float = 0.0
+    min_tutorial_hours_per_day: float = 0.0
+    max_tutorial_hours_per_day: float = 0.0
+    min_field_hours_per_day: float = 0.0
+    max_field_hours_per_day: float = 0.0
+    max_theory_hours_per_course: Optional[float] = 0.0
+    max_practical_hours_per_course: Optional[float] = 0.0
+    max_tutorial_hours_per_course: Optional[float] = 0.0
+    max_field_hours_per_course: Optional[float] = 0.0
+    max_hours_per_day: Optional[float] = 0.0
+    min_hours_per_day: Optional[float] = 0.0
+    max_hours_per_semester: Optional[float] = 0.0
+    min_hours_per_semester: Optional[float] = 0.0
+
+class FacultyWorkloadLimitCreate(FacultyWorkloadLimitBase):
+    pass
+
+class FacultyWorkloadLimitOut(FacultyWorkloadLimitBase):
+    id: int
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+# ==========================================
+# 13. Schemas الخاص بانتقاص ساعات الأستاذ (Professor Load Deductions)
+# ==========================================
+class ProfessorLoadDeductionBase(BaseModel):
+    professor_id: int
+    faculty_id: Optional[int] = None
+    academic_year: str
+    semester: str
+    deducted_hours: float = 0.0
+    week_number: Optional[int] = None
+    week_name: Optional[str] = None
+    week_numbers: Optional[List[int]] = None
+    week_names: Optional[List[str]] = None
+    hour_type: Optional[str] = None
+    hour_types: Optional[List[str]] = None
+    course_id: Optional[int] = None
+    course_name: Optional[str] = None
+    reason: Optional[str] = None
+
+class ProfessorLoadDeductionCreate(ProfessorLoadDeductionBase):
+    pass
+
+class ProfessorLoadDeductionOut(ProfessorLoadDeductionBase):
+    id: int
+    created_by: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    professor_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+# ==========================================
+# 14. Schemas الخاص بتخصيص عدد أسابيع المقررات (Course Workload Weeks)
+# ==========================================
+class CourseWorkloadWeekBase(BaseModel):
+    faculty_id: int
+    academic_year: str
+    semester: str
+    course_key: str
+    course_id: Optional[int] = None
+    module_id: Optional[int] = None
+    course_name: str
+    course_code: Optional[str] = None
+    weeks_count: int
+
+class CourseWorkloadWeekCreate(CourseWorkloadWeekBase):
+    pass
+
+class CourseWorkloadWeekOut(CourseWorkloadWeekBase):
+    id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
 

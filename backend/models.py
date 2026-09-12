@@ -81,6 +81,7 @@ class User(Base):
     perm_review_2 = Column(Boolean, default=False)
     perm_approve_plan = Column(Boolean, default=False)
     perm_finish_plan = Column(Boolean, default=False)
+    perm_view_professors_load = Column(Boolean, default=False) # تعديل صفحة أعباء الأساتذة
     hidden_pages = Column(String, default="[]", nullable=True) # قائمة معرفات الصفحات المخفية كـ JSON
     
     faculty = relationship("Faculty", back_populates="users")
@@ -359,4 +360,99 @@ class ActivityLog(Base):
     
     faculty = relationship("Faculty")
     user = relationship("User")
+
+# ==========================================
+# 13. جدول حدود الأعباء للكلية (Faculty Workload Limits)
+# ==========================================
+class FacultyWorkloadLimit(Base):
+    __tablename__ = "faculty_workload_limits"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    faculty_id = Column(Integer, ForeignKey("faculties.id"), index=True)
+    academic_year = Column(String, index=True) # مثل 2026/2027
+    semester = Column(String, index=True) # الفصل الدراسي الأول / الثاني / الصيفي
+    
+    # تفصيل الساعات في اليوم
+    min_theory_hours_per_day = Column(Float, default=0.0) # الحد الأدنى للساعات نظري في اليوم
+    max_theory_hours_per_day = Column(Float, default=0.0) # الحد الأقصى للساعات نظري في اليوم
+    
+    min_practical_hours_per_day = Column(Float, default=0.0) # الحد الأدنى للساعات عملي في اليوم
+    max_practical_hours_per_day = Column(Float, default=0.0) # الحد الأقصى للساعات عملي في اليوم
+    
+    min_tutorial_hours_per_day = Column(Float, default=0.0) # الحد الأدنى للساعات توتوريال في اليوم (تكنولوجيا العلوم الصحية)
+    max_tutorial_hours_per_day = Column(Float, default=0.0) # الحد الأقصى للساعات توتوريال في اليوم (تكنولوجيا العلوم الصحية)
+    
+    min_field_hours_per_day = Column(Float, default=0.0) # الحد الأدنى لساعات الحقل في اليوم (تكنولوجيا العلوم الصحية)
+    max_field_hours_per_day = Column(Float, default=0.0) # الحد الأقصى لساعات الحقل في اليوم (تكنولوجيا العلوم الصحية)
+    
+    # تفصيل الساعات للمقرر الواحد
+    max_theory_hours_per_course = Column(Float, default=0.0, nullable=True) # الحد الأقصى للساعات نظري للمقرر الواحد
+    max_practical_hours_per_course = Column(Float, default=0.0, nullable=True) # الحد الأقصى للساعات عملي للمقرر الواحد
+    max_tutorial_hours_per_course = Column(Float, default=0.0, nullable=True) # الحد الأقصى للساعات توتوريال للمقرر الواحد (تكنولوجيا العلوم الصحية)
+    max_field_hours_per_course = Column(Float, default=0.0, nullable=True) # الحد الأقصى لساعات الحقل للمقرر الواحد (تكنولوجيا العلوم الصحية)
+    
+    # حقول سابقة للتوافق
+    max_hours_per_day = Column(Float, default=0.0, nullable=True)
+    min_hours_per_day = Column(Float, default=0.0, nullable=True)
+    max_hours_per_semester = Column(Float, default=0.0, nullable=True)
+    min_hours_per_semester = Column(Float, default=0.0, nullable=True)
+    
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    faculty = relationship("Faculty")
+
+# ==========================================
+# 14. جدول انتقاص/تخفيض ساعات أعضاء هيئة التدريس (Professor Load Deductions)
+# ==========================================
+class ProfessorLoadDeduction(Base):
+    __tablename__ = "professor_load_deductions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    professor_id = Column(Integer, ForeignKey("professors.id"), index=True)
+    faculty_id = Column(Integer, ForeignKey("faculties.id"), index=True, nullable=True)
+    academic_year = Column(String, index=True) # مثل 2026/2027
+    semester = Column(String, index=True) # الفصل الدراسي الأول / الثاني / الصيفي
+    
+    deducted_hours = Column(Float, default=0.0) # عدد الساعات الذي سيتم انتقاصه
+    week_number = Column(Integer, nullable=True) # رقم الأسبوع
+    week_name = Column(String, nullable=True) # اسم الأسبوع
+    hour_type = Column(String, nullable=True) # نوع الساعات التدريسية (نظري، عملي، توتوريال، حقل)
+    reason = Column(String, nullable=True) # سبب الانتقاص
+    
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=True) # المقرر الذي تم الانتقاص منه
+    course_name = Column(String, nullable=True) # اسم المقرر
+    
+    created_by = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    professor = relationship("Professor")
+    faculty = relationship("Faculty")
+    course = relationship("Course")
+
+# ==========================================
+# 15. جدول تخصيص عدد أسابيع المقررات الدراسية (Course Workload Weeks)
+# ==========================================
+class CourseWorkloadWeek(Base):
+    __tablename__ = "course_workload_weeks"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    faculty_id = Column(Integer, ForeignKey("faculties.id"), index=True)
+    academic_year = Column(String, index=True)
+    semester = Column(String, index=True)
+    
+    course_key = Column(String, index=True) # e.g. "crs_12" or "mod_5"
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=True, index=True)
+    module_id = Column(Integer, ForeignKey("course_modules.id"), nullable=True, index=True)
+    course_name = Column(String, nullable=False)
+    course_code = Column(String, nullable=True)
+    weeks_count = Column(Integer, nullable=False) # عدد الأسابيع الفعلي لتدريس هذا المقرر
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    faculty = relationship("Faculty")
+    course = relationship("Course")
+    module = relationship("CourseModule")
+
 

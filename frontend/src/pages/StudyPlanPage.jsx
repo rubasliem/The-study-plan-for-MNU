@@ -164,6 +164,7 @@ const StudyPlanPage = () => {
   const [selectedYear, setSelectedYear] = useState("2026/2027");
   const [academicYears, setAcademicYears] = useState([]);
   const [signatures, setSignatures] = useState([]);
+  const [workloadLimits, setWorkloadLimits] = useState(null);
 
   const [showModal, setShowModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -241,18 +242,25 @@ const StudyPlanPage = () => {
       setPrograms([]);
       setPlanRows([]);
       setExistingPlanIds([]);
+      setWorkloadLimits(null);
       if (showLoading) setLoading(false);
       return;
     }
 
     if (showLoading) setLoading(true);
     try {
-      const [coursesRes, programsRes, plansRes, sigsRes] = await Promise.all([
+      const [coursesRes, programsRes, plansRes, sigsRes, limitsRes] = await Promise.all([
         axios.get(`${API}/api/courses`),
         axios.get(`${API}/api/programs`),
         axios.get(`${API}/api/study-plans?faculty_id=${facultyId}&semester=${encodeURIComponent(semester)}&academic_year=${encodeURIComponent(year)}`),
-        axios.get(`${API}/api/signatures?faculty_id=${facultyId}&report_type=${encodeURIComponent("الخطة الدراسية")}`)
+        axios.get(`${API}/api/signatures?faculty_id=${facultyId}&report_type=${encodeURIComponent("الخطة الدراسية")}`),
+        axios.get(`${API}/api/workload/limits?faculty_id=${facultyId}&academic_year=${encodeURIComponent(year)}&semester=${encodeURIComponent(semester)}`).catch(err => {
+          console.warn("Could not fetch workload limits:", err);
+          return { data: null };
+        })
       ]);
+
+      setWorkloadLimits(limitsRes?.data || null);
 
       let fetchedSigs = sigsRes.data || [];
       if (fetchedSigs.length === 0) {
@@ -942,7 +950,20 @@ const StudyPlanPage = () => {
     const isMedicineFaculty = Boolean(activeFac && (activeFac.name.includes("الطب والجراحة") || activeFac.name.includes("طب بشري") || activeFac.name.includes("كلية الطب")) && !activeFac.name.includes("البيطري") && !activeFac.name.includes("الأسنان") && !activeFac.name.includes("الاسنان") && !activeFac.name.includes("تكنولوجيا"));
     const baseCourse = courses.find(c => String(c.id) === String(formData.base_course_id));
 
-    // التحقق من الحد الأقصى لساعات عضو هيئة التدريس في اليوم الواحد (مجموع الساعات لا يتجاوز 8 ساعات، والنظري لا يتجاوز 6 ساعات)
+    // التحقق الديناميكي من ساعات عضو هيئة التدريس استناداً إلى حدود الكلية في صفحة تحديد الأعباء
+    // وسقف اليوم الواحد 8 ساعات عمل سواء في المقرر الواحد أو عبر أكثر من مقرر
+    const limitTheoryDay = (workloadLimits && Number(workloadLimits.max_theory_hours_per_day) > 0) ? Number(workloadLimits.max_theory_hours_per_day) : 6;
+    const limitPracticalDay = (workloadLimits && Number(workloadLimits.max_practical_hours_per_day) > 0) ? Number(workloadLimits.max_practical_hours_per_day) : 8;
+    const limitTutorialDay = (workloadLimits && Number(workloadLimits.max_tutorial_hours_per_day) > 0) ? Number(workloadLimits.max_tutorial_hours_per_day) : 8;
+    const limitFieldDay = (workloadLimits && Number(workloadLimits.max_field_hours_per_day) > 0) ? Number(workloadLimits.max_field_hours_per_day) : 8;
+
+    const limitTheoryCourse = (workloadLimits && Number(workloadLimits.max_theory_hours_per_course) > 0) ? Number(workloadLimits.max_theory_hours_per_course) : null;
+    const limitPracticalCourse = (workloadLimits && Number(workloadLimits.max_practical_hours_per_course) > 0) ? Number(workloadLimits.max_practical_hours_per_course) : null;
+    const limitTutorialCourse = (workloadLimits && Number(workloadLimits.max_tutorial_hours_per_course) > 0) ? Number(workloadLimits.max_tutorial_hours_per_course) : null;
+    const limitFieldCourse = (workloadLimits && Number(workloadLimits.max_field_hours_per_course) > 0) ? Number(workloadLimits.max_field_hours_per_course) : null;
+
+    const MAX_DAY_HOURS = 8;
+
     const profsHoursMap = {};
     multiProfessors.forEach(p => {
       if (p.professor_id) {
@@ -954,19 +975,102 @@ const StudyPlanPage = () => {
       }
     });
 
+    const targetCourseId = editingCourseId || formData.base_course_id;
+
     for (const [profId, h] of Object.entries(profsHoursMap)) {
-      const totalAll = h.th + h.pr + h.tr + h.fld;
-      if (totalAll > 8 || h.th > 6) {
-        const profObj = professors.find(p => String(p.id) === String(profId));
-        const profName = profObj ? (profObj.name_ar || profObj.name) : "عضو هيئة التدريس";
-        const msg = h.th > 6
-          ? `⚠️ تنبيه: ساعات النظري للأستاذ (${profName}) هي (${h.th} ساعة)، والحد الأقصى للنظري في اليوم الواحد هو 6 ساعات.`
-          : isHealthTechFaculty
-            ? `⚠️ تنبيه: مجموع الساعات (نظري + عملي + توتوريال + حقل) للأستاذ (${profName}) هو (${totalAll} ساعة)، والحد الأقصى لمجموع الساعات في اليوم الواحد لا يتجاوز 8 ساعات.`
-            : `⚠️ تنبيه: مجموع الساعات (نظري + عملي) للأستاذ (${profName}) هو (${totalAll} ساعة)، والحد الأقصى لمجموع الساعات في اليوم الواحد لا يتجاوز 8 ساعات.`;
+      const profObj = professors.find(p => String(p.id) === String(profId));
+      const profName = profObj ? (profObj.name_ar || profObj.name) : "عضو هيئة التدريس";
+
+      // ساعات الأستاذ المسجلة في مقررات أخرى بالخطة (باستثناء المقرر الحالي قيد التعديل/الإضافة)
+      const otherCoursesH = planRows
+        .filter(r => String(r.base_course_id || r.course_id) !== String(targetCourseId) && String(r.professor_id) === String(profId))
+        .reduce((acc, r) => ({
+          th: acc.th + (Number(r.hours_actual_theory) || 0),
+          pr: acc.pr + (Number(r.hours_actual_practical) || 0),
+          tr: acc.tr + (Number(r.hours_actual_training) || 0),
+          fld: acc.fld + (Number(r.hours_actual_field) || 0),
+          tot: acc.tot + (Number(r.hours_actual_theory) || 0) + (Number(r.hours_actual_practical) || 0) + (Number(r.hours_actual_training) || 0) + (Number(r.hours_actual_field) || 0)
+        }), { th: 0, pr: 0, tr: 0, fld: 0, tot: 0 });
+
+      const totalThisCourse = h.th + h.pr + h.tr + h.fld;
+      const totalAllCourses = otherCoursesH.tot + totalThisCourse;
+      const totalTheory = otherCoursesH.th + h.th;
+      const totalPractical = otherCoursesH.pr + h.pr;
+      const totalTraining = otherCoursesH.tr + h.tr;
+      const totalField = otherCoursesH.fld + h.fld;
+
+      // 1. فحص سقف اليوم الواحد الإجمالي (8 ساعات) عبر المقرر أو المقررات
+      if (totalAllCourses > MAX_DAY_HOURS) {
+        const msg = otherCoursesH.tot > 0
+          ? `⚠️ تنبيه: إجمالي ساعات الأستاذ (${profName}) سيصل إلى (${fmt(totalAllCourses)} ساعة) وهو ما يتجاوز الحد الأقصى لليوم الواحد (${MAX_DAY_HOURS} ساعات عمل) [مسجل له ${fmt(otherCoursesH.tot)} ساعة بمقررات أخرى بالخطة].`
+          : `⚠️ تنبيه: مجموع ساعات الأستاذ (${profName}) في هذا المقرر هو (${fmt(totalThisCourse)} ساعة)، والحد الأقصى لليوم الواحد هو ${MAX_DAY_HOURS} ساعات عمل.`;
         setErrorMsg(msg);
         toast.error(msg);
         return false;
+      }
+
+      // 2. فحص الحد الأقصى لساعات النظري في اليوم
+      if (totalTheory > limitTheoryDay) {
+        const msg = otherCoursesH.th > 0
+          ? `⚠️ تنبيه: إجمالي ساعات النظري للأستاذ (${profName}) سيصل إلى (${fmt(totalTheory)} ساعة)، والحد الأقصى للنظري في اليوم الواحد للكلية هو ${limitTheoryDay} ساعات [مسجل له ${fmt(otherCoursesH.th)} ساعة نظري بمقررات أخرى].`
+          : `⚠️ تنبيه: ساعات النظري للأستاذ (${profName}) هي (${fmt(h.th)} ساعة)، والحد الأقصى للنظري في اليوم الواحد هو ${limitTheoryDay} ساعات.`;
+        setErrorMsg(msg);
+        toast.error(msg);
+        return false;
+      }
+
+      // 3. فحص الحد الأقصى لساعات العملي في اليوم
+      if (limitPracticalDay < 8 && totalPractical > limitPracticalDay) {
+        const msg = otherCoursesH.pr > 0
+          ? `⚠️ تنبيه: إجمالي ساعات العملي للأستاذ (${profName}) سيصل إلى (${fmt(totalPractical)} ساعة)، والحد الأقصى للعملي في اليوم الواحد للكلية هو ${limitPracticalDay} ساعات [مسجل له ${fmt(otherCoursesH.pr)} ساعة عملي بمقررات أخرى].`
+          : `⚠️ تنبيه: ساعات العملي للأستاذ (${profName}) هي (${fmt(h.pr)} ساعة)، والحد الأقصى للعملي في اليوم الواحد هو ${limitPracticalDay} ساعات.`;
+        setErrorMsg(msg);
+        toast.error(msg);
+        return false;
+      }
+
+      // 4. فحص ساعات التوتوريال والحقل للعلوم الصحية في اليوم
+      if (isHealthTechFaculty) {
+        if (limitTutorialDay < 8 && totalTraining > limitTutorialDay) {
+          const msg = `⚠️ تنبيه: إجمالي ساعات التوتوريال/التدريب للأستاذ (${profName}) هي (${fmt(totalTraining)} ساعة) وتتجاوز الحد اليومي (${limitTutorialDay} ساعات).`;
+          setErrorMsg(msg);
+          toast.error(msg);
+          return false;
+        }
+        if (limitFieldDay < 8 && totalField > limitFieldDay) {
+          const msg = `⚠️ تنبيه: إجمالي ساعات الحقل للأستاذ (${profName}) هي (${fmt(totalField)} ساعة) وتتجاوز الحد اليومي (${limitFieldDay} ساعات).`;
+          setErrorMsg(msg);
+          toast.error(msg);
+          return false;
+        }
+      }
+
+      // 5. فحص الحد الأقصى للمقرر الواحد (ساعة/مقرر)
+      if (limitTheoryCourse !== null && h.th > limitTheoryCourse) {
+        const msg = `⚠️ تنبيه: ساعات النظري للأستاذ (${profName}) في هذا المقرر هي (${fmt(h.th)} ساعة) وتتجاوز الحد الأقصى للمقرر الواحد (${limitTheoryCourse} ساعة).`;
+        setErrorMsg(msg);
+        toast.error(msg);
+        return false;
+      }
+      if (limitPracticalCourse !== null && h.pr > limitPracticalCourse) {
+        const msg = `⚠️ تنبيه: ساعات العملي للأستاذ (${profName}) في هذا المقرر هي (${fmt(h.pr)} ساعة) وتتجاوز الحد الأقصى للمقرر الواحد (${limitPracticalCourse} ساعة).`;
+        setErrorMsg(msg);
+        toast.error(msg);
+        return false;
+      }
+      if (isHealthTechFaculty) {
+        if (limitTutorialCourse !== null && h.tr > limitTutorialCourse) {
+          const msg = `⚠️ تنبيه: ساعات التوتوريال للأستاذ (${profName}) في هذا المقرر هي (${fmt(h.tr)} ساعة) وتتجاوز الحد الأقصى للمقرر الواحد (${limitTutorialCourse} ساعة).`;
+          setErrorMsg(msg);
+          toast.error(msg);
+          return false;
+        }
+        if (limitFieldCourse !== null && h.fld > limitFieldCourse) {
+          const msg = `⚠️ تنبيه: ساعات الحقل للأستاذ (${profName}) في هذا المقرر هي (${fmt(h.fld)} ساعة) وتتجاوز الحد الأقصى للمقرر الواحد (${limitFieldCourse} ساعة).`;
+          setErrorMsg(msg);
+          toast.error(msg);
+          return false;
+        }
       }
     }
 
@@ -4808,6 +4912,20 @@ ${signaturesHtml}
                 const profTrainingHours = Number(currentBaseCourse?.exercise_hours) || 0;
                 const profFieldHours = Number(currentBaseCourse?.activity_hours) || 0;
 
+                const targetCourseId = editingCourseId || formData.base_course_id;
+
+                const profOtherCoursesHours = pRow.professor_id
+                  ? planRows
+                      .filter(r => String(r.base_course_id || r.course_id) !== String(targetCourseId) && String(r.professor_id) === String(pRow.professor_id))
+                      .reduce((acc, r) => ({
+                        th: acc.th + (Number(r.hours_actual_theory) || 0),
+                        pr: acc.pr + (Number(r.hours_actual_practical) || 0),
+                        tr: acc.tr + (Number(r.hours_actual_training) || 0),
+                        fld: acc.fld + (Number(r.hours_actual_field) || 0),
+                        tot: acc.tot + (Number(r.hours_actual_theory) || 0) + (Number(r.hours_actual_practical) || 0) + (Number(r.hours_actual_training) || 0) + (Number(r.hours_actual_field) || 0)
+                      }), { th: 0, pr: 0, tr: 0, fld: 0, tot: 0 })
+                  : { th: 0, pr: 0, tr: 0, fld: 0, tot: 0 };
+
                 const otherTheoryHours = pRow.professor_id
                   ? multiProfessors.filter(r => r.id !== pRow.id && String(r.professor_id) === String(pRow.professor_id)).reduce((s, r) => s + (Number(r.hours_actual_theory) || 0), 0)
                   : 0;
@@ -4821,11 +4939,41 @@ ${signaturesHtml}
                   ? multiProfessors.filter(r => r.id !== pRow.id && String(r.professor_id) === String(pRow.professor_id)).reduce((s, r) => s + (Number(r.hours_actual_field) || 0), 0)
                   : 0;
                 const otherTotalHours = otherTheoryHours + otherPracticalHours + otherTrainingHours + otherFieldHours;
-                const isTotalLimitReached = Boolean(pRow.professor_id && otherTotalHours >= 8);
-                const isTheoryLimitReached = Boolean(pRow.professor_id && (otherTheoryHours >= 6 || isTotalLimitReached));
-                const isPracticalLimitReached = Boolean(pRow.professor_id && (otherPracticalHours >= 8 || isTotalLimitReached));
-                const isTrainingLimitReached = Boolean(pRow.professor_id && isTotalLimitReached);
-                const isFieldLimitReached = Boolean(pRow.professor_id && isTotalLimitReached);
+
+                const limitTheoryDay = (workloadLimits && Number(workloadLimits.max_theory_hours_per_day) > 0) ? Number(workloadLimits.max_theory_hours_per_day) : 6;
+                const limitPracticalDay = (workloadLimits && Number(workloadLimits.max_practical_hours_per_day) > 0) ? Number(workloadLimits.max_practical_hours_per_day) : 8;
+                const limitTutorialDay = (workloadLimits && Number(workloadLimits.max_tutorial_hours_per_day) > 0) ? Number(workloadLimits.max_tutorial_hours_per_day) : 8;
+                const limitFieldDay = (workloadLimits && Number(workloadLimits.max_field_hours_per_day) > 0) ? Number(workloadLimits.max_field_hours_per_day) : 8;
+
+                const limitTheoryCourse = (workloadLimits && Number(workloadLimits.max_theory_hours_per_course) > 0) ? Number(workloadLimits.max_theory_hours_per_course) : null;
+                const limitPracticalCourse = (workloadLimits && Number(workloadLimits.max_practical_hours_per_course) > 0) ? Number(workloadLimits.max_practical_hours_per_course) : null;
+                const limitTutorialCourse = (workloadLimits && Number(workloadLimits.max_tutorial_hours_per_course) > 0) ? Number(workloadLimits.max_tutorial_hours_per_course) : null;
+                const limitFieldCourse = (workloadLimits && Number(workloadLimits.max_field_hours_per_course) > 0) ? Number(workloadLimits.max_field_hours_per_course) : null;
+
+                const MAX_DAY_HOURS = 8;
+
+                const totalAssignedSoFar = profOtherCoursesHours.tot + otherTotalHours;
+                const isTotalLimitReached = Boolean(pRow.professor_id && totalAssignedSoFar >= MAX_DAY_HOURS);
+                const isTheoryLimitReached = Boolean(pRow.professor_id && (
+                  (profOtherCoursesHours.th + otherTheoryHours) >= limitTheoryDay ||
+                  (limitTheoryCourse !== null && otherTheoryHours >= limitTheoryCourse) ||
+                  isTotalLimitReached
+                ));
+                const isPracticalLimitReached = Boolean(pRow.professor_id && (
+                  (profOtherCoursesHours.pr + otherPracticalHours) >= limitPracticalDay ||
+                  (limitPracticalCourse !== null && otherPracticalHours >= limitPracticalCourse) ||
+                  isTotalLimitReached
+                ));
+                const isTrainingLimitReached = Boolean(pRow.professor_id && (
+                  (profOtherCoursesHours.tr + otherTrainingHours) >= limitTutorialDay ||
+                  (limitTutorialCourse !== null && otherTrainingHours >= limitTutorialCourse) ||
+                  isTotalLimitReached
+                ));
+                const isFieldLimitReached = Boolean(pRow.professor_id && (
+                  (profOtherCoursesHours.fld + otherFieldHours) >= limitFieldDay ||
+                  (limitFieldCourse !== null && otherFieldHours >= limitFieldCourse) ||
+                  isTotalLimitReached
+                ));
 
                 // For Medicine with modules: only show professors belonging to the currently selected department
                 if (isMedicine && hasCourseModules) {
@@ -4864,15 +5012,32 @@ ${signaturesHtml}
                                 const next = [...multiProfessors];
                                 next[idx].professor_id = val;
                                 if (val) {
+                                  const targetCourseId = editingCourseId || formData.base_course_id;
+                                  const profOtherH = planRows
+                                    .filter(r => String(r.base_course_id || r.course_id) !== String(targetCourseId) && String(r.professor_id) === String(val))
+                                    .reduce((acc, r) => ({
+                                      th: acc.th + (Number(r.hours_actual_theory) || 0),
+                                      pr: acc.pr + (Number(r.hours_actual_practical) || 0),
+                                      tr: acc.tr + (Number(r.hours_actual_training) || 0),
+                                      fld: acc.fld + (Number(r.hours_actual_field) || 0),
+                                      tot: acc.tot + (Number(r.hours_actual_theory) || 0) + (Number(r.hours_actual_practical) || 0) + (Number(r.hours_actual_training) || 0) + (Number(r.hours_actual_field) || 0)
+                                    }), { th: 0, pr: 0, tr: 0, fld: 0, tot: 0 });
+
                                   const oTh = multiProfessors.filter(r => r.id !== pRow.id && String(r.professor_id) === String(val)).reduce((s, r) => s + (Number(r.hours_actual_theory) || 0), 0);
                                   const oPr = multiProfessors.filter(r => r.id !== pRow.id && String(r.professor_id) === String(val)).reduce((s, r) => s + (Number(r.hours_actual_practical) || 0), 0);
                                   const oTr = multiProfessors.filter(r => r.id !== pRow.id && String(r.professor_id) === String(val)).reduce((s, r) => s + (Number(r.hours_actual_training) || 0), 0);
                                   const oFld = multiProfessors.filter(r => r.id !== pRow.id && String(r.professor_id) === String(val)).reduce((s, r) => s + (Number(r.hours_actual_field) || 0), 0);
-                                  const oTot = oTh + oPr + oTr + oFld;
-                                  if (oTh >= 6 || oTot >= 8) next[idx].hours_actual_theory = 0;
-                                  if (oPr >= 8 || oTot >= 8) next[idx].hours_actual_practical = 0;
-                                  if (oTot >= 8) next[idx].hours_actual_training = 0;
-                                  if (oTot >= 8) next[idx].hours_actual_field = 0;
+                                  const oTot = profOtherH.tot + oTh + oPr + oTr + oFld;
+
+                                  const totTh = profOtherH.th + oTh;
+                                  const totPr = profOtherH.pr + oPr;
+                                  const totTr = profOtherH.tr + oTr;
+                                  const totFld = profOtherH.fld + oFld;
+
+                                  if (totTh >= limitTheoryDay || (limitTheoryCourse !== null && oTh >= limitTheoryCourse) || oTot >= MAX_DAY_HOURS) next[idx].hours_actual_theory = 0;
+                                  if (totPr >= limitPracticalDay || (limitPracticalCourse !== null && oPr >= limitPracticalCourse) || oTot >= MAX_DAY_HOURS) next[idx].hours_actual_practical = 0;
+                                  if (totTr >= limitTutorialDay || (limitTutorialCourse !== null && oTr >= limitTutorialCourse) || oTot >= MAX_DAY_HOURS) next[idx].hours_actual_training = 0;
+                                  if (totFld >= limitFieldDay || (limitFieldCourse !== null && oFld >= limitFieldCourse) || oTot >= MAX_DAY_HOURS) next[idx].hours_actual_field = 0;
                                 }
                                 setMultiProfessors(next);
                               }}
@@ -5348,26 +5513,69 @@ ${signaturesHtml}
                       </Col>
                     </Row>
 
-                    {/* تنبيه تجاوز الحد الأقصى 8 ساعات إجمالي أو 6 نظري للأستاذ */}
+                    {/* تنبيه ديناميكي لساعات الأستاذ وسقف 8 ساعات لليوم الواحد */}
                     {(() => {
+                      if (!pRow.professor_id) return null;
                       const currentTh = Number(pRow.hours_actual_theory) || 0;
                       const currentPr = Number(pRow.hours_actual_practical) || 0;
                       const currentTr = Number(pRow.hours_actual_training) || 0;
                       const currentFld = Number(pRow.hours_actual_field) || 0;
-                      const allProfHoursInCourse = otherTotalHours + currentTh + currentPr + currentTr + currentFld;
-                      const allProfTheoryInCourse = otherTheoryHours + currentTh;
 
-                      if (allProfTheoryInCourse > 6 || allProfHoursInCourse > 8) {
+                      const allProfHoursInCourse = otherTotalHours + currentTh + currentPr + currentTr + currentFld;
+                      const allProfOverallTotal = profOtherCoursesHours.tot + allProfHoursInCourse;
+                      const allProfOverallTheory = profOtherCoursesHours.th + otherTheoryHours + currentTh;
+                      const allProfOverallPractical = profOtherCoursesHours.pr + otherPracticalHours + currentPr;
+
+                      const thisCourseTheory = otherTheoryHours + currentTh;
+                      const thisCoursePractical = otherPracticalHours + currentPr;
+
+                      if (allProfOverallTotal > MAX_DAY_HOURS) {
                         return (
                           <div className="mt-2 p-1 px-2 rounded bg-danger bg-opacity-10 text-danger fw-bold border border-danger small text-center">
-                            ⚠️ تنبيه: {allProfTheoryInCourse > 6 ? "ساعات النظري لهذا الأستاذ تتجاوز الحد الأقصى (6 ساعات)." : `مجموع الساعات (${allProfHoursInCourse} ساعات) لهذا الأستاذ يتجاوز الحد الأقصى في اليوم الواحد (8 ساعات).`}
+                            ⚠️ تنبيه: مجموع الساعات ({fmt(allProfOverallTotal)} ساعة) لهذا الأستاذ يتجاوز الحد الأقصى في اليوم الواحد ({MAX_DAY_HOURS} ساعات عمل)
+                            {profOtherCoursesHours.tot > 0 ? ` [منها ${fmt(profOtherCoursesHours.tot)} ساعة مسجلة بمقررات أخرى بالخطة]` : ""}.
                           </div>
                         );
                       }
+
+                      if (allProfOverallTheory > limitTheoryDay) {
+                        return (
+                          <div className="mt-2 p-1 px-2 rounded bg-danger bg-opacity-10 text-danger fw-bold border border-danger small text-center">
+                            ⚠️ تنبيه: ساعات النظري لهذا الأستاذ ({fmt(allProfOverallTheory)} ساعة) تتجاوز الحد الأقصى اليومي المسموح به للكلية ({limitTheoryDay} ساعات)
+                            {profOtherCoursesHours.th > 0 ? ` [منها ${fmt(profOtherCoursesHours.th)} ساعة بمقررات أخرى]` : ""}.
+                          </div>
+                        );
+                      }
+
+                      if (limitPracticalDay < 8 && allProfOverallPractical > limitPracticalDay) {
+                        return (
+                          <div className="mt-2 p-1 px-2 rounded bg-danger bg-opacity-10 text-danger fw-bold border border-danger small text-center">
+                            ⚠️ تنبيه: ساعات العملي لهذا الأستاذ ({fmt(allProfOverallPractical)} ساعة) تتجاوز الحد الأقصى اليومي المسموح به للكلية ({limitPracticalDay} ساعات)
+                            {profOtherCoursesHours.pr > 0 ? ` [منها ${fmt(profOtherCoursesHours.pr)} ساعة بمقررات أخرى]` : ""}.
+                          </div>
+                        );
+                      }
+
+                      if (limitTheoryCourse !== null && thisCourseTheory > limitTheoryCourse) {
+                        return (
+                          <div className="mt-2 p-1 px-2 rounded bg-danger bg-opacity-10 text-danger fw-bold border border-danger small text-center">
+                            ⚠️ تنبيه: ساعات النظري في هذا المقرر ({fmt(thisCourseTheory)} ساعة) تتجاوز الحد الأقصى المسموح به للمقرر الواحد ({limitTheoryCourse} ساعة).
+                          </div>
+                        );
+                      }
+
+                      if (limitPracticalCourse !== null && thisCoursePractical > limitPracticalCourse) {
+                        return (
+                          <div className="mt-2 p-1 px-2 rounded bg-danger bg-opacity-10 text-danger fw-bold border border-danger small text-center">
+                            ⚠️ تنبيه: ساعات العملي في هذا المقرر ({fmt(thisCoursePractical)} ساعة) تتجاوز الحد الأقصى المسموح به للمقرر الواحد ({limitPracticalCourse} ساعة).
+                          </div>
+                        );
+                      }
+
                       if (selectedProfObj && (isTotalLimitReached || isTheoryLimitReached || isPracticalLimitReached)) {
                         return (
                           <div className="mt-2 p-1 px-2 rounded bg-warning bg-opacity-10 text-danger fw-bold border border-warning small text-center" style={{ fontSize: "12.5px" }}>
-                            ⚠️ ملحوظة: عضو هيئة التدريس ({getFormattedProfName(selectedProfObj)}) تم الوصول للحد الأقصى {isTotalLimitReached ? "لإجمالي الساعات (8 ساعات)" : isTheoryLimitReached ? "لساعات النظري (6 ساعات)" : "لساعات العملي (8 ساعات)"}.
+                            ⚠️ ملحوظة: عضو هيئة التدريس ({getFormattedProfName(selectedProfObj)}) تم الوصول للحد الأقصى {isTotalLimitReached ? `لإجمالي ساعات العمل باليوم (${MAX_DAY_HOURS} ساعات)` : isTheoryLimitReached ? `لساعات النظري باليوم (${limitTheoryDay} ساعات)` : `لساعات العملي باليوم (${limitPracticalDay} ساعات)`}.
                           </div>
                         );
                       }
