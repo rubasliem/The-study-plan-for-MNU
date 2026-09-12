@@ -6401,7 +6401,7 @@ ${signaturesHtml}
             <Alert variant="warning" className="border-0 shadow-sm mb-4" style={{ borderRadius: "10px", backgroundColor: "#fffbeb", borderRight: "5px solid #d97706" }}>
               <div className="d-flex align-items-center gap-2 mb-2 fw-bold fs-6 text-danger">
                 <FaExclamationTriangle size={20} className="text-danger flex-shrink-0" />
-                <span>تم استبعاد ({importErrors.length}) صف لوجود أخطاء بها (لن يتم استيرادها):</span>
+                <span>تم استبعاد ({importErrors.length}) صف لوجود أخطاء (لن يتم استيرادها):</span>
               </div>
               <ul className="mb-0 pe-4 small" style={{ maxHeight: "180px", overflowY: "auto", lineHeight: "1.8" }}>
                 {importErrors.map((err, i) => (
@@ -6445,37 +6445,144 @@ ${signaturesHtml}
                   </div>
                 </div>
 
-                <div className="table-responsive" style={{ maxHeight: "280px", overflowY: "auto" }}>
+                <div className="table-responsive" style={{ maxHeight: "320px", overflowY: "auto" }}>
                   <Table bordered hover size="sm" className="align-middle text-center mb-0 small">
                     <thead className="table-success sticky-top">
                       <tr>
-                        <th>#</th>
-                        <th>كود المقرر</th>
-                        <th>اسم المقرر</th>
-                        <th>البرنامج</th>
-                        <th>الطلاب</th>
-                        <th>مجموعات (ن/ع)</th>
-                        <th>عضو هيئة التدريس</th>
-                        <th>الدرجة العلمية</th>
-                        <th>جهة القدوم</th>
-                        <th>ساعات (ن/ع)</th>
+                        <th style={{ verticalAlign: "middle" }}>#</th>
+                        <th style={{ verticalAlign: "middle" }}>كود المقرر</th>
+                        <th style={{ verticalAlign: "middle" }}>اسم المقرر</th>
+                        <th style={{ verticalAlign: "middle" }}>البرنامج</th>
+                        <th style={{ verticalAlign: "middle" }}>الطلاب</th>
+                        <th style={{ verticalAlign: "middle" }}>مجموعات (ن/ع)</th>
+                        <th style={{ verticalAlign: "middle" }}>عضو هيئة التدريس</th>
+                        <th style={{ verticalAlign: "middle" }}>الدرجة العلمية</th>
+                        <th style={{ verticalAlign: "middle" }}>جهة القدوم</th>
+                        <th style={{ verticalAlign: "middle" }}>ساعات (ن/ع)</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {importPreviewData.map((row, idx) => (
-                        <tr key={idx}>
-                          <td>{idx + 1}</td>
-                          <td className="fw-bold text-primary">{row.code}</td>
-                          <td>{row.nameAr}</td>
-                          <td>{row.program_names || "--"}</td>
-                          <td>{row.student_count}</td>
-                          <td>{row.groups_theory} / {row.groups_practical}</td>
-                          <td className="fw-bold text-success">{row.professor_name}</td>
-                          <td>{getJobTitleFull(row.prof_job_title)}</td>
-                          <td className="small text-muted">{row.prof_workplace || "--"}</td>
-                          <td className="fw-bold">{row.hours_actual_theory} / {row.hours_actual_practical}</td>
-                        </tr>
-                      ))}
+                      {(() => {
+                        const groups = [];
+                        let currentGroup = null;
+
+                        importPreviewData.forEach((row, idx) => {
+                          const isSameCourse = currentGroup &&
+                            currentGroup.code === row.code &&
+                            currentGroup.program_names === row.program_names &&
+                            String(currentGroup.student_count) === String(row.student_count) &&
+                            String(currentGroup.groups_theory) === String(row.groups_theory) &&
+                            String(currentGroup.groups_practical) === String(row.groups_practical);
+
+                          if (isSameCourse) {
+                            currentGroup.rows.push({ ...row, rowIndex: idx + 1 });
+                          } else {
+                            currentGroup = {
+                              code: row.code,
+                              nameAr: row.nameAr,
+                              program_names: row.program_names,
+                              student_count: row.student_count,
+                              groups_theory: row.groups_theory,
+                              groups_practical: row.groups_practical,
+                              groups_training: row.groups_training,
+                              groups_field: row.groups_field,
+                              rows: [{ ...row, rowIndex: idx + 1 }]
+                            };
+                            groups.push(currentGroup);
+                          }
+                        });
+
+                        return groups.map((group, gIdx) =>
+                          group.rows.map((row, rIdx) => (
+                            <tr key={row._key || `${gIdx}-${rIdx}`}>
+                              {/* رقم الصف / السجل */}
+                              <td className="align-middle text-center text-muted fw-bold" style={{ verticalAlign: "middle" }}>
+                                {row.rowIndex}
+                              </td>
+
+                              {/* أعمدة المقرر - دمج وتوسيط (Merge and Center) للصفوف المتكررة لنفس المقرر */}
+                              {rIdx === 0 && (
+                                <>
+                                  <td
+                                    rowSpan={group.rows.length}
+                                    className="fw-bold text-primary align-middle text-center"
+                                    style={{
+                                      verticalAlign: "middle",
+                                      backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
+                                    }}
+                                  >
+                                    {group.code}
+                                  </td>
+                                  <td
+                                    rowSpan={group.rows.length}
+                                    className="align-middle text-center fw-medium"
+                                    style={{
+                                      verticalAlign: "middle",
+                                      backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
+                                    }}
+                                  >
+                                    {group.nameAr}
+                                  </td>
+                                  <td
+                                    rowSpan={group.rows.length}
+                                    className="align-middle text-center"
+                                    style={{
+                                      verticalAlign: "middle",
+                                      backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
+                                    }}
+                                  >
+                                    {group.program_names || "--"}
+                                  </td>
+                                  <td
+                                    rowSpan={group.rows.length}
+                                    className="align-middle text-center fw-bold"
+                                    style={{
+                                      verticalAlign: "middle",
+                                      backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
+                                    }}
+                                  >
+                                    {group.student_count}
+                                  </td>
+                                  <td
+                                    rowSpan={group.rows.length}
+                                    className="align-middle text-center fw-bold"
+                                    style={{
+                                      verticalAlign: "middle",
+                                      backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
+                                    }}
+                                  >
+                                    {group.groups_theory} / {group.groups_practical}
+                                    {(group.groups_training > 0 || group.groups_field > 0) && (
+                                      <span className="text-muted small d-block">
+                                        (تد: {group.groups_training || 0} / ح: {group.groups_field || 0})
+                                      </span>
+                                    )}
+                                  </td>
+                                </>
+                              )}
+
+                              {/* بيانات عضو هيئة التدريس وساعاته - غير مكررة ومستقلة لكل صف */}
+                              <td className="fw-bold text-success align-middle text-center" style={{ verticalAlign: "middle" }}>
+                                {row.professor_name}
+                              </td>
+                              <td className="align-middle text-center" style={{ verticalAlign: "middle" }}>
+                                {getJobTitleFull(row.prof_job_title)}
+                              </td>
+                              <td className="small text-muted align-middle text-center" style={{ verticalAlign: "middle" }}>
+                                {row.prof_workplace || "--"}
+                              </td>
+                              <td className="fw-bold align-middle text-center" style={{ verticalAlign: "middle" }}>
+                                {row.hours_actual_theory} / {row.hours_actual_practical}
+                                {(row.hours_actual_training > 0 || row.hours_actual_field > 0) && (
+                                  <span className="text-muted small d-block">
+                                    (تد: {row.hours_actual_training || 0} / ح: {row.hours_actual_field || 0})
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        );
+                      })()}
                     </tbody>
                   </Table>
                 </div>
