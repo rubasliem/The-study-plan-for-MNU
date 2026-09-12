@@ -4125,6 +4125,7 @@ ${signaturesHtml}
               <FaCopy className="ms-1" style={{ color: '#78350f' }} /> نسخ خطة من عام سابق
             </Button>
           </div>
+
         </div>
       )}
 
@@ -6247,8 +6248,14 @@ ${signaturesHtml}
                         </div>
                         <div className="ms-3 d-flex flex-row flex-wrap gap-4" style={{ color: "#166534", fontSize: "14.5px" }}>
                           <div>• <strong>الدرجة العلمية :</strong> &nbsp;{getJobTitleFull(selectedProfObj.job_title) || "--"}</div>
-                          <div>• <strong>جهة القدوم :</strong> &nbsp;{selectedProfObj.original_workplace || "--"}</div>
-                          <div>• <strong>نوع الانتداب :</strong> &nbsp;{selectedProfObj.contract_type || "--"} ({profDays} {profDays === 1 ? "يوم عمل" : profDays === 2 ? "يومان عمل" : "أيام عمل"})</div>
+                          <div>
+                            • <strong>نوع الانتداب :</strong> &nbsp;
+                            {(() => {
+                              const dayStr = `${profDays} ${profDays === 1 ? "يوم عمل" : profDays === 2 ? "يومان عمل" : "أيام عمل"}`;
+                              const cType = selectedProfObj.contract_type?.trim();
+                              return cType ? `${cType} - ${dayStr}` : dayStr;
+                            })()}
+                          </div>
                           <div>• <strong>الحد الأقصى اليومي :</strong> &nbsp;{isTA ? `${8 * profDays} س (عملي وتوتوريال)` : `${6 * profDays} س (نظري + نصف العملي)`}</div>
                           <div>• <strong>عدد أسابيع الحضور في {selectedSemester.startsWith("الفصل") ? selectedSemester : `الفصل الدراسي ${selectedSemester}`} :</strong> &nbsp;{getProfAttendanceWeeksForSemester(selectedProfObj, selectedYear, selectedSemester, academicYears, isMedicine)}</div>
                         </div>
