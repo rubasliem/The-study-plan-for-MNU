@@ -477,6 +477,8 @@ class FacultyWorkloadLimitBase(BaseModel):
     faculty_id: int
     academic_year: str
     semester: str
+    max_faculty_hours_per_day: Optional[float] = 6.0
+    max_assistant_hours_per_day: Optional[float] = 8.0
     min_theory_hours_per_day: float = 0.0
     max_theory_hours_per_day: float = 0.0
     min_practical_hours_per_day: float = 0.0

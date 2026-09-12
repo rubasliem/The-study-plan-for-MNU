@@ -546,6 +546,8 @@ def migrate_db_add_workload_fields():
         if inspector.has_table('faculty_workload_limits'):
             cols = [c['name'] for c in inspector.get_columns('faculty_workload_limits')]
             new_cols = [
+                ("max_faculty_hours_per_day", "FLOAT DEFAULT 6.0"),
+                ("max_assistant_hours_per_day", "FLOAT DEFAULT 8.0"),
                 ("min_theory_hours_per_day", "FLOAT DEFAULT 0.0"),
                 ("max_theory_hours_per_day", "FLOAT DEFAULT 0.0"),
                 ("min_practical_hours_per_day", "FLOAT DEFAULT 0.0"),
@@ -4377,10 +4379,12 @@ def get_workload_limits(
             "faculty_id": faculty_id,
             "academic_year": academic_year,
             "semester": semester,
+            "max_faculty_hours_per_day": 6.0,
+            "max_assistant_hours_per_day": 8.0,
             "min_theory_hours_per_day": 0.0,
-            "max_theory_hours_per_day": 0.0,
+            "max_theory_hours_per_day": 6.0,
             "min_practical_hours_per_day": 0.0,
-            "max_practical_hours_per_day": 0.0,
+            "max_practical_hours_per_day": 4.0,
             "min_tutorial_hours_per_day": 0.0,
             "max_tutorial_hours_per_day": 0.0,
             "min_field_hours_per_day": 0.0,
@@ -4410,6 +4414,8 @@ def save_workload_limits(
     ).first()
     
     if limit:
+        limit.max_faculty_hours_per_day = data.max_faculty_hours_per_day if data.max_faculty_hours_per_day is not None else 6.0
+        limit.max_assistant_hours_per_day = data.max_assistant_hours_per_day if data.max_assistant_hours_per_day is not None else 8.0
         limit.min_theory_hours_per_day = data.min_theory_hours_per_day
         limit.max_theory_hours_per_day = data.max_theory_hours_per_day
         limit.min_practical_hours_per_day = data.min_practical_hours_per_day
@@ -4430,6 +4436,8 @@ def save_workload_limits(
             faculty_id=data.faculty_id,
             academic_year=data.academic_year,
             semester=data.semester,
+            max_faculty_hours_per_day=data.max_faculty_hours_per_day if data.max_faculty_hours_per_day is not None else 6.0,
+            max_assistant_hours_per_day=data.max_assistant_hours_per_day if data.max_assistant_hours_per_day is not None else 8.0,
             min_theory_hours_per_day=data.min_theory_hours_per_day,
             max_theory_hours_per_day=data.max_theory_hours_per_day,
             min_practical_hours_per_day=data.min_practical_hours_per_day,

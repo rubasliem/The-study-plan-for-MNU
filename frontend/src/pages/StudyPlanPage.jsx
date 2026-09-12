@@ -986,8 +986,10 @@ const StudyPlanPage = () => {
     const baseCourse = courses.find(c => String(c.id) === String(formData.base_course_id));
 
     // التحقق الديناميكي من ساعات عضو هيئة التدريس استناداً إلى قواعد الكلية والحد الأقصى لليوم وأيام الانتداب
-    const limitTheoryDay = (workloadLimits && Number(workloadLimits.max_theory_hours_per_day) > 0) ? Number(workloadLimits.max_theory_hours_per_day) : 6;
-    const limitPracticalDay = (workloadLimits && Number(workloadLimits.max_practical_hours_per_day) > 0) ? Number(workloadLimits.max_practical_hours_per_day) : 8;
+    const limitFacultyDay = (workloadLimits && Number(workloadLimits.max_faculty_hours_per_day) > 0) ? Number(workloadLimits.max_faculty_hours_per_day) : 6;
+    const limitAssistantDay = (workloadLimits && Number(workloadLimits.max_assistant_hours_per_day) > 0) ? Number(workloadLimits.max_assistant_hours_per_day) : 8;
+    const limitTheoryDay = (workloadLimits && Number(workloadLimits.max_theory_hours_per_day) > 0) ? Number(workloadLimits.max_theory_hours_per_day) : limitFacultyDay;
+    const limitPracticalDay = (workloadLimits && Number(workloadLimits.max_practical_hours_per_day) > 0) ? Number(workloadLimits.max_practical_hours_per_day) : limitAssistantDay;
 
     const profsHoursMap = {};
     multiProfessors.forEach(p => {
@@ -1034,21 +1036,21 @@ const StudyPlanPage = () => {
           return false;
         }
 
-        const maxPracticalAllowed = 8 * workDays;
+        const maxPracticalAllowed = limitAssistantDay * workDays;
         if (totalNonTheory > maxPracticalAllowed) {
-          const msg = `⚠️ تنبيه: مجموع ساعات العملي والتوتوريال والحقل للأستاذ (${profName}) سيصل إلى (${fmt(totalNonTheory)} ساعة)، والحد الأقصى المسموح به هو (${maxPracticalAllowed} ساعة = ${workDays} أيام انتداب × 8 ساعات)${otherCoursesH.tot > 0 ? ` [مسجل له ${fmt(otherCoursesH.tot)} س بمقررات أخرى]` : ""}.`;
+          const msg = `⚠️ تنبيه: مجموع ساعات العملي والتوتوريال والحقل للأستاذ (${profName}) سيصل إلى (${fmt(totalNonTheory)} ساعة)، والحد الأقصى المسموح به هو (${maxPracticalAllowed} ساعة = ${workDays} أيام انتداب × ${limitAssistantDay} ساعات)${otherCoursesH.tot > 0 ? ` [مسجل له ${fmt(otherCoursesH.tot)} س بمقررات أخرى]` : ""}.`;
           setErrorMsg(msg);
           toast.error(msg);
           return false;
         }
       } else {
         // ب) التحقق الخاص بأعضاء هيئة التدريس (أستاذ / أستاذ مساعد / مدرس)
-        // المعادلة: مجموع الساعات النظري + (مجموع الساعات العملي والتوتوريال والحقل / 2) <= 6 ساعات * عدد أيام الانتداب
+        // المعادلة: مجموع الساعات النظري + (مجموع الساعات العملي والتوتوريال والحقل / 2) <= الحد الأقصى اليومي * عدد أيام الانتداب
         const calculatedLoad = totalTheory + (totalNonTheory / 2);
-        const maxFacultyAllowed = 6 * workDays;
+        const maxFacultyAllowed = limitFacultyDay * workDays;
 
         if (calculatedLoad > maxFacultyAllowed) {
-          const msg = `⚠️ تنبيه: العبء التدريسي المحتسب للأستاذ (${profName}) [نظري (${fmt(totalTheory)}) + نصف العملي (${fmt(totalNonTheory / 2)})] سيصل إلى (${fmt(calculatedLoad)} ساعة)، والحد الأقصى المسموح به هو (${maxFacultyAllowed} ساعة = ${workDays} أيام انتداب × 6 ساعات)${otherCoursesH.tot > 0 ? ` [مسجل له ${fmt(otherCoursesH.tot)} س بمقررات أخرى]` : ""}.`;
+          const msg = `⚠️ تنبيه: العبء التدريسي المحتسب للأستاذ (${profName}) [نظري (${fmt(totalTheory)}) + نصف العملي (${fmt(totalNonTheory / 2)})] سيصل إلى (${fmt(calculatedLoad)} ساعة)، والحد الأقصى المسموح به هو (${maxFacultyAllowed} ساعة = ${workDays} أيام انتداب × ${limitFacultyDay} ساعات)${otherCoursesH.tot > 0 ? ` [مسجل له ${fmt(otherCoursesH.tot)} س بمقررات أخرى]` : ""}.`;
           setErrorMsg(msg);
           toast.error(msg);
           return false;
@@ -4929,17 +4931,19 @@ ${signaturesHtml}
                   : 0;
                 const otherTotalHours = otherTheoryHours + otherPracticalHours + otherTrainingHours + otherFieldHours;
 
-                const limitTheoryDay = (workloadLimits && Number(workloadLimits.max_theory_hours_per_day) > 0) ? Number(workloadLimits.max_theory_hours_per_day) : 6;
-                const limitPracticalDay = (workloadLimits && Number(workloadLimits.max_practical_hours_per_day) > 0) ? Number(workloadLimits.max_practical_hours_per_day) : 8;
-                const limitTutorialDay = (workloadLimits && Number(workloadLimits.max_tutorial_hours_per_day) > 0) ? Number(workloadLimits.max_tutorial_hours_per_day) : 8;
-                const limitFieldDay = (workloadLimits && Number(workloadLimits.max_field_hours_per_day) > 0) ? Number(workloadLimits.max_field_hours_per_day) : 8;
+                const limitFacultyDay = (workloadLimits && Number(workloadLimits.max_faculty_hours_per_day) > 0) ? Number(workloadLimits.max_faculty_hours_per_day) : 6;
+                const limitAssistantDay = (workloadLimits && Number(workloadLimits.max_assistant_hours_per_day) > 0) ? Number(workloadLimits.max_assistant_hours_per_day) : 8;
+                const limitTheoryDay = (workloadLimits && Number(workloadLimits.max_theory_hours_per_day) > 0) ? Number(workloadLimits.max_theory_hours_per_day) : limitFacultyDay;
+                const limitPracticalDay = (workloadLimits && Number(workloadLimits.max_practical_hours_per_day) > 0) ? Number(workloadLimits.max_practical_hours_per_day) : limitAssistantDay;
+                const limitTutorialDay = (workloadLimits && Number(workloadLimits.max_tutorial_hours_per_day) > 0) ? Number(workloadLimits.max_tutorial_hours_per_day) : limitAssistantDay;
+                const limitFieldDay = (workloadLimits && Number(workloadLimits.max_field_hours_per_day) > 0) ? Number(workloadLimits.max_field_hours_per_day) : limitAssistantDay;
 
                 const limitTheoryCourse = (workloadLimits && Number(workloadLimits.max_theory_hours_per_course) > 0) ? Number(workloadLimits.max_theory_hours_per_course) : null;
                 const limitPracticalCourse = (workloadLimits && Number(workloadLimits.max_practical_hours_per_course) > 0) ? Number(workloadLimits.max_practical_hours_per_course) : null;
                 const limitTutorialCourse = (workloadLimits && Number(workloadLimits.max_tutorial_hours_per_course) > 0) ? Number(workloadLimits.max_tutorial_hours_per_course) : null;
                 const isTA = selectedProfObj ? isTeachingAssistant(selectedProfObj) : false;
                 const profDays = selectedProfObj ? getProfessorWorkDays(selectedProfObj) : 1;
-                const maxAllowedOverall = isTA ? (8 * profDays) : (6 * profDays);
+                const maxAllowedOverall = isTA ? (limitAssistantDay * profDays) : (limitFacultyDay * profDays);
 
                 const totNonThSoFar = (profOtherCoursesHours.pr + otherPracticalHours) + (profOtherCoursesHours.tr + otherTrainingHours) + (profOtherCoursesHours.fld + otherFieldHours);
                 const totThSoFar = profOtherCoursesHours.th + otherTheoryHours;
@@ -4991,7 +4995,7 @@ ${signaturesHtml}
                                   const profObj = professors.find(p => String(p.id) === String(val));
                                   const isProfTA = isTeachingAssistant(profObj);
                                   const pDays = getProfessorWorkDays(profObj);
-                                  const maxAllwd = isProfTA ? (8 * pDays) : (6 * pDays);
+                                  const maxAllwd = isProfTA ? (limitAssistantDay * pDays) : (limitFacultyDay * pDays);
 
                                   const targetCourseId = editingCourseId || formData.base_course_id;
                                   const profOtherH = planRows
@@ -5515,7 +5519,7 @@ ${signaturesHtml}
                       const allProfOverallNonTheory = allProfOverallPractical + allProfOverallTraining + allProfOverallField;
 
                       if (isTA) {
-                        const maxAllwd = 8 * profDays;
+                        const maxAllwd = limitAssistantDay * profDays;
                         if (allProfOverallTheory > 0) {
                           return (
                             <div className="mt-2 p-1 px-2 rounded bg-danger bg-opacity-10 text-danger fw-bold border border-danger small text-center">
@@ -5527,7 +5531,7 @@ ${signaturesHtml}
                         if (allProfOverallNonTheory > maxAllwd) {
                           return (
                             <div className="mt-2 p-1 px-2 rounded bg-danger bg-opacity-10 text-danger fw-bold border border-danger small text-center">
-                              ⚠️ تنبيه: مجموع ساعات العملي والتوتوريال والحقل ({fmt(allProfOverallNonTheory)} س) لهذا الأستاذ يتجاوز الحد الأقصى المسموح به ({maxAllwd} ساعات = {profDays} أيام انتداب × 8 ساعات)
+                              ⚠️ تنبيه: مجموع ساعات العملي والتوتوريال والحقل ({fmt(allProfOverallNonTheory)} س) لهذا الأستاذ يتجاوز الحد الأقصى المسموح به ({maxAllwd} ساعات = {profDays} أيام انتداب × ${limitAssistantDay} ساعات)
                               {profOtherCoursesHours.tot > 0 ? ` [منها ${fmt(profOtherCoursesHours.tot)} س مسجلة بمقررات أخرى بالخطة]` : ""}.
                             </div>
                           );
@@ -5535,18 +5539,18 @@ ${signaturesHtml}
 
                         return (
                           <div className="mt-2 p-1 px-2 rounded bg-success bg-opacity-10 text-success fw-bold border border-success small text-center">
-                            ✓ الساعات العملية والتوتوريال والحقل المسندة: {fmt(allProfOverallNonTheory)} س من أصل {maxAllwd} س مسموحة ({profDays} {profDays === 1 ? "يوم" : profDays === 2 ? "يومان" : "أيام"} انتداب × 8 ساعات عملي).
+                            ✓ الساعات العملية والتوتوريال والحقل المسندة: {fmt(allProfOverallNonTheory)} س من أصل {maxAllwd} س مسموحة ({profDays} {profDays === 1 ? "يوم" : profDays === 2 ? "يومان" : "أيام"} انتداب × {limitAssistantDay} ساعات عملي).
                           </div>
                         );
                       } else {
                         // أعضاء هيئة التدريس (أستاذ / أ.مساعد / مدرس)
                         const calculatedLoad = Number((allProfOverallTheory + (allProfOverallNonTheory / 2)).toFixed(2));
-                        const maxFacultyAllwd = 6 * profDays;
+                        const maxFacultyAllwd = limitFacultyDay * profDays;
 
                         if (calculatedLoad > maxFacultyAllwd) {
                           return (
                             <div className="mt-2 p-1 px-2 rounded bg-danger bg-opacity-10 text-danger fw-bold border border-danger small text-center">
-                              ⚠️ تنبيه: العبء التدريسي المحتسب للأستاذ [نظري ({fmt(allProfOverallTheory)}) + نصف العملي ({fmt(allProfOverallNonTheory / 2)}) = {fmt(calculatedLoad)} س] يتجاوز الحد الأقصى المسموح به ({maxFacultyAllwd} ساعة = {profDays} أيام انتداب × 6 ساعات)
+                              ⚠️ تنبيه: العبء التدريسي المحتسب للأستاذ [نظري ({fmt(allProfOverallTheory)}) + نصف العملي ({fmt(allProfOverallNonTheory / 2)}) = {fmt(calculatedLoad)} س] يتجاوز الحد الأقصى المسموح به ({maxFacultyAllwd} ساعة = {profDays} أيام انتداب × {limitFacultyDay} ساعات)
                               {profOtherCoursesHours.tot > 0 ? ` [منها ${fmt(profOtherCoursesHours.tot)} س بمقررات أخرى بالخطة]` : ""}.
                             </div>
                           );
@@ -5563,7 +5567,7 @@ ${signaturesHtml}
 
                         return (
                           <div className="mt-2 p-1 px-2 rounded bg-success bg-opacity-10 text-success fw-bold border border-success small text-center">
-                            ✓ العبء التدريسي المحتسب للأستاذ: [نظري ({fmt(allProfOverallTheory)}) + نصف العملي ({fmt(allProfOverallNonTheory / 2)}) = {fmt(calculatedLoad)} س] من أصل {maxFacultyAllwd} س حد أقصى ({profDays} {profDays === 1 ? "يوم" : profDays === 2 ? "يومان" : "أيام"} انتداب × 6 ساعات).
+                            ✓ العبء التدريسي المحتسب للأستاذ: [نظري ({fmt(allProfOverallTheory)}) + نصف العملي ({fmt(allProfOverallNonTheory / 2)}) = {fmt(calculatedLoad)} س] من أصل {maxFacultyAllwd} س حد أقصى ({profDays} {profDays === 1 ? "يوم" : profDays === 2 ? "يومان" : "أيام"} انتداب × {limitFacultyDay} ساعات).
                           </div>
                         );
                       }

@@ -372,6 +372,10 @@ class FacultyWorkloadLimit(Base):
     academic_year = Column(String, index=True) # مثل 2026/2027
     semester = Column(String, index=True) # الفصل الدراسي الأول / الثاني / الصيفي
     
+    # الحدود الديناميكية لساعات العمل باليوم
+    max_faculty_hours_per_day = Column(Float, default=6.0, nullable=True) # الحد الأقصى في اليوم لعضو هيئة التدريس (أي وظيفة ما عدا المعيد والمدرس المساعد)
+    max_assistant_hours_per_day = Column(Float, default=8.0, nullable=True) # الحد الأقصى في اليوم للهيئة المعاونة (المعيد والمدرس المساعد فقط)
+
     # تفصيل الساعات في اليوم
     min_theory_hours_per_day = Column(Float, default=0.0) # الحد الأدنى للساعات نظري في اليوم
     max_theory_hours_per_day = Column(Float, default=0.0) # الحد الأقصى للساعات نظري في اليوم
