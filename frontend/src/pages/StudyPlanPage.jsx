@@ -3694,9 +3694,13 @@ ${signaturesHtml}
         }
 
         const cleanCode = rawCodeVal.trim();
-        const courseObj = targetCourses.find(c => c.code && c.code.trim().toUpperCase() === cleanCode.toUpperCase());
+        let courseObj = targetCourses.find(c => c.code && c.code.trim().toUpperCase() === cleanCode.toUpperCase());
         if (!courseObj) {
-          errors.push(`الصف ${rowNum}: كود المقرر "${cleanCode}" غير صحيح أو غير مسجل في مقررات ${facName}.`);
+          const noSpaceCode = cleanCode.replace(/\s+/g, '').toUpperCase();
+          courseObj = targetCourses.find(c => c.code && c.code.trim().replace(/\s+/g, '').toUpperCase() === noSpaceCode);
+        }
+        if (!courseObj) {
+          errors.push(`الصف ${rowNum}: كود المقرر "${cleanCode}" غير مسجل في مقررات ${facName}.`);
         }
 
         // 2. اسم البرنامج 1 - إلزامي (مع التقريب والتطابق العربي الذكي)
@@ -3795,16 +3799,15 @@ ${signaturesHtml}
         }
       });
 
-      if (errors.length > 0) {
-        setImportErrors(errors);
-        setImportPreviewData([]);
-      } else if (parsedRows.length === 0) {
-        setImportErrors(["لم يتم العثور على أي صفوف صالحة للاستيراد في الملف."]);
-        setImportPreviewData([]);
+      setImportErrors(errors);
+      setImportPreviewData(parsedRows);
+
+      if (parsedRows.length > 0 && errors.length === 0) {
+        toast.success(`تم فحص وتدقيق الملف بنجاح! جميع السجلات (${parsedRows.length}) صحيحة وجاهزة للاستيراد.`);
+      } else if (parsedRows.length > 0 && errors.length > 0) {
+        toast.success(`تم فحص الملف: (${parsedRows.length}) سجل صالح للاستيراد، وتم استبعاد (${errors.length}) سجل بها أخطاء.`);
       } else {
-        setImportErrors([]);
-        setImportPreviewData(parsedRows);
-        toast.success(`تم فحص وتدقيق الملف بنجاح! تم استخراج ${parsedRows.length} سجل مطابق.`);
+        toast.error("لم يتم العثور على أي صفوف صالحة للاستيراد في الملف.");
       }
     } catch (err) {
       console.error("Error processing import file", err);
@@ -3827,7 +3830,11 @@ ${signaturesHtml}
     }
 
     setShowImportModal(false);
-    toast.success(`تم استيراد ${importPreviewData.length} سجل بنجاح في جدول الخطة الدراسية! يرجى مراجعتها ثم الضغط على "حفظ الخطة".`);
+    if (importErrors.length > 0) {
+      toast.success(`تم استيراد (${importPreviewData.length}) سجل بنجاح في جدول الخطة، وتم استبعاد (${importErrors.length}) سجل بها أخطاء! يرجى مراجعة الجدول ثم الضغط على "حفظ الخطة".`);
+    } else {
+      toast.success(`تم استيراد كافة السجلات (${importPreviewData.length}) بنجاح في جدول الخطة الدراسية! يرجى مراجعتها ثم الضغط على "حفظ الخطة".`);
+    }
   };
 
   const profAggRows = buildProfAggregatedRows();
@@ -6200,7 +6207,7 @@ ${signaturesHtml}
       >
         <Modal.Header closeButton style={{ backgroundColor: "#15803d" }}>
           <Modal.Title className="fw-bold text-white d-flex align-items-center gap-2">
-            <FaFileExcel className="fs-4" /> استيراد الخطة الدراسية من ملف Excel (نموذج معتمد)
+            <FaFileExcel className="fs-4" /> استيراد الخطة الدراسية من ملف Excel 
           </Modal.Title>
         </Modal.Header>
         <Modal.Body className="p-4" style={{ backgroundColor: "#f8fafc" }}>
@@ -6302,14 +6309,14 @@ ${signaturesHtml}
             </Card.Body>
           </Card>
 
-          {/* الأخطاء والتنبيهات */}
+          {/* الأخطاء والتنبيهات (الصفوف المرفوضة والمستبعدة) */}
           {importErrors.length > 0 && (
-            <Alert variant="danger" className="border-0 shadow-sm mb-4" style={{ borderRadius: "10px" }}>
-              <div className="d-flex align-items-center gap-2 mb-2 fw-bold fs-6">
+            <Alert variant="warning" className="border-0 shadow-sm mb-4" style={{ borderRadius: "10px", backgroundColor: "#fffbeb", borderRight: "5px solid #d97706" }}>
+              <div className="d-flex align-items-center gap-2 mb-2 fw-bold fs-6 text-danger">
                 <FaExclamationTriangle size={20} className="text-danger flex-shrink-0" />
-                <span>تعذر استيراد الخطة بسبب وجود ({importErrors.length}) ملاحظات / أخطاء يجب تصحيحها:</span>
+                <span>تم استبعاد ({importErrors.length}) سجل لوجود أخطاء بها (لن يتم استيرادها):</span>
               </div>
-              <ul className="mb-0 pe-4 small" style={{ maxHeight: "200px", overflowY: "auto", lineHeight: "1.8" }}>
+              <ul className="mb-0 pe-4 small" style={{ maxHeight: "180px", overflowY: "auto", lineHeight: "1.8" }}>
                 {importErrors.map((err, i) => (
                   <li key={i} className="text-danger fw-bold">{err}</li>
                 ))}
@@ -6317,8 +6324,8 @@ ${signaturesHtml}
             </Alert>
           )}
 
-          {/* المعاينة والتأكيد */}
-          {importPreviewData.length > 0 && importErrors.length === 0 && (
+          {/* المعاينة والتأكيد (الصفوف المقبولة والصالحة للاستيراد) */}
+          {importPreviewData.length > 0 && (
             <Card className="border-0 shadow-sm" style={{ borderRadius: "10px" }}>
               <Card.Body className="p-3">
                 <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -6394,10 +6401,10 @@ ${signaturesHtml}
             variant="success" 
             className="fw-bold px-4 py-2" 
             onClick={handleConfirmImport} 
-            disabled={importPreviewData.length === 0 || importErrors.length > 0 || importing}
+            disabled={importPreviewData.length === 0 || importing}
             style={{ backgroundColor: "#15803d", borderColor: "#15803d" }}
           >
-            {importing ? <Spinner animation="border" size="sm" /> : `✓ تأكيد استيراد (${importPreviewData.length}) سجل للخطة`}
+            {importing ? <Spinner animation="border" size="sm" /> : `✓ تأكيد استيراد (${importPreviewData.length}) سجل صالح للخطة`}
           </Button>
           <Button variant="secondary" className="fw-bold px-4" onClick={() => setShowImportModal(false)}>
             إلغاء
