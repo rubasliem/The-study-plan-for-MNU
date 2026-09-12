@@ -3412,6 +3412,7 @@ ${signaturesHtml}
     const facObj = faculties.find(f => String(f.id) === String(targetFacId));
     const facName = facObj?.name || "الكلية";
     const isHealthTech = Boolean(facName.includes("تكنولوجيا العلوم الصحية") || facName.includes("العلوم الصحية"));
+    const isMedicine = Boolean(facName && (facName.includes("الطب والجراحة") || facName.includes("طب بشري") || facName.includes("كلية الطب")) && !facName.includes("البيطري") && !facName.includes("الأسنان") && !facName.includes("الاسنان") && !facName.includes("تكنولوجيا"));
 
     setIsDownloadingTemplate(true);
     try {
@@ -3427,17 +3428,31 @@ ${signaturesHtml}
       // Define columns based on faculty
       const columns = [
         { header: "كود المقرر *", key: "course_code", width: 18 },
-        { header: "اسم البرنامج 1 *", key: "program_1", width: 28 },
-        { header: "اسم البرنامج 2 (اختياري)", key: "program_2", width: 28 },
+        { header: isMedicine ? "اسم البرنامج *" : "اسم البرنامج 1 *", key: "program_1", width: 28 },
+      ];
+
+      // كلية الطب والجراحة لا تحتاج إلى عمود اسم البرنامج 2 (لائحة موحدة)
+      if (!isMedicine) {
+        columns.push({ header: "اسم البرنامج 2 (اختياري)", key: "program_2", width: 28 });
+      }
+
+      columns.push(
         { header: "عدد الطلاب", key: "student_count", width: 14 },
         { header: "عدد المجموعات نظري", key: "groups_theory", width: 20 },
         { header: "عدد المجموعات عملي", key: "groups_practical", width: 20 },
-      ];
+      );
 
       if (isHealthTech) {
         columns.push(
           { header: "عدد المجموعات توتوريال", key: "groups_training", width: 22 },
           { header: "عدد المجموعات حقل", key: "groups_field", width: 20 }
+        );
+      }
+
+      // إضافة عمود القسم العلمي لكلية الطب والجراحة (حيث تتوزع المقررات على أقسام علمية وموديولات)
+      if (isMedicine) {
+        columns.push(
+          { header: "القسم العلمي", key: "department_name", width: 26 }
         );
       }
 
@@ -3488,6 +3503,8 @@ ${signaturesHtml}
       let sampleCourseCode = "BAS 003";
       let sampleProgName = "الأمن السيبراني";
       let sampleNatId = "29001011701234";
+      let sampleDeptName = "";
+      let sampleDeptName2 = "";
 
       if (String(targetFacId) === String(selectedFaculty)) {
         if (courses && courses.length > 0 && courses[0].code) sampleCourseCode = courses[0].code;
@@ -3497,10 +3514,28 @@ ${signaturesHtml}
         sampleNatId = professors[0].national_id;
       }
 
+      if (isMedicine) {
+        // العثور على مقرر طبي يحتوي على أقسام/موديولات لعرضها كمثال عملي
+        const medCourseWithMods = courses?.find(c => c.modules && c.modules.length > 0) || courses?.[0];
+        if (medCourseWithMods) {
+          sampleCourseCode = medCourseWithMods.code || sampleCourseCode;
+          if (medCourseWithMods.modules && medCourseWithMods.modules.length > 0) {
+            sampleDeptName = medCourseWithMods.modules[0]?.department_name || "التشريح وعلم الأجنة";
+            sampleDeptName2 = medCourseWithMods.modules[1]?.department_name || sampleDeptName;
+          } else {
+            sampleDeptName = medCourseWithMods.department_name || "التشريح وعلم الأجنة";
+            sampleDeptName2 = sampleDeptName;
+          }
+        } else {
+          sampleCourseCode = "MED 102";
+          sampleDeptName = "التشريح وعلم الأجنة";
+          sampleDeptName2 = "الفسيولوجيا الطبية";
+        }
+      }
+
       const sampleRowData = {
         course_code: sampleCourseCode,
         program_1: sampleProgName,
-        program_2: "",
         student_count: 120,
         groups_theory: 1,
         groups_practical: 2,
@@ -3508,6 +3543,13 @@ ${signaturesHtml}
         hours_theory: 2,
         hours_practical: 4
       };
+
+      if (!isMedicine) {
+        sampleRowData.program_2 = "";
+      }
+      if (isMedicine) {
+        sampleRowData.department_name = sampleDeptName;
+      }
 
       if (isHealthTech) {
         sampleRowData.groups_training = 1;
@@ -3531,7 +3573,6 @@ ${signaturesHtml}
       const sampleRowData2 = {
         course_code: "", // ترك فارغ لوراثة كود المقرر والبرنامج والطلاب تلقائياً
         program_1: "",
-        program_2: "",
         student_count: "",
         groups_theory: "",
         groups_practical: "",
@@ -3539,6 +3580,14 @@ ${signaturesHtml}
         hours_theory: 0,
         hours_practical: 2
       };
+
+      if (!isMedicine) {
+        sampleRowData2.program_2 = "";
+      }
+      if (isMedicine) {
+        sampleRowData2.department_name = sampleDeptName2;
+      }
+
       if (isHealthTech) {
         sampleRowData2.groups_training = "";
         sampleRowData2.groups_field = "";
@@ -3590,6 +3639,7 @@ ${signaturesHtml}
       const facObj = faculties.find(f => String(f.id) === String(targetFacId));
       const facName = facObj?.name || "الكلية المختارة";
       const isHealthTech = Boolean(facName.includes("تكنولوجيا العلوم الصحية") || facName.includes("العلوم الصحية"));
+      const isMedicine = Boolean(facName && (facName.includes("الطب والجراحة") || facName.includes("طب بشري") || facName.includes("كلية الطب")) && !facName.includes("البيطري") && !facName.includes("الأسنان") && !facName.includes("الاسنان") && !facName.includes("تكنولوجيا"));
 
       const targetCourses = courses;
       const targetPrograms = programs;
@@ -3628,6 +3678,7 @@ ${signaturesHtml}
       const grPrKey = findKey(["المجموعات عملي", "مجموعات عملي", "groups_practical"]);
       const grTrKey = findKey(["المجموعات توتوريال", "مجموعات توتوريال", "groups_training"]);
       const grFldKey = findKey(["المجموعات حقل", "مجموعات حقل", "groups_field"]);
+      const deptKey = findKey(["القسم العلمي", "القسم", "اسم القسم", "department_name", "department"]);
       const natIdKey = findKey(["الرقم القومي للأستاذ", "الرقم القومي للاستاذ", "الرقم القومي", "الرقم القومى", "national_id"]);
       const thHoursKey = findKey(["ساعات نظري للأستاذ", "ساعات نظري للاستاذ", "ساعات نظري", "ساعات النظري", "نظري للأستاذ", "hours_theory"]);
       const prHoursKey = findKey(["ساعات عملي للأستاذ", "ساعات عملي للاستاذ", "ساعات عملي", "ساعات العملي", "عملي للأستاذ", "hours_practical"]);
@@ -3640,7 +3691,7 @@ ${signaturesHtml}
         return;
       }
       if (!prog1Key) {
-        setImportErrors(["لم يتم العثور على عمود (اسم البرنامج 1) في الملف. يرجى استخدام النموذج المعتمد."]);
+        setImportErrors(["لم يتم العثور على عمود (اسم البرنامج) في الملف. يرجى استخدام النموذج المعتمد."]);
         setImporting(false);
         return;
       }
@@ -3721,6 +3772,8 @@ ${signaturesHtml}
         let courseObj = null;
         let prog1Obj = null;
         let prog2Obj = null;
+        let deptName = "";
+        let matchedModObj = null;
         let stdCount = 0;
         let grTh = 0;
         let grPr = 0;
@@ -3746,13 +3799,13 @@ ${signaturesHtml}
           if (rawProg1Val) {
             prog1Obj = findMatchingProgram(rawProg1Val);
             if (!prog1Obj) {
-              errors.push(`الصف ${rowNum}: اسم البرنامج 1 "${rawProg1Val}" غير مسجل ضمن برامج ${facName}.`);
+              errors.push(`الصف ${rowNum}: اسم البرنامج "${rawProg1Val}" غير مسجل ضمن برامج ${facName}.`);
             }
           } else if (lastValidCourseContext && courseObj && lastValidCourseContext.courseObj?.code === courseObj.code) {
             // وراثة اسم البرنامج إذا كان نفس كود المقرر وترك البرنامج فارغاً
             prog1Obj = lastValidCourseContext.prog1Obj;
           } else {
-            errors.push(`الصف ${rowNum}: اسم البرنامج 1 حقل إلزامي مطلوب.`);
+            errors.push(`الصف ${rowNum}: اسم البرنامج حقل إلزامي مطلوب.`);
           }
 
           // اسم البرنامج 2 (اختياري)
@@ -3764,6 +3817,30 @@ ${signaturesHtml}
             }
           } else if (lastValidCourseContext && courseObj && lastValidCourseContext.courseObj?.code === courseObj.code) {
             prog2Obj = lastValidCourseContext.prog2Obj;
+          }
+
+          // القسم العلمي (خاص بكلية الطب ومقررات الأقسام والموديولات)
+          const rawDeptVal = (deptKey && row[deptKey] !== undefined) ? String(row[deptKey]).trim() : "";
+          if (rawDeptVal) {
+            deptName = rawDeptVal;
+            if (courseObj?.modules && courseObj.modules.length > 0) {
+              const normDept = normalizeArabicText(rawDeptVal);
+              matchedModObj = courseObj.modules.find(m => {
+                const mDept = normalizeArabicText(m.department_name || m.name || "");
+                return mDept === normDept || mDept.includes(normDept) || normDept.includes(mDept);
+              });
+              if (matchedModObj) {
+                deptName = matchedModObj.department_name || rawDeptVal;
+              }
+            }
+          } else if (courseObj?.modules && courseObj.modules.length === 1) {
+            matchedModObj = courseObj.modules[0];
+            deptName = matchedModObj.department_name || "";
+          } else if (lastValidCourseContext && courseObj && lastValidCourseContext.courseObj?.code === courseObj.code) {
+            deptName = lastValidCourseContext.deptName || "";
+            matchedModObj = lastValidCourseContext.matchedModObj || null;
+          } else if (courseObj?.department_name) {
+            deptName = courseObj.department_name;
           }
 
           // عدد الطلاب والمجموعات
@@ -3793,6 +3870,8 @@ ${signaturesHtml}
               courseObj,
               prog1Obj,
               prog2Obj,
+              deptName,
+              matchedModObj,
               stdCount,
               grTh,
               grPr,
@@ -3811,6 +3890,25 @@ ${signaturesHtml}
             grPr = lastValidCourseContext.grPr;
             grTr = lastValidCourseContext.grTr;
             grFld = lastValidCourseContext.grFld;
+
+            // إذا كان هذا الصف يحدد قسماً علمياً مختلفاً لنفس المقرر
+            const rawDeptVal = (deptKey && row[deptKey] !== undefined) ? String(row[deptKey]).trim() : "";
+            if (rawDeptVal) {
+              deptName = rawDeptVal;
+              if (courseObj?.modules && courseObj.modules.length > 0) {
+                const normDept = normalizeArabicText(rawDeptVal);
+                matchedModObj = courseObj.modules.find(m => {
+                  const mDept = normalizeArabicText(m.department_name || m.name || "");
+                  return mDept === normDept || mDept.includes(normDept) || normDept.includes(mDept);
+                });
+                if (matchedModObj) {
+                  deptName = matchedModObj.department_name || rawDeptVal;
+                }
+              }
+            } else {
+              deptName = lastValidCourseContext.deptName || "";
+              matchedModObj = lastValidCourseContext.matchedModObj || null;
+            }
           } else {
             errors.push(`الصف ${rowNum}: كود المقرر غير محدد ولا يوجد مقرر سابق نشط لوراثة بياناته.`);
           }
@@ -3842,8 +3940,12 @@ ${signaturesHtml}
           const trVal = isHealthTech && trHoursKey && row[trHoursKey] !== undefined ? (parseSafeNumber(row[trHoursKey]) || 0) : 0;
           const fldVal = isHealthTech && fldHoursKey && row[fldHoursKey] !== undefined ? (parseSafeNumber(row[fldHoursKey]) || 0) : 0;
 
-          const cReqTh = (Number(courseObj.theory_hours) || 0) * grTh;
-          const cReqPr = (Number(courseObj.practical_hours) || 0) * grPr;
+          const cReqTh = (isMedicine && matchedModObj)
+            ? (Number(matchedModObj.theory_hours) || 0) * grTh
+            : (Number(courseObj.theory_hours) || 0) * grTh;
+          const cReqPr = (isMedicine && matchedModObj)
+            ? (Number(matchedModObj.practical_hours) || 0) * grPr
+            : (Number(courseObj.practical_hours) || 0) * grPr;
           const cReqTr = (Number(courseObj.exercise_hours) || 0) * grTr;
           const cReqFld = (Number(courseObj.activity_hours) || 0) * grFld;
 
@@ -3853,6 +3955,8 @@ ${signaturesHtml}
           parsedRows.push({
             base_course_id: courseObj.id,
             course_id: courseObj.id,
+            module_id: matchedModObj?.id || null,
+            department_name: deptName || (courseObj.department_name || ""),
             code: courseObj.code,
             nameAr: courseObj.name_ar,
             nameEn: courseObj.name_en || "",
@@ -6328,11 +6432,23 @@ ${signaturesHtml}
                     {(() => {
                       const selFac = faculties.find(f => String(f.id) === String(selectedFaculty));
                       const isHealth = selFac?.name?.includes("تكنولوجيا العلوم الصحية") || selFac?.name?.includes("العلوم الصحية");
-                      return isHealth ? (
-                        <span className="text-primary fw-bold">
-                          💡 ملاحظة خاصة: نموذج كلية تكنولوجيا العلوم الصحية يشمل تلقائياً أعمدة (مجموعات وساعات التوتوريال والحقل).
-                        </span>
-                      ) : (
+                      const isMed = Boolean(selFac && (selFac.name.includes("الطب والجراحة") || selFac.name.includes("طب بشري") || selFac.name.includes("كلية الطب")) && !selFac.name.includes("البيطري") && !selFac.name.includes("الأسنان") && !selFac.name.includes("الاسنان") && !selFac.name.includes("تكنولوجيا"));
+
+                      if (isHealth) {
+                        return (
+                          <span className="text-primary fw-bold">
+                            💡 ملاحظة خاصة: نموذج كلية تكنولوجيا العلوم الصحية يشمل تلقائياً أعمدة (مجموعات وساعات التوتوريال والحقل).
+                          </span>
+                        );
+                      }
+                      if (isMed) {
+                        return (
+                          <span className="text-primary fw-bold">
+                            💡 ملاحظة خاصة: نموذج كلية الطب والجراحة يحتوي على عمود (القسم العلمي) لتوزيع أساتذة الموديولات والأقسام وبدون الحاجة لعمود برنامج 2.
+                          </span>
+                        );
+                      }
+                      return (
                         <span>💡 النموذج يحتوي على الأعمدة المعتمدة للمقررات والمجموعات وأعضاء هيئة التدريس الخاصة بهذه الكلية.</span>
                       );
                     })()}
@@ -6494,6 +6610,7 @@ ${signaturesHtml}
                   {(() => {
                     const selFacObj = faculties.find(f => String(f.id) === String(selectedFaculty));
                     const isHealthTechFaculty = selFacObj?.name?.includes("تكنولوجيا العلوم الصحية") || selFacObj?.name?.includes("العلوم الصحية");
+                    const isMedicineFaculty = Boolean(selFacObj && (selFacObj.name.includes("الطب والجراحة") || selFacObj.name.includes("طب بشري") || selFacObj.name.includes("كلية الطب")) && !selFacObj.name.includes("البيطري") && !selFacObj.name.includes("الأسنان") && !selFacObj.name.includes("الاسنان") && !selFacObj.name.includes("تكنولوجيا"));
 
                     return (
                       <Table bordered hover size="sm" className="align-middle text-center mb-0 small">
@@ -6507,6 +6624,9 @@ ${signaturesHtml}
                             <th style={{ verticalAlign: "middle" }}>
                               {isHealthTechFaculty ? "مجموعات (ن/ع/ت/ح)" : "مجموعات (ن/ع)"}
                             </th>
+                            {isMedicineFaculty && (
+                              <th style={{ verticalAlign: "middle" }}>القسم العلمي</th>
+                            )}
                             <th style={{ verticalAlign: "middle" }}>عضو هيئة التدريس</th>
                             <th style={{ verticalAlign: "middle" }}>الدرجة العلمية</th>
                             <th style={{ verticalAlign: "middle" }}>جهة القدوم</th>
@@ -6612,6 +6732,13 @@ ${signaturesHtml}
                                           : `${group.groups_theory} / ${group.groups_practical}`}
                                       </td>
                                     </>
+                                  )}
+
+                                  {/* القسم العلمي لكلية الطب والجراحة */}
+                                  {isMedicineFaculty && (
+                                    <td className="align-middle text-center fw-bold text-secondary" style={{ verticalAlign: "middle" }}>
+                                      {row.department_name || "--"}
+                                    </td>
                                   )}
 
                                   {/* بيانات عضو هيئة التدريس وساعاته - غير مكررة ومستقلة لكل صف */}
