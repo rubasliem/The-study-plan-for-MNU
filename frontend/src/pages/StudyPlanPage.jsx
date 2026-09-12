@@ -3819,7 +3819,7 @@ ${signaturesHtml}
             prog2Obj = lastValidCourseContext.prog2Obj;
           }
 
-          // القسم العلمي (خاص بكلية الطب ومقررات الأقسام والموديولات)
+          // القسم العلمي (خاص بكلية الطب ومقررات الأقسام والموديولات: يمكن كتابته مرة واحدة أو تكراره)
           const rawDeptVal = (deptKey && row[deptKey] !== undefined) ? String(row[deptKey]).trim() : "";
           if (rawDeptVal) {
             deptName = rawDeptVal;
@@ -3833,12 +3833,13 @@ ${signaturesHtml}
                 deptName = matchedModObj.department_name || rawDeptVal;
               }
             }
+          } else if (lastValidCourseContext && courseObj && lastValidCourseContext.courseObj?.code === courseObj.code && lastValidCourseContext.deptName) {
+            // وراثة القسم العلمي تلقائياً من الصف السابق إذا تم تركه فارغاً لنفس المقرر
+            deptName = lastValidCourseContext.deptName;
+            matchedModObj = lastValidCourseContext.matchedModObj || null;
           } else if (courseObj?.modules && courseObj.modules.length === 1) {
             matchedModObj = courseObj.modules[0];
             deptName = matchedModObj.department_name || "";
-          } else if (lastValidCourseContext && courseObj && lastValidCourseContext.courseObj?.code === courseObj.code) {
-            deptName = lastValidCourseContext.deptName || "";
-            matchedModObj = lastValidCourseContext.matchedModObj || null;
           } else if (courseObj?.department_name) {
             deptName = courseObj.department_name;
           }
@@ -3891,7 +3892,7 @@ ${signaturesHtml}
             grTr = lastValidCourseContext.grTr;
             grFld = lastValidCourseContext.grFld;
 
-            // إذا كان هذا الصف يحدد قسماً علمياً مختلفاً لنفس المقرر
+            // إذا كان هذا الصف يحدد قسماً علمياً مختلفاً لنفس المقرر أو يتركه فارغاً لوراثته
             const rawDeptVal = (deptKey && row[deptKey] !== undefined) ? String(row[deptKey]).trim() : "";
             if (rawDeptVal) {
               deptName = rawDeptVal;
@@ -3905,7 +3906,11 @@ ${signaturesHtml}
                   deptName = matchedModObj.department_name || rawDeptVal;
                 }
               }
+              // تحديث سياق القسم العلمي للصفوف التالية
+              lastValidCourseContext.deptName = deptName;
+              lastValidCourseContext.matchedModObj = matchedModObj;
             } else {
+              // ترك خانة القسم فارغة: وراثة القسم العلمي تلقائياً من الصف السابق
               deptName = lastValidCourseContext.deptName || "";
               matchedModObj = lastValidCourseContext.matchedModObj || null;
             }
@@ -6488,7 +6493,7 @@ ${signaturesHtml}
                           ✨ توفير الوقت والوراثة التلقائية (الكتابة مرة واحدة):
                         </span>
                         <span>
-                          يكتب مدخل البيانات بيانات المقرر (الكود، البرنامج، الطلاب، المجموعات) <strong>مرة واحدة فقط في الصف الأول</strong>، وفي الصفوف التي تليه يكتفي بكتابة <strong>الرقم القومي لكل أستاذ وساعاته</strong> مع ترك خانات المقرر فارغة؛ وسيقوم النظام بـ <strong>وراثة بيانات المقرر تلقائياً</strong> (Forward-Fill)، كما يدعم الخلايا المدمجة (Merged Cells).
+                          يكتب مدخل البيانات بيانات المقرر (الكود، البرنامج، الطلاب، المجموعات، <strong>وكذلك القسم العلمي للطب</strong>) <strong>مرة واحدة فقط في الصف الأول</strong>، وفي الصفوف التي تليه يكتفي بكتابة <strong>الرقم القومي لكل أستاذ وساعاته</strong> مع ترك خانات المقرر والقسم فارغة؛ وسيقوم النظام بـ <strong>وراثة بيانات المقرر والقسم العلمي تلقائياً</strong> (Forward-Fill)، كما يدعم الخلايا المدمجة (Merged Cells).
                         </span>
                       </div>
                     </div>
@@ -6499,7 +6504,7 @@ ${signaturesHtml}
                           🔄 مرونة كاملة للتكرار اليدوي:
                         </span>
                         <span>
-                          إذا قام مدخل البيانات بتكرار كود المقرر والبرنامج والمجموعات في كل صف لكل أستاذ، يقرأها النظام بصورة طبيعية تماماً ودون أي تعارض.
+                          إذا قام مدخل البيانات بتكرار كود المقرر والبرنامج والمجموعات <strong>أو تكرار اسم القسم العلمي في كل صف أو تغييره بين الأساتذة لنفس المقرر</strong>، يقرأها النظام بصورة طبيعية وذكية تماماً ودون أي تعارض.
                         </span>
                       </div>
                     </div>
