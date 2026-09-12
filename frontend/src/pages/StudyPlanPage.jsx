@@ -4003,7 +4003,7 @@ ${signaturesHtml}
             onClick={handleOpenImportModal}
             style={{ backgroundColor: "#15803d", borderColor: "#15803d" }}
           >
-            <FaFileExcel className="ms-1 fs-5" /> استيراد الخطة من Excel / تحميل نموذج
+            <FaFileExcel className="ms-1 fs-5" /> استيراد الخطة من Excel
           </Button>
         </div>
       )}
@@ -6344,6 +6344,55 @@ ${signaturesHtml}
                     </>
                   )}
                 </Button>
+              </div>
+
+              {/* إرشادات تعبئة النموذج ونظام تعدد الأساتذة */}
+              <div className="mt-3 pt-3 border-top">
+                <div className="p-3 rounded-3" style={{ backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0" }}>
+                  <div className="d-flex align-items-center gap-2 mb-2 text-success fw-bold">
+                    <FaInfoCircle size={18} />
+                    <span>إرشادات هامة لتعبئة ملف Excel وتعدد الأساتذة للمقرر الواحد:</span>
+                  </div>
+
+                  <div className="row g-2 small text-dark" style={{ lineHeight: "1.7" }}>
+                    <div className="col-12 col-md-6">
+                      <div className="p-2 bg-white rounded-2 border h-100 shadow-xs">
+                        <span className="fw-bold text-success d-block mb-1">
+                          ✨ توفير الوقت والوراثة التلقائية (الكتابة مرة واحدة):
+                        </span>
+                        <span>
+                          يكتب مدخل البيانات بيانات المقرر (الكود، البرنامج، الطلاب، المجموعات) <strong>مرة واحدة فقط في الصف الأول</strong>، وفي الصفوف التي تليه يكتفي بكتابة <strong>الرقم القومي لكل أستاذ وساعاته</strong> مع ترك خانات المقرر فارغة؛ وسيقوم النظام بـ <strong>وراثة بيانات المقرر تلقائياً</strong> (Forward-Fill)، كما يدعم الخلايا المدمجة (Merged Cells).
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="col-12 col-md-6">
+                      <div className="p-2 bg-white rounded-2 border h-100 shadow-xs">
+                        <span className="fw-bold text-primary d-block mb-1">
+                          🔄 مرونة كاملة للتكرار اليدوي:
+                        </span>
+                        <span>
+                          إذا قام مدخل البيانات بتكرار كود المقرر والبرنامج والمجموعات في كل صف لكل أستاذ، يقرأها النظام بصورة طبيعية تماماً ودون أي تعارض.
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="col-12">
+                      <div className="p-2 bg-white rounded-2 border shadow-xs d-flex align-items-start gap-2">
+                        <span className="badge bg-success bg-opacity-20 text-success fw-bold px-2 py-1 mt-1 flex-shrink-0">
+                          نموذج التحميل التوضيحي
+                        </span>
+                        <div className="flex-grow-1">
+                          <strong>تم تحديث زر &quot;تحميل نموذج Excel المعتمد&quot; ليحتوي ملف Excel المُنزل على مثال عملي لمقرر مشترك بين أستاذين:</strong>
+                          <ul className="mb-0 pe-3 mt-1">
+                            <li><strong>الصف الأول:</strong> بيانات المقرر كاملة + الرقم القومي للأستاذ الأول وساعاته التدريسية.</li>
+                            <li><strong>الصف الثاني:</strong> خانات المقرر فارغة + الرقم القومي للأستاذ الثاني وساعاته التدريسية.</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </Card.Body>
           </Card>
