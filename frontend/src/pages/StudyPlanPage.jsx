@@ -3998,9 +3998,8 @@ ${signaturesHtml}
             </Button>
             <Button
               variant="success"
-              className="fw-bold text-white shadow-sm d-flex align-items-center gap-2 px-3"
+              className="fw-bold text-white shadow-sm d-flex align-items-center gap-2 px-3 btn-import-excel-plan"
               onClick={handleOpenImportModal}
-              style={{ backgroundColor: "#16a34a", borderColor: "#16a34a" }}
             >
               <FaFileExcel className="ms-1 fs-5" /> استيراد الخطة من Excel
             </Button>
