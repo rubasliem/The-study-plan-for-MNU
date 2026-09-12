@@ -221,7 +221,7 @@ const StudyPlanPage = () => {
   const [importing, setImporting] = useState(false);
   const [importErrors, setImportErrors] = useState([]);
   const [importPreviewData, setImportPreviewData] = useState([]);
-  const [importMode, setImportMode] = useState("append"); // 'append' | 'replace'
+  const [importMode, setImportMode] = useState("merge"); // 'merge' | 'append' | 'replace'
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -3400,7 +3400,7 @@ ${signaturesHtml}
     setImportFile(null);
     setImportErrors([]);
     setImportPreviewData([]);
-    setImportMode("append");
+    setImportMode("merge");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -3823,14 +3823,109 @@ ${signaturesHtml}
       return;
     }
 
+    let updatedCount = 0;
+    let addedCount = 0;
+
     if (importMode === "replace") {
       setPlanRows(importPreviewData);
-    } else {
+      addedCount = importPreviewData.length;
+    } else if (importMode === "append") {
       setPlanRows(prev => [...prev, ...importPreviewData]);
+      addedCount = importPreviewData.length;
+    } else {
+      // Default: Smart Merge / Update existing & add new
+      setPlanRows(prev => {
+        const currentRows = [...prev];
+        importPreviewData.forEach(newRow => {
+          const newCourseKey = String(newRow.course_id || newRow.base_course_id || '');
+          const newProfId = String(newRow.professor_id || '');
+          const newCode = (newRow.code || '').trim().toUpperCase();
+
+          // 1. Check exact match on (course + professor)
+          const exactIdx = currentRows.findIndex(r => {
+            const rCourseKey = String(r.course_id || r.base_course_id || '');
+            const rProfId = String(r.professor_id || '');
+            const codeMatch = r.code && newCode && r.code.trim().toUpperCase() === newCode;
+            return (rCourseKey === newCourseKey || codeMatch) && rProfId === newProfId && rProfId !== '';
+          });
+
+          if (exactIdx !== -1) {
+            // Update existing row
+            currentRows[exactIdx] = {
+              ...currentRows[exactIdx],
+              student_count: (newRow.student_count !== undefined && newRow.student_count !== null && newRow.student_count !== 0) ? newRow.student_count : currentRows[exactIdx].student_count,
+              groups_theory: newRow.groups_theory,
+              groups_practical: newRow.groups_practical,
+              groups_training: newRow.groups_training,
+              groups_field: newRow.groups_field,
+              groups_activity: newRow.groups_activity,
+              hours_actual_theory: newRow.hours_actual_theory,
+              hours_actual_practical: newRow.hours_actual_practical,
+              hours_actual_training: newRow.hours_actual_training,
+              hours_actual_field: newRow.hours_actual_field,
+              req_theory: newRow.req_theory,
+              req_practical: newRow.req_practical,
+              req_training: newRow.req_training,
+              req_field: newRow.req_field,
+              program_id: newRow.program_id || currentRows[exactIdx].program_id,
+              program_ids: (newRow.program_ids && newRow.program_ids.length > 0) ? newRow.program_ids : currentRows[exactIdx].program_ids,
+              program_names: newRow.program_names || currentRows[exactIdx].program_names
+            };
+            updatedCount++;
+          } else {
+            // 2. Check if the course exists with unassigned / placeholder professor
+            const unassignedIdx = currentRows.findIndex(r => {
+              const rCourseKey = String(r.course_id || r.base_course_id || '');
+              const codeMatch = r.code && newCode && r.code.trim().toUpperCase() === newCode;
+              return (rCourseKey === newCourseKey || codeMatch) && (!r.professor_id || r.professor_id === '');
+            });
+
+            if (unassignedIdx !== -1) {
+              currentRows[unassignedIdx] = {
+                ...currentRows[unassignedIdx],
+                professor_id: newRow.professor_id,
+                professor_name: newRow.professor_name,
+                prof_job_title: newRow.prof_job_title,
+                prof_workplace: newRow.prof_workplace,
+                student_count: (newRow.student_count !== undefined && newRow.student_count !== null && newRow.student_count !== 0) ? newRow.student_count : currentRows[unassignedIdx].student_count,
+                groups_theory: newRow.groups_theory,
+                groups_practical: newRow.groups_practical,
+                groups_training: newRow.groups_training,
+                groups_field: newRow.groups_field,
+                groups_activity: newRow.groups_activity,
+                hours_actual_theory: newRow.hours_actual_theory,
+                hours_actual_practical: newRow.hours_actual_practical,
+                hours_actual_training: newRow.hours_actual_training,
+                hours_actual_field: newRow.hours_actual_field,
+                req_theory: newRow.req_theory,
+                req_practical: newRow.req_practical,
+                req_training: newRow.req_training,
+                req_field: newRow.req_field,
+                program_id: newRow.program_id || currentRows[unassignedIdx].program_id,
+                program_ids: (newRow.program_ids && newRow.program_ids.length > 0) ? newRow.program_ids : currentRows[unassignedIdx].program_ids,
+                program_names: newRow.program_names || currentRows[unassignedIdx].program_names
+              };
+              updatedCount++;
+            } else {
+              // 3. New record
+              currentRows.push({ ...newRow, _key: Date.now() + Math.random() });
+              addedCount++;
+            }
+          }
+        });
+        return currentRows;
+      });
     }
 
     setShowImportModal(false);
-    if (importErrors.length > 0) {
+
+    if (importMode === "merge") {
+      let msg = `تم تحديث (${updatedCount}) مقرر مسبق، وإضافة (${addedCount}) مقرر جديد بنجاح!`;
+      if (importErrors.length > 0) {
+        msg += ` (وتم استبعاد ${importErrors.length} سجل بها أخطاء)`;
+      }
+      toast.success(msg + ' يرجى مراجعة الجدول ثم الضغط على "حفظ الخطة".');
+    } else if (importErrors.length > 0) {
       toast.success(`تم استيراد (${importPreviewData.length}) سجل بنجاح في جدول الخطة، وتم استبعاد (${importErrors.length}) سجل بها أخطاء! يرجى مراجعة الجدول ثم الضغط على "حفظ الخطة".`);
     } else {
       toast.success(`تم استيراد كافة السجلات (${importPreviewData.length}) بنجاح في جدول الخطة الدراسية! يرجى مراجعتها ثم الضغط على "حفظ الخطة".`);
@@ -6333,14 +6428,24 @@ ${signaturesHtml}
                     <FaCheckCircle className="text-success" />
                     <span>جاهز للاستيراد ({importPreviewData.length} سجل صحيح ومطابق لقاعدة البيانات)</span>
                   </h5>
-                  <div className="d-flex align-items-center gap-2">
+                  <div className="d-flex align-items-center gap-2 flex-wrap">
                     <span className="fw-bold small text-muted">طريقة الإدراج:</span>
+                    <Form.Check
+                      inline
+                      type="radio"
+                      id="importModeMerge"
+                      name="importMode"
+                      label="تحديث المقررات الحالية وإضافة الجديد (دمج ذكي)"
+                      checked={importMode === "merge"}
+                      onChange={() => setImportMode("merge")}
+                      className="fw-bold small text-success"
+                    />
                     <Form.Check
                       inline
                       type="radio"
                       id="importModeAppend"
                       name="importMode"
-                      label="إضافة للجدول الحالي"
+                      label="إضافة كصفوف جديدة فقط"
                       checked={importMode === "append"}
                       onChange={() => setImportMode("append")}
                       className="fw-bold small"
@@ -6350,7 +6455,7 @@ ${signaturesHtml}
                       type="radio"
                       id="importModeReplace"
                       name="importMode"
-                      label="استبدال الجدول الحالي"
+                      label="استبدال الجدول بالكامل"
                       checked={importMode === "replace"}
                       onChange={() => setImportMode("replace")}
                       className="fw-bold small text-danger"
