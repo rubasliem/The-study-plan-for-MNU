@@ -3420,8 +3420,9 @@ ${signaturesHtml}
       workbook.created = new Date();
 
       const worksheet = workbook.addWorksheet("نموذج الخطة الدراسية", {
-        views: [{ rtl: true }]
+        views: [{ state: 'normal', rightToLeft: true }]
       });
+      worksheet.views = [{ state: 'normal', rightToLeft: true }];
 
       // Define columns based on faculty
       const columns = [
