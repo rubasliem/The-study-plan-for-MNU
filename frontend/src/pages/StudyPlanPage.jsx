@@ -3443,7 +3443,7 @@ ${signaturesHtml}
 
       columns.push(
         { header: "الرقم القومي للأستاذ *", key: "national_id", width: 25 },
-        { header: "ساعات نظري للأستاذ *", key: "hours_theory", width: 22 },
+        { header: "ساعات نظري للأستاذ", key: "hours_theory", width: 22 },
         { header: "ساعات عملي للأستاذ", key: "hours_practical", width: 22 }
       );
 
@@ -3591,7 +3591,7 @@ ${signaturesHtml}
         });
       };
 
-      const codeKey = findKey(["كود المقرر", "كود الماده", "كود المادة", "الكود", "course_code"]);
+      const codeKey = findKey(["كود المقرر", "كود الماده", "كود المادة", "كود البرنامج", "الكود", "course_code"]);
       const prog1Key = findKey(["اسم البرنامج 1", "البرنامج 1", "اسم البرنامج", "البرنامج", "program_1"]);
       const prog2Key = findKey(["اسم البرنامج 2", "البرنامج 2", "برنامج 2", "program_2"]);
       const stdCountKey = findKey(["عدد الطلاب", "الطلاب", "student_count"]);
@@ -3620,11 +3620,6 @@ ${signaturesHtml}
         setImporting(false);
         return;
       }
-      if (!thHoursKey) {
-        setImportErrors(["لم يتم العثور على عمود (ساعات نظري للأستاذ) في الملف. يرجى استخدام النموذج المعتمد."]);
-        setImporting(false);
-        return;
-      }
 
       const errors = [];
       const parsedRows = [];
@@ -3635,7 +3630,7 @@ ${signaturesHtml}
         const values = Object.values(row).map(v => String(v || '').trim()).filter(Boolean);
         if (values.length === 0) return;
 
-        // 1. كود المقرر (تحقق المسافات الزائدة وصحة الكود)
+        // 1. كود المقرر (تحقق المسافات الزائدة وصحة الكود) - إلزامي
         const rawCodeVal = row[codeKey] !== undefined ? String(row[codeKey]) : "";
         if (!rawCodeVal.trim()) {
           errors.push(`الصف ${rowNum}: كود المقرر حقل إلزامي مطلوب.`);
@@ -3652,7 +3647,7 @@ ${signaturesHtml}
           errors.push(`الصف ${rowNum}: كود المقرر "${cleanCode}" غير صحيح أو غير مسجل في مقررات ${facName}.`);
         }
 
-        // 2. اسم البرنامج 1
+        // 2. اسم البرنامج 1 - إلزامي
         const rawProg1Val = row[prog1Key] !== undefined ? String(row[prog1Key]).trim() : "";
         if (!rawProg1Val) {
           errors.push(`الصف ${rowNum}: اسم البرنامج 1 حقل إلزامي مطلوب.`);
@@ -3672,7 +3667,7 @@ ${signaturesHtml}
           }
         }
 
-        // 4. الرقم القومي للأستاذ
+        // 4. الرقم القومي للأستاذ - إلزامي
         const rawNatIdVal = row[natIdKey] !== undefined ? String(row[natIdKey]).trim().replace(/\.0$/, '') : "";
         if (!rawNatIdVal) {
           errors.push(`الصف ${rowNum}: الرقم القومي للأستاذ حقل إلزامي مطلوب.`);
@@ -3682,14 +3677,18 @@ ${signaturesHtml}
           errors.push(`الصف ${rowNum}: لم يتم العثور على عضو هيئة تدريس بالرقم القومي (${rawNatIdVal}) في قاعدة البيانات.`);
         }
 
-        // 5. الساعات التدريسية نظري للأستاذ
-        const rawThHoursVal = row[thHoursKey];
-        const thVal = (rawThHoursVal !== undefined && rawThHoursVal !== null && String(rawThHoursVal).trim() !== "") ? Number(rawThHoursVal) : NaN;
-        if (isNaN(thVal) || thVal < 0) {
-          errors.push(`الصف ${rowNum}: ساعات النظري للأستاذ حقل إلزامي، يجب إدخال قيمة رقمية صحيحة (0 أو أكثر).`);
+        // 5. الساعات التدريسية نظري للأستاذ (اختياري، افتراضي 0)
+        let thVal = 0;
+        if (thHoursKey && row[thHoursKey] !== undefined && String(row[thHoursKey]).trim() !== "") {
+          const parsedTh = Number(row[thHoursKey]);
+          if (isNaN(parsedTh) || parsedTh < 0) {
+            errors.push(`الصف ${rowNum}: ساعات النظري للأستاذ يجب أن تكون قيمة رقمية صحيحة (0 أو أكثر).`);
+          } else {
+            thVal = parsedTh;
+          }
         }
 
-        if (courseObj && prog1Obj && profObj && !isNaN(thVal) && thVal >= 0 && rawCodeVal === rawCodeVal.trim()) {
+        if (courseObj && prog1Obj && profObj && rawCodeVal === rawCodeVal.trim()) {
           const prVal = (prHoursKey && row[prHoursKey] !== undefined && String(row[prHoursKey]).trim() !== "") ? (Number(row[prHoursKey]) || 0) : 0;
           const trVal = isHealthTech && trHoursKey && row[trHoursKey] !== undefined ? (Number(row[trHoursKey]) || 0) : 0;
           const fldVal = isHealthTech && fldHoursKey && row[fldHoursKey] !== undefined ? (Number(row[fldHoursKey]) || 0) : 0;
