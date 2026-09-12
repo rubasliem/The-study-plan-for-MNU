@@ -5,7 +5,9 @@ import React, { useState, useEffect, useContext, useRef } from "react";
 import { AuthContext } from "../context/AuthContext";
 import axios from "axios";
 import { Container, Row, Col, Form, Button, Table, Modal, Card, Alert, Spinner } from "react-bootstrap";
-import { FaPlus, FaSave, FaTrash, FaPrint, FaFileExcel, FaFileUpload, FaInfoCircle, FaEdit, FaCalendarAlt, FaCopy, FaCheckCircle } from "react-icons/fa";
+import { FaPlus, FaSave, FaTrash, FaPrint, FaFileExcel, FaFileUpload, FaFileDownload, FaInfoCircle, FaEdit, FaCalendarAlt, FaCopy, FaCheckCircle, FaExclamationTriangle } from "react-icons/fa";
+import ExcelJS from 'exceljs';
+import * as XLSX from 'xlsx';
 import logo from '../assets/logo.png';
 
 const API = "";
@@ -213,6 +215,16 @@ const StudyPlanPage = () => {
   const [sourceAcademicYear, setSourceAcademicYear] = useState("");
   const [sourceSemester, setSourceSemester] = useState("");
   const [copyingPlan, setCopyingPlan] = useState(false);
+
+  // Excel Template & Import State
+  const [importFaculty, setImportFaculty] = useState("");
+  const [importFile, setImportFile] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importPreviewData, setImportPreviewData] = useState([]);
+  const [importMode, setImportMode] = useState("append"); // 'append' | 'replace'
+  const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
+  const fileInputRef = useRef(null);
 
   const isSuperAdmin = user?.role === "admin" || user?.role === "super_admin";
   const isManager = user?.role === "manager" || (user?.job_title && (user.job_title.trim() === "مدير" || (user.job_title.includes("مدير") && !user.job_title.includes("برنامج") && !user.job_title.includes("شؤون")) || user.job_title.includes("عميد")));
@@ -3385,6 +3397,397 @@ ${signaturesHtml}
     }, 400);
   };
 
+  const handleOpenImportModal = () => {
+    setImportFaculty(String(selectedFaculty || (faculties[0]?.id || "")));
+    setImportFile(null);
+    setImportErrors([]);
+    setImportPreviewData([]);
+    setImportMode("append");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    setShowImportModal(true);
+  };
+
+  const handleDownloadImportTemplate = async () => {
+    const targetFacId = importFaculty || selectedFaculty;
+    const facObj = faculties.find(f => String(f.id) === String(targetFacId));
+    const facName = facObj?.name || "الكلية";
+    const isHealthTech = Boolean(facName.includes("تكنولوجيا العلوم الصحية") || facName.includes("العلوم الصحية"));
+
+    setIsDownloadingTemplate(true);
+    try {
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "جامعة المنوفية الأهلية";
+      workbook.created = new Date();
+
+      const worksheet = workbook.addWorksheet("نموذج الخطة الدراسية", {
+        views: [{ rtl: true }]
+      });
+
+      // Define columns based on faculty
+      const columns = [
+        { header: "كود المقرر *", key: "course_code", width: 18 },
+        { header: "اسم البرنامج 1 *", key: "program_1", width: 28 },
+        { header: "اسم البرنامج 2 (اختياري)", key: "program_2", width: 28 },
+        { header: "عدد الطلاب", key: "student_count", width: 14 },
+        { header: "عدد المجموعات نظري", key: "groups_theory", width: 20 },
+        { header: "عدد المجموعات عملي", key: "groups_practical", width: 20 },
+      ];
+
+      if (isHealthTech) {
+        columns.push(
+          { header: "عدد المجموعات توتوريال", key: "groups_training", width: 22 },
+          { header: "عدد المجموعات حقل", key: "groups_field", width: 20 }
+        );
+      }
+
+      columns.push(
+        { header: "الرقم القومي للأستاذ *", key: "national_id", width: 25 },
+        { header: "ساعات نظري للأستاذ *", key: "hours_theory", width: 22 },
+        { header: "ساعات عملي للأستاذ", key: "hours_practical", width: 22 }
+      );
+
+      if (isHealthTech) {
+        columns.push(
+          { header: "ساعات توتوريال للأستاذ", key: "hours_training", width: 24 },
+          { header: "ساعات حقل للأستاذ", key: "hours_field", width: 22 }
+        );
+      }
+
+      worksheet.columns = columns;
+
+      // Style Header Row (Row 1)
+      const headerRow = worksheet.getRow(1);
+      headerRow.height = 32;
+      headerRow.eachCell((cell) => {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF1B5E20" }
+        };
+        cell.font = {
+          name: "Cairo",
+          size: 11,
+          bold: true,
+          color: { argb: "FFFFFFFF" }
+        };
+        cell.alignment = {
+          vertical: "middle",
+          horizontal: "center",
+          wrapText: true
+        };
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFC8E6C9" } },
+          left: { style: "thin", color: { argb: "FFC8E6C9" } },
+          bottom: { style: "medium", color: { argb: "FFFFFFFF" } },
+          right: { style: "thin", color: { argb: "FFC8E6C9" } }
+        };
+      });
+
+      // Sample Row Data
+      let sampleCourseCode = "BAS 003";
+      let sampleProgName = "الأمن السيبراني";
+      let sampleNatId = "29001011701234";
+
+      if (String(targetFacId) === String(selectedFaculty)) {
+        if (courses && courses.length > 0 && courses[0].code) sampleCourseCode = courses[0].code;
+        if (programs && programs.length > 0 && programs[0].name) sampleProgName = programs[0].name;
+      }
+      if (professors && professors.length > 0 && professors[0].national_id) {
+        sampleNatId = professors[0].national_id;
+      }
+
+      const sampleRowData = {
+        course_code: sampleCourseCode,
+        program_1: sampleProgName,
+        program_2: "",
+        student_count: 120,
+        groups_theory: 1,
+        groups_practical: 2,
+        national_id: sampleNatId,
+        hours_theory: 2,
+        hours_practical: 4
+      };
+
+      if (isHealthTech) {
+        sampleRowData.groups_training = 1;
+        sampleRowData.groups_field = 1;
+        sampleRowData.hours_training = 2;
+        sampleRowData.hours_field = 2;
+      }
+
+      const row1 = worksheet.addRow(sampleRowData);
+      row1.height = 25;
+      row1.eachCell((cell) => {
+        cell.alignment = { vertical: "middle", horizontal: "center" };
+        cell.font = { name: "Cairo", size: 10 };
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const cleanFac = facName.replace(/[/\\?%*:|"<>]/g, "-");
+      a.download = `نموذج_استيراد_الخطة_الدراسية_${cleanFac}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(`تم تحميل نموذج Excel المخصص لـ (${facName}) بنجاح`);
+    } catch (err) {
+      console.error("Error generating Excel template", err);
+      toast.error("حدث خطأ أثناء إنشاء وتحميل النموذج");
+    } finally {
+      setIsDownloadingTemplate(false);
+    }
+  };
+
+  const handleProcessImportFile = async (e) => {
+    const file = e.target.files?.[0] || importFile;
+    if (!file) {
+      toast.error("يرجى اختيار ملف Excel أولاً.");
+      return;
+    }
+    setImportFile(file);
+    setImporting(true);
+    setImportErrors([]);
+    setImportPreviewData([]);
+
+    try {
+      const targetFacId = importFaculty || selectedFaculty;
+      const facObj = faculties.find(f => String(f.id) === String(targetFacId));
+      const facName = facObj?.name || "الكلية المختارة";
+      const isHealthTech = Boolean(facName.includes("تكنولوجيا العلوم الصحية") || facName.includes("العلوم الصحية"));
+
+      let targetCourses = courses;
+      let targetPrograms = programs;
+      if (String(targetFacId) !== String(selectedFaculty)) {
+        const [cRes, pRes] = await Promise.all([
+          axios.get(`${API}/api/courses`),
+          axios.get(`${API}/api/programs`)
+        ]);
+        targetCourses = (cRes.data || []).filter(c => String(c.faculty_id) === String(targetFacId));
+        targetPrograms = (pRes.data || []).filter(p => String(p.faculty_id) === String(targetFacId));
+      }
+
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      if (!firstSheetName) {
+        setImportErrors(["ملف Excel لا يحتوي على أي صفحات عمل (Sheets)."]);
+        setImporting(false);
+        return;
+      }
+
+      const worksheet = workbook.Sheets[firstSheetName];
+      const rawRows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+      if (!rawRows || rawRows.length === 0) {
+        setImportErrors(["الملف فارغ ولا يحتوي على أي بيانات مقررات."]);
+        setImporting(false);
+        return;
+      }
+
+      const sampleKeys = Object.keys(rawRows[0] || {});
+      const findKey = (patterns) => {
+        return sampleKeys.find(k => {
+          const norm = String(k || '').replace(/[*_()]/g, '').trim();
+          return patterns.some(p => norm.includes(p));
+        });
+      };
+
+      const codeKey = findKey(["كود المقرر", "كود الماده", "كود المادة", "الكود", "course_code"]);
+      const prog1Key = findKey(["اسم البرنامج 1", "البرنامج 1", "اسم البرنامج", "البرنامج", "program_1"]);
+      const prog2Key = findKey(["اسم البرنامج 2", "البرنامج 2", "برنامج 2", "program_2"]);
+      const stdCountKey = findKey(["عدد الطلاب", "الطلاب", "student_count"]);
+      const grThKey = findKey(["المجموعات نظري", "مجموعات نظري", "groups_theory"]);
+      const grPrKey = findKey(["المجموعات عملي", "مجموعات عملي", "groups_practical"]);
+      const grTrKey = findKey(["المجموعات توتوريال", "مجموعات توتوريال", "groups_training"]);
+      const grFldKey = findKey(["المجموعات حقل", "مجموعات حقل", "groups_field"]);
+      const natIdKey = findKey(["الرقم القومي للأستاذ", "الرقم القومي للاستاذ", "الرقم القومي", "الرقم القومى", "national_id"]);
+      const thHoursKey = findKey(["ساعات نظري للأستاذ", "ساعات نظري للاستاذ", "ساعات نظري", "ساعات النظري", "نظري للأستاذ", "hours_theory"]);
+      const prHoursKey = findKey(["ساعات عملي للأستاذ", "ساعات عملي للاستاذ", "ساعات عملي", "ساعات العملي", "عملي للأستاذ", "hours_practical"]);
+      const trHoursKey = findKey(["ساعات توتوريال للأستاذ", "ساعات توتوريال للاستاذ", "ساعات توتوريال", "توتوريال للأستاذ", "hours_training"]);
+      const fldHoursKey = findKey(["ساعات حقل للأستاذ", "ساعات حقل للاستاذ", "ساعات حقل", "حقل للأستاذ", "hours_field"]);
+
+      if (!codeKey) {
+        setImportErrors(["لم يتم العثور على عمود (كود المقرر) في الملف. يرجى استخدام النموذج المعتمد."]);
+        setImporting(false);
+        return;
+      }
+      if (!prog1Key) {
+        setImportErrors(["لم يتم العثور على عمود (اسم البرنامج 1) في الملف. يرجى استخدام النموذج المعتمد."]);
+        setImporting(false);
+        return;
+      }
+      if (!natIdKey) {
+        setImportErrors(["لم يتم العثور على عمود (الرقم القومي للأستاذ) في الملف. يرجى استخدام النموذج المعتمد."]);
+        setImporting(false);
+        return;
+      }
+      if (!thHoursKey) {
+        setImportErrors(["لم يتم العثور على عمود (ساعات نظري للأستاذ) في الملف. يرجى استخدام النموذج المعتمد."]);
+        setImporting(false);
+        return;
+      }
+
+      const errors = [];
+      const parsedRows = [];
+
+      rawRows.forEach((row, idx) => {
+        const rowNum = idx + 2;
+
+        const values = Object.values(row).map(v => String(v || '').trim()).filter(Boolean);
+        if (values.length === 0) return;
+
+        // 1. كود المقرر (تحقق المسافات الزائدة وصحة الكود)
+        const rawCodeVal = row[codeKey] !== undefined ? String(row[codeKey]) : "";
+        if (!rawCodeVal.trim()) {
+          errors.push(`الصف ${rowNum}: كود المقرر حقل إلزامي مطلوب.`);
+          return;
+        }
+
+        if (rawCodeVal !== rawCodeVal.trim()) {
+          errors.push(`الصف ${rowNum}: كود المقرر "${rawCodeVal}" يحتوي على مسافة زائدة في البداية أو النهاية، يرجى إزالتها وتصحيح الكود.`);
+        }
+
+        const cleanCode = rawCodeVal.trim();
+        const courseObj = targetCourses.find(c => c.code && c.code.trim().toUpperCase() === cleanCode.toUpperCase());
+        if (!courseObj) {
+          errors.push(`الصف ${rowNum}: كود المقرر "${cleanCode}" غير صحيح أو غير مسجل في مقررات ${facName}.`);
+        }
+
+        // 2. اسم البرنامج 1
+        const rawProg1Val = row[prog1Key] !== undefined ? String(row[prog1Key]).trim() : "";
+        if (!rawProg1Val) {
+          errors.push(`الصف ${rowNum}: اسم البرنامج 1 حقل إلزامي مطلوب.`);
+        }
+        const prog1Obj = rawProg1Val ? targetPrograms.find(p => p.name && p.name.trim().toLowerCase() === rawProg1Val.toLowerCase()) : null;
+        if (rawProg1Val && !prog1Obj) {
+          errors.push(`الصف ${rowNum}: اسم البرنامج 1 "${rawProg1Val}" غير مسجل ضمن برامج ${facName}.`);
+        }
+
+        // 3. اسم البرنامج 2 (اختياري)
+        const rawProg2Val = (prog2Key && row[prog2Key] !== undefined) ? String(row[prog2Key]).trim() : "";
+        let prog2Obj = null;
+        if (rawProg2Val) {
+          prog2Obj = targetPrograms.find(p => p.name && p.name.trim().toLowerCase() === rawProg2Val.toLowerCase());
+          if (!prog2Obj) {
+            errors.push(`الصف ${rowNum}: اسم البرنامج 2 "${rawProg2Val}" غير مسجل ضمن برامج ${facName}.`);
+          }
+        }
+
+        // 4. الرقم القومي للأستاذ
+        const rawNatIdVal = row[natIdKey] !== undefined ? String(row[natIdKey]).trim().replace(/\.0$/, '') : "";
+        if (!rawNatIdVal) {
+          errors.push(`الصف ${rowNum}: الرقم القومي للأستاذ حقل إلزامي مطلوب.`);
+        }
+        const profObj = rawNatIdVal ? professors.find(p => p.national_id && String(p.national_id).trim().replace(/\.0$/, '') === rawNatIdVal) : null;
+        if (rawNatIdVal && !profObj) {
+          errors.push(`الصف ${rowNum}: لم يتم العثور على عضو هيئة تدريس بالرقم القومي (${rawNatIdVal}) في قاعدة البيانات.`);
+        }
+
+        // 5. الساعات التدريسية نظري للأستاذ
+        const rawThHoursVal = row[thHoursKey];
+        const thVal = (rawThHoursVal !== undefined && rawThHoursVal !== null && String(rawThHoursVal).trim() !== "") ? Number(rawThHoursVal) : NaN;
+        if (isNaN(thVal) || thVal < 0) {
+          errors.push(`الصف ${rowNum}: ساعات النظري للأستاذ حقل إلزامي، يجب إدخال قيمة رقمية صحيحة (0 أو أكثر).`);
+        }
+
+        if (courseObj && prog1Obj && profObj && !isNaN(thVal) && thVal >= 0 && rawCodeVal === rawCodeVal.trim()) {
+          const prVal = (prHoursKey && row[prHoursKey] !== undefined && String(row[prHoursKey]).trim() !== "") ? (Number(row[prHoursKey]) || 0) : 0;
+          const trVal = isHealthTech && trHoursKey && row[trHoursKey] !== undefined ? (Number(row[trHoursKey]) || 0) : 0;
+          const fldVal = isHealthTech && fldHoursKey && row[fldHoursKey] !== undefined ? (Number(row[fldHoursKey]) || 0) : 0;
+
+          const stdCount = (stdCountKey && row[stdCountKey] !== undefined) ? (parseInt(row[stdCountKey]) || 0) : 0;
+          const grTh = (grThKey && row[grThKey] !== undefined) ? (parseInt(row[grThKey]) || 0) : 0;
+          const grPr = (grPrKey && row[grPrKey] !== undefined) ? (parseInt(row[grPrKey]) || 0) : 0;
+          const grTr = (isHealthTech && grTrKey && row[grTrKey] !== undefined) ? (parseInt(row[grTrKey]) || 0) : 0;
+          const grFld = (isHealthTech && grFldKey && row[grFldKey] !== undefined) ? (parseInt(row[grFldKey]) || 0) : 0;
+
+          const cReqTh = (Number(courseObj.theory_hours) || 0) * grTh;
+          const cReqPr = (Number(courseObj.practical_hours) || 0) * grPr;
+          const cReqTr = (Number(courseObj.exercise_hours) || 0) * grTr;
+          const cReqFld = (Number(courseObj.activity_hours) || 0) * grFld;
+
+          const programIds = [prog1Obj.id];
+          if (prog2Obj) programIds.push(prog2Obj.id);
+
+          parsedRows.push({
+            base_course_id: courseObj.id,
+            course_id: courseObj.id,
+            code: courseObj.code,
+            nameAr: courseObj.name_ar,
+            nameEn: courseObj.name_en || "",
+            level: courseObj.level || "",
+            program_id: prog1Obj.id,
+            program_ids: programIds,
+            program_names: [prog1Obj.name, prog2Obj?.name].filter(Boolean).join("، "),
+            student_count: stdCount,
+            groups_theory: grTh,
+            groups_practical: grPr,
+            groups_training: grTr,
+            groups_field: grFld,
+            groups_activity: grFld,
+            professor_id: profObj.id,
+            professor_name: profObj.name_ar || profObj.name,
+            prof_job_title: profObj.job_title || "",
+            prof_workplace: profObj.original_workplace || "",
+            hours_actual_theory: thVal,
+            hours_actual_practical: prVal,
+            hours_actual_training: trVal,
+            hours_actual_field: fldVal,
+            req_theory: cReqTh,
+            req_practical: cReqPr,
+            req_training: cReqTr,
+            req_field: cReqFld,
+            notes: "",
+            prof_notes: "",
+            course_notes: "",
+            _key: Date.now() + Math.random()
+          });
+        }
+      });
+
+      if (errors.length > 0) {
+        setImportErrors(errors);
+        setImportPreviewData([]);
+      } else if (parsedRows.length === 0) {
+        setImportErrors(["لم يتم العثور على أي صفوف صالحة للاستيراد في الملف."]);
+        setImportPreviewData([]);
+      } else {
+        setImportErrors([]);
+        setImportPreviewData(parsedRows);
+        toast.success(`تم فحص وتدقيق الملف بنجاح! تم استخراج ${parsedRows.length} سجل مطابق.`);
+      }
+    } catch (err) {
+      console.error("Error processing import file", err);
+      setImportErrors(["حدث خطأ غير متوقع أثناء قراءة ملف Excel: " + (err.message || String(err))]);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleConfirmImport = () => {
+    if (!importPreviewData || importPreviewData.length === 0) {
+      toast.error("لا توجد بيانات جاهزة للاستيراد.");
+      return;
+    }
+
+    if (importMode === "replace") {
+      setPlanRows(importPreviewData);
+    } else {
+      setPlanRows(prev => [...prev, ...importPreviewData]);
+    }
+
+    setShowImportModal(false);
+    toast.success(`تم استيراد ${importPreviewData.length} سجل بنجاح في جدول الخطة الدراسية! يرجى مراجعتها ثم الضغط على "حفظ الخطة".`);
+  };
+
   const profAggRows = buildProfAggregatedRows();
 
   return (
@@ -3457,6 +3860,14 @@ ${signaturesHtml}
             style={{ color: '#78350f' }}
           >
             <FaCopy className="ms-2" style={{ color: '#78350f' }} /> نسخ خطة من عام سابق
+          </Button>
+          <Button 
+            variant="success" 
+            className="fw-bold text-white shadow-sm d-flex align-items-center gap-2" 
+            onClick={handleOpenImportModal}
+            style={{ backgroundColor: "#15803d", borderColor: "#15803d" }}
+          >
+            <FaFileExcel className="ms-1 fs-5" /> استيراد الخطة من Excel / تحميل نموذج
           </Button>
         </div>
       )}
@@ -5732,6 +6143,238 @@ ${signaturesHtml}
           </Button>
           <Button variant="secondary" className="fw-bold" onClick={() => setShowCopyPlanModal(false)}>
             إغلاق
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* ── Import Study Plan Modal ── */}
+      <Modal 
+        show={showImportModal} 
+        onHide={() => setShowImportModal(false)} 
+        size="xl" 
+        centered 
+        dir="rtl" 
+        backdrop="static"
+      >
+        <Modal.Header closeButton style={{ backgroundColor: "#15803d" }}>
+          <Modal.Title className="fw-bold text-white d-flex align-items-center gap-2">
+            <FaFileExcel className="fs-4" /> استيراد الخطة الدراسية من ملف Excel (نموذج معتمد)
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-4" style={{ backgroundColor: "#f8fafc" }}>
+          {/* الخطوة 1: الكلية والنموذج */}
+          <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "10px" }}>
+            <Card.Body className="p-3">
+              <h5 className="fw-bold text-dark d-flex align-items-center gap-2 mb-3">
+                <span className="badge bg-success rounded-pill px-3 py-2">1</span>
+                <span>تحديد الكلية وتحميل النموذج المعتمد</span>
+              </h5>
+              <Row className="align-items-end g-3">
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label className="fw-bold text-muted small">اختر الكلية المستهدفة لتحميل النموذج المطابق لها:</Form.Label>
+                    <Form.Select 
+                      value={importFaculty} 
+                      onChange={e => {
+                        setImportFaculty(e.target.value);
+                        setImportErrors([]);
+                        setImportPreviewData([]);
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                      }}
+                      className="form-select-lg fw-bold"
+                    >
+                      {faculties.map(f => (
+                        <option key={f.id} value={f.id}>{f.name}</option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Button 
+                    variant="outline-success" 
+                    className="w-100 py-2 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                    onClick={handleDownloadImportTemplate}
+                    disabled={isDownloadingTemplate}
+                    style={{ borderColor: "#15803d", color: "#15803d" }}
+                  >
+                    {isDownloadingTemplate ? (
+                      <Spinner animation="border" size="sm" />
+                    ) : (
+                      <>
+                        <FaFileDownload className="fs-5" />
+                        <span>تحميل نموذج Excel المعتمد للكلية</span>
+                      </>
+                    )}
+                  </Button>
+                </Col>
+              </Row>
+              <div className="mt-2 text-muted small">
+                {(() => {
+                  const selFac = faculties.find(f => String(f.id) === String(importFaculty));
+                  const isHealth = selFac?.name?.includes("تكنولوجيا العلوم الصحية") || selFac?.name?.includes("العلوم الصحية");
+                  return (
+                    <span>
+                      {isHealth ? (
+                        <span className="text-primary fw-bold">
+                          💡 ملاحظة خاصة: كلية تكنولوجيا العلوم الصحية تشمل تلقائياً أعمدة (مجموعات وساعات التوتوريال والحقل).
+                        </span>
+                      ) : (
+                        <span>💡 النموذج يحتوي على الأعمدة القياسية للمقررات والمجموعات والأستاذ ومطابق للوائح الكلية.</span>
+                      )}
+                    </span>
+                  );
+                })()}
+              </div>
+            </Card.Body>
+          </Card>
+
+          {/* الخطوة 2: رفع ومعالجة الملف */}
+          <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "10px" }}>
+            <Card.Body className="p-3">
+              <h5 className="fw-bold text-dark d-flex align-items-center gap-2 mb-3">
+                <span className="badge bg-success rounded-pill px-3 py-2">2</span>
+                <span>رفع ملف الخطة بعد تعبئته (Excel)</span>
+              </h5>
+              
+              <div className="border border-2 border-dashed rounded-3 p-4 text-center bg-white" style={{ borderColor: "#cbd5e1" }}>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  accept=".xlsx, .xls" 
+                  onChange={handleProcessImportFile} 
+                  style={{ display: "none" }} 
+                  id="excelImportFileInput"
+                />
+                <FaFileUpload className="text-success mb-2" size={40} />
+                <h6 className="fw-bold mb-2">اضغط لاختيار ملف الخطة المكتمل (Excel .xlsx)</h6>
+                <p className="text-muted small mb-3">
+                  سيقوم النظام بفحص كود المقرر، البرامج، والرقم القومي للأساتذة ومطابقتها مع قاعدة البيانات بدقة.
+                </p>
+                <Button 
+                  variant="success" 
+                  className="fw-bold px-4 py-2" 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={importing}
+                  style={{ backgroundColor: "#15803d", borderColor: "#15803d" }}
+                >
+                  {importing ? (
+                    <>
+                      <Spinner animation="border" size="sm" className="ms-2" /> جارٍ التحقق من الملف...
+                    </>
+                  ) : (
+                    <>
+                      <FaFileUpload className="ms-2" /> اختر الملف للفحص والاستيراد
+                    </>
+                  )}
+                </Button>
+                {importFile && (
+                  <div className="mt-2 text-dark small fw-bold">
+                    الملف المحدد: <span className="text-primary">{importFile.name}</span>
+                  </div>
+                )}
+              </div>
+            </Card.Body>
+          </Card>
+
+          {/* الأخطاء والتنبيهات */}
+          {importErrors.length > 0 && (
+            <Alert variant="danger" className="border-0 shadow-sm mb-4" style={{ borderRadius: "10px" }}>
+              <div className="d-flex align-items-center gap-2 mb-2 fw-bold fs-6">
+                <FaExclamationTriangle size={20} className="text-danger flex-shrink-0" />
+                <span>تعذر استيراد الخطة بسبب وجود ({importErrors.length}) ملاحظات / أخطاء يجب تصحيحها:</span>
+              </div>
+              <ul className="mb-0 pe-4 small" style={{ maxHeight: "200px", overflowY: "auto", lineHeight: "1.8" }}>
+                {importErrors.map((err, i) => (
+                  <li key={i} className="text-danger fw-bold">{err}</li>
+                ))}
+              </ul>
+            </Alert>
+          )}
+
+          {/* المعاينة والتأكيد */}
+          {importPreviewData.length > 0 && importErrors.length === 0 && (
+            <Card className="border-0 shadow-sm" style={{ borderRadius: "10px" }}>
+              <Card.Body className="p-3">
+                <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                  <h5 className="fw-bold text-success d-flex align-items-center gap-2 mb-0">
+                    <FaCheckCircle className="text-success" />
+                    <span>جاهز للاستيراد ({importPreviewData.length} سجل صحيح ومطابق لقاعدة البيانات)</span>
+                  </h5>
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="fw-bold small text-muted">طريقة الإدراج:</span>
+                    <Form.Check
+                      inline
+                      type="radio"
+                      id="importModeAppend"
+                      name="importMode"
+                      label="إضافة للجدول الحالي"
+                      checked={importMode === "append"}
+                      onChange={() => setImportMode("append")}
+                      className="fw-bold small"
+                    />
+                    <Form.Check
+                      inline
+                      type="radio"
+                      id="importModeReplace"
+                      name="importMode"
+                      label="استبدال الجدول الحالي"
+                      checked={importMode === "replace"}
+                      onChange={() => setImportMode("replace")}
+                      className="fw-bold small text-danger"
+                    />
+                  </div>
+                </div>
+
+                <div className="table-responsive" style={{ maxHeight: "280px", overflowY: "auto" }}>
+                  <Table bordered hover size="sm" className="align-middle text-center mb-0 small">
+                    <thead className="table-success sticky-top">
+                      <tr>
+                        <th>#</th>
+                        <th>كود المقرر</th>
+                        <th>اسم المقرر</th>
+                        <th>البرنامج</th>
+                        <th>الطلاب</th>
+                        <th>مجموعات (ن/ع)</th>
+                        <th>عضو هيئة التدريس</th>
+                        <th>الدرجة العلمية</th>
+                        <th>جهة القدوم</th>
+                        <th>ساعات (ن/ع)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importPreviewData.map((row, idx) => (
+                        <tr key={idx}>
+                          <td>{idx + 1}</td>
+                          <td className="fw-bold text-primary">{row.code}</td>
+                          <td>{row.nameAr}</td>
+                          <td>{row.program_names || "--"}</td>
+                          <td>{row.student_count}</td>
+                          <td>{row.groups_theory} / {row.groups_practical}</td>
+                          <td className="fw-bold text-success">{row.professor_name}</td>
+                          <td>{getJobTitleFull(row.prof_job_title)}</td>
+                          <td className="small text-muted">{row.prof_workplace || "--"}</td>
+                          <td className="fw-bold">{row.hours_actual_theory} / {row.hours_actual_practical}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
+              </Card.Body>
+            </Card>
+          )}
+        </Modal.Body>
+        <Modal.Footer className="d-flex justify-content-between p-3 bg-light">
+          <Button 
+            variant="success" 
+            className="fw-bold px-4 py-2" 
+            onClick={handleConfirmImport} 
+            disabled={importPreviewData.length === 0 || importErrors.length > 0 || importing}
+            style={{ backgroundColor: "#15803d", borderColor: "#15803d" }}
+          >
+            {importing ? <Spinner animation="border" size="sm" /> : `✓ تأكيد استيراد (${importPreviewData.length}) سجل للخطة`}
+          </Button>
+          <Button variant="secondary" className="fw-bold px-4" onClick={() => setShowImportModal(false)}>
+            إلغاء
           </Button>
         </Modal.Footer>
       </Modal>
