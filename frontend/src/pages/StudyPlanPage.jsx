@@ -6256,7 +6256,7 @@ ${signaturesHtml}
                               return cType ? `${cType} - ${dayStr}` : dayStr;
                             })()}
                           </div>
-                          <div>• <strong>الحد الأقصى اليومي :</strong> &nbsp;{isTA ? `${8 * profDays} س (عملي وتوتوريال)` : `${6 * profDays} س (نظري + نصف العملي)`}</div>
+                          <div>• <strong>جهة القدوم :</strong> &nbsp;{selectedProfObj.original_workplace || "--"}</div>
                           <div>• <strong>عدد أسابيع الحضور في {selectedSemester.startsWith("الفصل") ? selectedSemester : `الفصل الدراسي ${selectedSemester}`} :</strong> &nbsp;{getProfAttendanceWeeksForSemester(selectedProfObj, selectedYear, selectedSemester, academicYears, isMedicine)}</div>
                         </div>
                       </div>
