@@ -89,6 +89,47 @@ const formatLevelToWord = (lvl) => {
   return map[str] || str;
 };
 
+const getJobTitleFull = (jobTitle) => {
+  if (!jobTitle) return "-";
+  const t = String(jobTitle).trim();
+  if (t === "د" || t === "د." || t === "مدرس") return "مدرس";
+  if (t === "أ.د" || t === "أ.د." || t === "أستاذ") return "أستاذ";
+  if (t === "أ.م.د" || t === "أ.م.د." || t === "أ.م" || t === "أستاذ مساعد") return "أستاذ مساعد";
+  if (t === "م.م" || t === "مدرس مساعد") return "مدرس مساعد";
+  if (t === "معيد" || t === "م.ع" || t === "أ" || t === "ط" || t === "ص") return "معيد";
+  return t;
+};
+
+const isTeachingAssistant = (prof) => {
+  if (!prof) return false;
+  const jt = String(prof.job_title || "").trim();
+  const mnuJt = String(prof.mnu_job_title || "").trim();
+  const full = getJobTitleFull(jt);
+  return (
+    full === "معيد" ||
+    full === "مدرس مساعد" ||
+    jt === "معيد" ||
+    jt === "م.ع" ||
+    jt === "م.م" ||
+    jt === "مدرس مساعد" ||
+    mnuJt.includes("معيد") ||
+    mnuJt.includes("مدرس مساعد")
+  );
+};
+
+const getProfessorWorkDays = (prof) => {
+  if (!prof) return 1;
+  const ct = String(prof.contract_type || "").trim();
+  const wd = String(prof.work_days || "").trim();
+
+  if (ct === "كلي" || wd.includes("5")) return 5;
+  if (wd.includes("3") || wd.includes("ثلاث")) return 3;
+  if (wd.includes("يومان") || wd.includes("2") || wd.includes("يومين")) return 2;
+  if (wd.includes("يوم واحد") || wd.includes("1") || wd === "يوم") return 1;
+  if (ct === "جزئي") return 2;
+  return 1;
+};
+
 const WorkloadPage = ({ isReadOnly = false }) => {
   const { user } = useContext(AuthContext);
 
@@ -1193,7 +1234,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                 )}
               </div>
               <small className="text-muted">
-                الحد الأقصى لساعات اليوم والحد الأقصى للمقرر الواحد لكل جزء {facultyPrepositionLabel}
+                الحد الأقصى لساعات العمل في اليوم وفقاً لنظام الانتداب وقواعد الكلية {facultyPrepositionLabel}
               </small>
             </Card.Header>
             <Card.Body className="p-4">
@@ -1210,38 +1251,19 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                       <span className="fw-bold text-dark fs-6">📖 ساعات نظري</span>
                       <Badge bg="secondary" className="px-2 py-1">نظري</Badge>
                     </div>
-                    <Row className="g-3">
-                      <Col sm={6}>
-                        <Form.Group>
-                          <Form.Label className="small text-muted fw-semibold">الحد الأقصى للمقرر الواحد (ساعة/مقرر)</Form.Label>
-                          <Form.Control
-                            type="number"
-                            step="0.5"
-                            min="0"
-                            placeholder="0"
-                            value={limits.max_theory_hours_per_course}
-                            disabled={isReadOnly}
-                            onChange={(e) => setLimits(prev => ({ ...prev, max_theory_hours_per_course: e.target.value }))}
-                            className="rounded-3"
-                          />
-                        </Form.Group>
-                      </Col>
-                      <Col sm={6}>
-                        <Form.Group>
-                          <Form.Label className="small text-muted fw-semibold">الحد الأقصى في اليوم (ساعة/يوم)</Form.Label>
-                          <Form.Control
-                            type="number"
-                            step="0.5"
-                            min="0"
-                            placeholder="0"
-                            value={limits.max_theory_hours_per_day}
-                            disabled={isReadOnly}
-                            onChange={(e) => setLimits(prev => ({ ...prev, max_theory_hours_per_day: e.target.value }))}
-                            className="rounded-3"
-                          />
-                        </Form.Group>
-                      </Col>
-                    </Row>
+                    <Form.Group>
+                      <Form.Label className="small text-muted fw-semibold">الحد الأقصى في اليوم (ساعة/يوم)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        placeholder="6"
+                        value={limits.max_theory_hours_per_day}
+                        disabled={isReadOnly}
+                        onChange={(e) => setLimits(prev => ({ ...prev, max_theory_hours_per_day: e.target.value }))}
+                        className="rounded-3"
+                      />
+                    </Form.Group>
                   </div>
 
                   {/* 2. ساعات عملي */}
@@ -1250,38 +1272,19 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                       <span className="fw-bold text-dark fs-6">🧪 ساعات عملي</span>
                       <Badge bg="secondary" className="px-2 py-1">عملي</Badge>
                     </div>
-                    <Row className="g-3">
-                      <Col sm={6}>
-                        <Form.Group>
-                          <Form.Label className="small text-muted fw-semibold">الحد الأقصى للمقرر الواحد (ساعة/مقرر)</Form.Label>
-                          <Form.Control
-                            type="number"
-                            step="0.5"
-                            min="0"
-                            placeholder="0"
-                            value={limits.max_practical_hours_per_course}
-                            disabled={isReadOnly}
-                            onChange={(e) => setLimits(prev => ({ ...prev, max_practical_hours_per_course: e.target.value }))}
-                            className="rounded-3"
-                          />
-                        </Form.Group>
-                      </Col>
-                      <Col sm={6}>
-                        <Form.Group>
-                          <Form.Label className="small text-muted fw-semibold">الحد الأقصى في اليوم (ساعة/يوم)</Form.Label>
-                          <Form.Control
-                            type="number"
-                            step="0.5"
-                            min="0"
-                            placeholder="0"
-                            value={limits.max_practical_hours_per_day}
-                            disabled={isReadOnly}
-                            onChange={(e) => setLimits(prev => ({ ...prev, max_practical_hours_per_day: e.target.value }))}
-                            className="rounded-3"
-                          />
-                        </Form.Group>
-                      </Col>
-                    </Row>
+                    <Form.Group>
+                      <Form.Label className="small text-muted fw-semibold">الحد الأقصى في اليوم (ساعة/يوم)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        placeholder="4"
+                        value={limits.max_practical_hours_per_day}
+                        disabled={isReadOnly}
+                        onChange={(e) => setLimits(prev => ({ ...prev, max_practical_hours_per_day: e.target.value }))}
+                        className="rounded-3"
+                      />
+                    </Form.Group>
                   </div>
 
                   {/* 3. ساعات توتوريال - لكلية تكنولوجيا العلوم الصحية فقط */}
@@ -1291,38 +1294,19 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                         <span className="fw-bold text-success fs-6">👥 ساعات توتوريال</span>
                         <Badge bg="success" className="px-2 py-1">توتوريال</Badge>
                       </div>
-                      <Row className="g-3">
-                        <Col sm={6}>
-                          <Form.Group>
-                            <Form.Label className="small text-muted fw-semibold">الحد الأقصى للمقرر الواحد (ساعة/مقرر)</Form.Label>
-                            <Form.Control
-                              type="number"
-                              step="0.5"
-                              min="0"
-                              placeholder="0"
-                              value={limits.max_tutorial_hours_per_course}
-                              disabled={isReadOnly}
-                              onChange={(e) => setLimits(prev => ({ ...prev, max_tutorial_hours_per_course: e.target.value }))}
-                              className="rounded-3"
-                            />
-                          </Form.Group>
-                        </Col>
-                        <Col sm={6}>
-                          <Form.Group>
-                            <Form.Label className="small text-muted fw-semibold">الحد الأقصى في اليوم (ساعة/يوم)</Form.Label>
-                            <Form.Control
-                              type="number"
-                              step="0.5"
-                              min="0"
-                              placeholder="0"
-                              value={limits.max_tutorial_hours_per_day}
-                              disabled={isReadOnly}
-                              onChange={(e) => setLimits(prev => ({ ...prev, max_tutorial_hours_per_day: e.target.value }))}
-                              className="rounded-3"
-                            />
-                          </Form.Group>
-                        </Col>
-                      </Row>
+                      <Form.Group>
+                        <Form.Label className="small text-muted fw-semibold">الحد الأقصى في اليوم (ساعة/يوم)</Form.Label>
+                        <Form.Control
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          placeholder="4"
+                          value={limits.max_tutorial_hours_per_day}
+                          disabled={isReadOnly}
+                          onChange={(e) => setLimits(prev => ({ ...prev, max_tutorial_hours_per_day: e.target.value }))}
+                          className="rounded-3"
+                        />
+                      </Form.Group>
                     </div>
                   )}
 
@@ -1333,40 +1317,45 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                         <span className="fw-bold text-primary fs-6">🏥 ساعات حقل / تدريب ميداني</span>
                         <Badge bg="primary" className="px-2 py-1">حقل</Badge>
                       </div>
-                      <Row className="g-3">
-                        <Col sm={6}>
-                          <Form.Group>
-                            <Form.Label className="small text-muted fw-semibold">الحد الأقصى للمقرر الواحد (ساعة/مقرر)</Form.Label>
-                            <Form.Control
-                              type="number"
-                              step="0.5"
-                              min="0"
-                              placeholder="0"
-                              value={limits.max_field_hours_per_course}
-                              disabled={isReadOnly}
-                              onChange={(e) => setLimits(prev => ({ ...prev, max_field_hours_per_course: e.target.value }))}
-                              className="rounded-3"
-                            />
-                          </Form.Group>
-                        </Col>
-                        <Col sm={6}>
-                          <Form.Group>
-                            <Form.Label className="small text-muted fw-semibold">الحد الأقصى في اليوم (ساعة/يوم)</Form.Label>
-                            <Form.Control
-                              type="number"
-                              step="0.5"
-                              min="0"
-                              placeholder="0"
-                              value={limits.max_field_hours_per_day}
-                              disabled={isReadOnly}
-                              onChange={(e) => setLimits(prev => ({ ...prev, max_field_hours_per_day: e.target.value }))}
-                              className="rounded-3"
-                            />
-                          </Form.Group>
-                        </Col>
-                      </Row>
+                      <Form.Group>
+                        <Form.Label className="small text-muted fw-semibold">الحد الأقصى في اليوم (ساعة/يوم)</Form.Label>
+                        <Form.Control
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          placeholder="4"
+                          value={limits.max_field_hours_per_day}
+                          disabled={isReadOnly}
+                          onChange={(e) => setLimits(prev => ({ ...prev, max_field_hours_per_day: e.target.value }))}
+                          className="rounded-3"
+                        />
+                      </Form.Group>
                     </div>
                   )}
+
+                  {/* صندوق القواعد والضوابط المعتمدة */}
+                  <div className="p-3 rounded-4 mb-3 border" style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0' }}>
+                    <div className="fw-bold text-dark mb-2 d-flex align-items-center gap-2" style={{ fontSize: '0.92rem' }}>
+                      <FaBalanceScale className="text-success" /> ضوابط احتساب الحد الأقصى لساعات اليوم والانتداب:
+                    </div>
+                    <div className="d-flex flex-column gap-2" style={{ fontSize: '0.84rem', lineHeight: 1.6 }}>
+                      <div className="p-2 rounded-3 bg-white border">
+                        <div className="fw-bold text-primary mb-1">👨‍🏫 أعضاء هيئة التدريس (أستاذ / أ.مساعد / مدرس):</div>
+                        <div>
+                          <strong>المعادلة:</strong> [مجموع النظري + (مجموع العملي والتوتوريال والحقل ÷ 2)] ≤ <strong>6 ساعات × عدد أيام انتداب الأستاذ</strong>
+                        </div>
+                      </div>
+                      <div className="p-2 rounded-3 bg-white border">
+                        <div className="fw-bold text-success mb-1">🧑‍🔬 الهيئة المعاونة (معيد / مدرس مساعد):</div>
+                        <div>
+                          <strong>المعادلة:</strong> مجموع (العملي + التوتوريال + الحقل) ≤ <strong>8 ساعات × عدد أيام انتداب الأستاذ</strong> (لا يمكنهم إعطاء نظري).
+                        </div>
+                      </div>
+                      <div className="p-2 rounded-3 bg-white border text-muted">
+                        📅 <strong>أيام الانتداب:</strong> انتداب كلي = 5 أيام | انتداب جزئي = 1 أو 2 أو 3 أيام.
+                      </div>
+                    </div>
+                  </div>
 
                   {!isReadOnly && (
                     <Button
@@ -1638,6 +1627,114 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                       )}
                     </div>
                   </div>
+
+                  {/* بطاقة تحليل العبء التدريسي والحد الأقصى لليوم وفقاً لأيام الانتداب */}
+                  {(() => {
+                    const isTA = isTeachingAssistant(profData);
+                    const workDays = getProfessorWorkDays(profData);
+                    const jobTitleText = getJobTitleFull(profData.job_title || profData.mnu_job_title);
+                    const contractTypeText = profData.contract_type || (workDays === 5 ? "كلي" : "جزئي");
+
+                    const totalTheory = (profData.courses || []).reduce((s, c) => s + (Number(c.hours_theory) || 0), 0);
+                    const totalPractical = (profData.courses || []).reduce((s, c) => s + (Number(c.hours_practical) || 0), 0);
+                    const totalExercise = (profData.courses || []).reduce((s, c) => s + (Number(c.hours_exercise) || 0), 0);
+                    const totalActivity = (profData.courses || []).reduce((s, c) => s + (Number(c.hours_activity) || 0), 0);
+                    const totalNonTheory = totalPractical + totalExercise + totalActivity;
+
+                    let maxAllowed = 0;
+                    let calculatedLoad = 0;
+                    let hasViolation = false;
+                    let violationMsg = "";
+
+                    if (isTA) {
+                      maxAllowed = 8 * workDays;
+                      calculatedLoad = totalNonTheory;
+                      if (totalTheory > 0) {
+                        hasViolation = true;
+                        violationMsg = `تنبيه نظامي: المعيد والمدرس المساعد لا يمكنهم تدريس ساعات نظري (مسجل له ${totalTheory} س نظري).`;
+                      } else if (calculatedLoad > maxAllowed) {
+                        hasViolation = true;
+                        violationMsg = `تجاوز الحد الأقصى: مجموع الساعات (العملي والتوتوريال والحقل) = ${calculatedLoad} ساعة ويتجاوز الحد الأقصى المسموح (${maxAllowed} ساعة = ${workDays} أيام انتداب × 8 ساعات).`;
+                      }
+                    } else {
+                      maxAllowed = 6 * workDays;
+                      calculatedLoad = Number((totalTheory + (totalNonTheory / 2)).toFixed(2));
+                      if (calculatedLoad > maxAllowed) {
+                        hasViolation = true;
+                        violationMsg = `تجاوز الحد الأقصى: العبء التدريسي المحتسب [نظري (${totalTheory} س) + نصف العملي (${(totalNonTheory / 2).toFixed(1)} س) = ${calculatedLoad} س] يتجاوز الحد الأقصى المسموح (${maxAllowed} ساعة = ${workDays} أيام انتداب × 6 ساعات).`;
+                      }
+                    }
+
+                    return (
+                      <div className="p-3 mb-4 rounded-4 border bg-white shadow-sm">
+                        <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 pb-2 mb-3 border-bottom">
+                          <div className="d-flex align-items-center gap-2 flex-wrap">
+                            <span className="fw-bold text-dark fs-6">📊 فحص ومطابقة العبء لليوم والانتداب:</span>
+                            <Badge bg="light" text="dark" className="border px-2 py-1">
+                              {jobTitleText}
+                            </Badge>
+                            <Badge bg="light" text="primary" className="border px-2 py-1">
+                              انتداب {contractTypeText} ({workDays} {workDays === 1 ? "يوم" : workDays === 2 ? "يومان" : "أيام"})
+                            </Badge>
+                          </div>
+                          <div>
+                            {hasViolation ? (
+                              <Badge bg="danger" className="px-3 py-2 fs-6 shadow-sm">
+                                ⚠️ متجاوز للحد الأقصى
+                              </Badge>
+                            ) : (
+                              <Badge bg="success" className="px-3 py-2 fs-6 shadow-sm">
+                                ✓ مطابق لضوابط الساعات
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        <Row className="g-2 text-center" style={{ fontSize: '0.88rem' }}>
+                          <Col xs={6} md={3}>
+                            <div className="p-2 rounded-3 bg-light border h-100">
+                              <small className="text-muted d-block mb-1">ساعات النظري</small>
+                              <strong className={isTA && totalTheory > 0 ? "text-danger fs-6" : "text-dark fs-6"}>
+                                {totalTheory} س
+                              </strong>
+                              {isTA && totalTheory > 0 && <small className="text-danger d-block mt-1">غير مسموح</small>}
+                            </div>
+                          </Col>
+                          <Col xs={6} md={3}>
+                            <div className="p-2 rounded-3 bg-light border h-100">
+                              <small className="text-muted d-block mb-1">عملي وتوتوريال وحقل</small>
+                              <strong className="text-dark fs-6">{totalNonTheory} س</strong>
+                              <small className="text-muted d-block mt-1">إجمالي الساعات العملية</small>
+                            </div>
+                          </Col>
+                          <Col xs={6} md={3}>
+                            <div className="p-2 rounded-3 bg-light border h-100">
+                              <small className="text-muted d-block mb-1">
+                                {isTA ? "العبء المحتسب (عملي)" : "العبء المحتسب (نظري + عملي/2)"}
+                              </small>
+                              <strong className={hasViolation ? "text-danger fs-6" : "text-success fs-6"}>
+                                {calculatedLoad} س
+                              </strong>
+                              <small className="text-muted d-block mt-1">العبء الفعلي المحتسب</small>
+                            </div>
+                          </Col>
+                          <Col xs={6} md={3}>
+                            <div className="p-2 rounded-3 bg-light border h-100">
+                              <small className="text-muted d-block mb-1">الحد الأقصى المسموح</small>
+                              <strong className="text-primary fs-6">{maxAllowed} س</strong>
+                              <small className="text-muted d-block mt-1">{workDays} أيام × {isTA ? 8 : 6} ساعات</small>
+                            </div>
+                          </Col>
+                        </Row>
+
+                        {hasViolation && (
+                          <div className="mt-3 p-2 rounded-3 bg-danger bg-opacity-10 text-danger fw-bold border border-danger small text-center">
+                            ⚠️ {violationMsg}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Courses Table from Study Plan */}
                   <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">

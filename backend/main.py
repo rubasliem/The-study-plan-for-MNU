@@ -4654,6 +4654,10 @@ def get_workload_professor_courses(
     return {
         "professor_id": professor_id,
         "professor_name": prof.name_ar,
+        "job_title": prof.job_title,
+        "contract_type": prof.contract_type,
+        "work_days": prof.work_days,
+        "mnu_job_title": prof.mnu_job_title,
         "academic_year": academic_year,
         "semester": semester,
         "weeks_count": weeks_count,
