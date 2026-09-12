@@ -6491,145 +6491,152 @@ ${signaturesHtml}
                 </div>
 
                 <div className="table-responsive" style={{ maxHeight: "320px", overflowY: "auto" }}>
-                  <Table bordered hover size="sm" className="align-middle text-center mb-0 small">
-                    <thead className="table-success sticky-top">
-                      <tr>
-                        <th style={{ verticalAlign: "middle" }}>#</th>
-                        <th style={{ verticalAlign: "middle" }}>كود المقرر</th>
-                        <th style={{ verticalAlign: "middle" }}>اسم المقرر</th>
-                        <th style={{ verticalAlign: "middle" }}>البرنامج</th>
-                        <th style={{ verticalAlign: "middle" }}>الطلاب</th>
-                        <th style={{ verticalAlign: "middle" }}>مجموعات (ن/ع)</th>
-                        <th style={{ verticalAlign: "middle" }}>عضو هيئة التدريس</th>
-                        <th style={{ verticalAlign: "middle" }}>الدرجة العلمية</th>
-                        <th style={{ verticalAlign: "middle" }}>جهة القدوم</th>
-                        <th style={{ verticalAlign: "middle" }}>ساعات (ن/ع)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(() => {
-                        const groups = [];
-                        let currentGroup = null;
+                  {(() => {
+                    const selFacObj = faculties.find(f => String(f.id) === String(selectedFaculty));
+                    const isHealthTechFaculty = selFacObj?.name?.includes("تكنولوجيا العلوم الصحية") || selFacObj?.name?.includes("العلوم الصحية");
 
-                        importPreviewData.forEach((row, idx) => {
-                          const isSameCourse = currentGroup &&
-                            currentGroup.code === row.code &&
-                            currentGroup.program_names === row.program_names &&
-                            String(currentGroup.student_count) === String(row.student_count) &&
-                            String(currentGroup.groups_theory) === String(row.groups_theory) &&
-                            String(currentGroup.groups_practical) === String(row.groups_practical);
+                    return (
+                      <Table bordered hover size="sm" className="align-middle text-center mb-0 small">
+                        <thead className="table-success sticky-top">
+                          <tr>
+                            <th style={{ verticalAlign: "middle" }}>#</th>
+                            <th style={{ verticalAlign: "middle" }}>كود المقرر</th>
+                            <th style={{ verticalAlign: "middle" }}>اسم المقرر</th>
+                            <th style={{ verticalAlign: "middle" }}>البرنامج</th>
+                            <th style={{ verticalAlign: "middle" }}>الطلاب</th>
+                            <th style={{ verticalAlign: "middle" }}>
+                              {isHealthTechFaculty ? "مجموعات (ن/ع/ت/ح)" : "مجموعات (ن/ع)"}
+                            </th>
+                            <th style={{ verticalAlign: "middle" }}>عضو هيئة التدريس</th>
+                            <th style={{ verticalAlign: "middle" }}>الدرجة العلمية</th>
+                            <th style={{ verticalAlign: "middle" }}>جهة القدوم</th>
+                            <th style={{ verticalAlign: "middle" }}>
+                              {isHealthTechFaculty ? "ساعات (ن/ع/ت/ح)" : "ساعات (ن/ع)"}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(() => {
+                            const groups = [];
+                            let currentGroup = null;
 
-                          if (isSameCourse) {
-                            currentGroup.rows.push({ ...row, rowIndex: idx + 1 });
-                          } else {
-                            currentGroup = {
-                              code: row.code,
-                              nameAr: row.nameAr,
-                              program_names: row.program_names,
-                              student_count: row.student_count,
-                              groups_theory: row.groups_theory,
-                              groups_practical: row.groups_practical,
-                              groups_training: row.groups_training,
-                              groups_field: row.groups_field,
-                              rows: [{ ...row, rowIndex: idx + 1 }]
-                            };
-                            groups.push(currentGroup);
-                          }
-                        });
+                            importPreviewData.forEach((row, idx) => {
+                              const isSameCourse = currentGroup &&
+                                currentGroup.code === row.code &&
+                                currentGroup.program_names === row.program_names &&
+                                String(currentGroup.student_count) === String(row.student_count) &&
+                                String(currentGroup.groups_theory) === String(row.groups_theory) &&
+                                String(currentGroup.groups_practical) === String(row.groups_practical) &&
+                                String(currentGroup.groups_training || 0) === String(row.groups_training || 0) &&
+                                String(currentGroup.groups_field || 0) === String(row.groups_field || 0);
 
-                        return groups.map((group, gIdx) =>
-                          group.rows.map((row, rIdx) => (
-                            <tr key={row._key || `${gIdx}-${rIdx}`}>
-                              {/* رقم الصف / السجل */}
-                              <td className="align-middle text-center text-muted fw-bold" style={{ verticalAlign: "middle" }}>
-                                {row.rowIndex}
-                              </td>
+                              if (isSameCourse) {
+                                currentGroup.rows.push({ ...row, rowIndex: idx + 1 });
+                              } else {
+                                currentGroup = {
+                                  code: row.code,
+                                  nameAr: row.nameAr,
+                                  program_names: row.program_names,
+                                  student_count: row.student_count,
+                                  groups_theory: row.groups_theory,
+                                  groups_practical: row.groups_practical,
+                                  groups_training: row.groups_training,
+                                  groups_field: row.groups_field,
+                                  rows: [{ ...row, rowIndex: idx + 1 }]
+                                };
+                                groups.push(currentGroup);
+                              }
+                            });
 
-                              {/* أعمدة المقرر - دمج وتوسيط (Merge and Center) للصفوف المتكررة لنفس المقرر */}
-                              {rIdx === 0 && (
-                                <>
-                                  <td
-                                    rowSpan={group.rows.length}
-                                    className="fw-bold text-primary align-middle text-center"
-                                    style={{
-                                      verticalAlign: "middle",
-                                      backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
-                                    }}
-                                  >
-                                    {group.code}
+                            return groups.map((group, gIdx) =>
+                              group.rows.map((row, rIdx) => (
+                                <tr key={row._key || `${gIdx}-${rIdx}`}>
+                                  {/* رقم الصف / السجل */}
+                                  <td className="align-middle text-center text-muted fw-bold" style={{ verticalAlign: "middle" }}>
+                                    {row.rowIndex}
                                   </td>
-                                  <td
-                                    rowSpan={group.rows.length}
-                                    className="align-middle text-center fw-medium"
-                                    style={{
-                                      verticalAlign: "middle",
-                                      backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
-                                    }}
-                                  >
-                                    {group.nameAr}
-                                  </td>
-                                  <td
-                                    rowSpan={group.rows.length}
-                                    className="align-middle text-center"
-                                    style={{
-                                      verticalAlign: "middle",
-                                      backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
-                                    }}
-                                  >
-                                    {group.program_names || "--"}
-                                  </td>
-                                  <td
-                                    rowSpan={group.rows.length}
-                                    className="align-middle text-center fw-bold"
-                                    style={{
-                                      verticalAlign: "middle",
-                                      backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
-                                    }}
-                                  >
-                                    {group.student_count}
-                                  </td>
-                                  <td
-                                    rowSpan={group.rows.length}
-                                    className="align-middle text-center fw-bold"
-                                    style={{
-                                      verticalAlign: "middle",
-                                      backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
-                                    }}
-                                  >
-                                    {group.groups_theory} / {group.groups_practical}
-                                    {(group.groups_training > 0 || group.groups_field > 0) && (
-                                      <span className="text-muted small d-block">
-                                        (تد: {group.groups_training || 0} / ح: {group.groups_field || 0})
-                                      </span>
-                                    )}
-                                  </td>
-                                </>
-                              )}
 
-                              {/* بيانات عضو هيئة التدريس وساعاته - غير مكررة ومستقلة لكل صف */}
-                              <td className="fw-bold text-success align-middle text-center" style={{ verticalAlign: "middle" }}>
-                                {row.professor_name}
-                              </td>
-                              <td className="align-middle text-center" style={{ verticalAlign: "middle" }}>
-                                {getJobTitleFull(row.prof_job_title)}
-                              </td>
-                              <td className="small text-muted align-middle text-center" style={{ verticalAlign: "middle" }}>
-                                {row.prof_workplace || "--"}
-                              </td>
-                              <td className="fw-bold align-middle text-center" style={{ verticalAlign: "middle" }}>
-                                {row.hours_actual_theory} / {row.hours_actual_practical}
-                                {(row.hours_actual_training > 0 || row.hours_actual_field > 0) && (
-                                  <span className="text-muted small d-block">
-                                    (تد: {row.hours_actual_training || 0} / ح: {row.hours_actual_field || 0})
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          ))
-                        );
-                      })()}
-                    </tbody>
-                  </Table>
+                                  {/* أعمدة المقرر - دمج وتوسيط (Merge and Center) للصفوف المتكررة لنفس المقرر */}
+                                  {rIdx === 0 && (
+                                    <>
+                                      <td
+                                        rowSpan={group.rows.length}
+                                        className="fw-bold text-primary align-middle text-center"
+                                        style={{
+                                          verticalAlign: "middle",
+                                          backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
+                                        }}
+                                      >
+                                        {group.code}
+                                      </td>
+                                      <td
+                                        rowSpan={group.rows.length}
+                                        className="align-middle text-center fw-medium"
+                                        style={{
+                                          verticalAlign: "middle",
+                                          backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
+                                        }}
+                                      >
+                                        {group.nameAr}
+                                      </td>
+                                      <td
+                                        rowSpan={group.rows.length}
+                                        className="align-middle text-center"
+                                        style={{
+                                          verticalAlign: "middle",
+                                          backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
+                                        }}
+                                      >
+                                        {group.program_names || "--"}
+                                      </td>
+                                      <td
+                                        rowSpan={group.rows.length}
+                                        className="align-middle text-center fw-bold"
+                                        style={{
+                                          verticalAlign: "middle",
+                                          backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
+                                        }}
+                                      >
+                                        {group.student_count}
+                                      </td>
+                                      <td
+                                        rowSpan={group.rows.length}
+                                        className="align-middle text-center fw-bold"
+                                        style={{
+                                          verticalAlign: "middle",
+                                          backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
+                                        }}
+                                      >
+                                        {isHealthTechFaculty
+                                          ? `${group.groups_theory} / ${group.groups_practical} / ${group.groups_training || 0} / ${group.groups_field || 0}`
+                                          : `${group.groups_theory} / ${group.groups_practical}`}
+                                      </td>
+                                    </>
+                                  )}
+
+                                  {/* بيانات عضو هيئة التدريس وساعاته - غير مكررة ومستقلة لكل صف */}
+                                  <td className="fw-bold text-success align-middle text-center" style={{ verticalAlign: "middle" }}>
+                                    {row.professor_name}
+                                  </td>
+                                  <td className="align-middle text-center" style={{ verticalAlign: "middle" }}>
+                                    {getJobTitleFull(row.prof_job_title)}
+                                  </td>
+                                  <td className="small text-muted align-middle text-center" style={{ verticalAlign: "middle" }}>
+                                    {row.prof_workplace || "--"}
+                                  </td>
+                                  <td className="fw-bold align-middle text-center" style={{ verticalAlign: "middle" }}>
+                                    {isHealthTechFaculty
+                                      ? `${row.hours_actual_theory} / ${row.hours_actual_practical} / ${row.hours_actual_training || 0} / ${row.hours_actual_field || 0}`
+                                      : `${row.hours_actual_theory} / ${row.hours_actual_practical}`}
+                                  </td>
+                                </tr>
+                              ))
+                            );
+                          })()}
+                        </tbody>
+                      </Table>
+                    );
+                  })()}
                 </div>
               </Card.Body>
             </Card>
