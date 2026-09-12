@@ -189,6 +189,21 @@ const WorkloadPage = ({ isReadOnly = false }) => {
   // All faculties access check
   const isAllFacultiesUser = user?.role === 'admin' || user?.role === 'student_affairs' || user?.all_faculties_access;
 
+  const logAction = async (actionText, facultyIds = null, academicYear = null, semester = null) => {
+    try {
+      await axios.post(`${API}/api/notifications/log`, {
+        action_text: actionText,
+        faculty_ids: facultyIds,
+        academic_year: academicYear,
+        semester: semester
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+    } catch (error) {
+      console.error("Error logging action", error);
+    }
+  };
+
   // 1. Fetch initial faculties and academic years
   useEffect(() => {
     const fetchInitData = async () => {
@@ -719,6 +734,14 @@ const WorkloadPage = ({ isReadOnly = false }) => {
     const totalDeducted = facultyDeductions.reduce((sum, d) => sum + (d.deducted_hours || 0), 0);
     const currentDate = new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
 
+    const fids = selectedFaculty ? [Number(selectedFaculty)] : null;
+    logAction(
+      `قام بطباعة كشف وبيان استقطاع وتخفيض الساعات التدريسية لكلية (${facultyName}) للعام الجامعي ${selectedAcademicYear} (${selectedSemester}) في صفحة تحديد الأعباء`,
+      fids,
+      selectedAcademicYear,
+      selectedSemester
+    );
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html dir="rtl" lang="ar">
@@ -1082,6 +1105,14 @@ const WorkloadPage = ({ isReadOnly = false }) => {
       const safeFacName = facultyName.replace(/[\/\\:*?"<>|]/g, '_');
       saveAs(new Blob([buffer]), `انتقاص_ساعات_${safeFacName}_${selectedAcademicYear}_${selectedSemester}.xlsx`);
       toast.success("تم تنزيل ملف الإكسيل بنجاح");
+
+      const fids = selectedFaculty ? [Number(selectedFaculty)] : null;
+      logAction(
+        `قام بتصدير كشف وبيان استقطاع وتخفيض الساعات التدريسية (Excel) لكلية (${facultyName}) للعام الجامعي ${selectedAcademicYear} (${selectedSemester}) في صفحة تحديد الأعباء`,
+        fids,
+        selectedAcademicYear,
+        selectedSemester
+      );
     } catch (err) {
       console.error("Export Excel error", err);
       toast.error("حدث خطأ أثناء تصدير ملف الإكسيل");

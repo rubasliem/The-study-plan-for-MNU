@@ -248,7 +248,9 @@ def create_notification(db, faculty_id, action_by, action_text, academic_year=No
             atype = "EXPORT"
         
         etype = "SYSTEM"
-        if "هيئة التدريس" in txt or "عضو" in txt:
+        if any(w in txt for w in ["أعباء", "العبء", "استقطاع", "خصم", "تحديد الأعباء", "تحديد عدد أسابيع", "إلغاء تخصيص أسابيع"]):
+            etype = "WORKLOAD"
+        elif "هيئة التدريس" in txt or "عضو" in txt:
             etype = "PROFESSORS"
         elif "مقرر" in txt:
             etype = "COURSES"
@@ -4461,7 +4463,7 @@ def save_workload_limits(
     fac = db.query(models.Faculty).filter(models.Faculty.id == data.faculty_id).first()
     fac_name = fac.name if fac else ""
     user_role_str = get_user_role_display(current_user)
-    action_text = f"قام بتحديث حدود الأعباء التدريسية لكلية {fac_name} ({data.semester} - {data.academic_year})"
+    action_text = f"قام بتحديث حدود الأعباء التدريسية لكلية {fac_name} ({data.semester} - {data.academic_year}) في صفحة تحديد الأعباء"
     create_notification(db, data.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=data.academic_year, semester=data.semester)
     db.commit()
     
@@ -4797,7 +4799,7 @@ def save_workload_deduction(
     weeks_str = "، ".join([w[1] for w in weeks_to_process])
     type_info = f" ({hour_type_str})" if hour_type_str else ""
     course_info = f" من مقرر ({data.course_name})" if data.course_name else ""
-    action_text = f"قام بخصم/انتقاص {data.deducted_hours} ساعة{type_info}{course_info} في ({weeks_str}) من عبء التدريس للدكتور {prof_name} ({data.semester} - {data.academic_year}) - السبب: {data.reason or 'بدون سبب'}"
+    action_text = f"قام بخصم/انتقاص {data.deducted_hours} ساعة{type_info}{course_info} في ({weeks_str}) من عبء التدريس للدكتور {prof_name} ({data.semester} - {data.academic_year}) - السبب: {data.reason or 'بدون سبب'} في صفحة تحديد الأعباء"
     create_notification(db, data.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=data.academic_year, semester=data.semester)
     db.commit()
     
@@ -4822,7 +4824,7 @@ def delete_workload_deduction(
         
     prof_name = ded.professor.name_ar if ded.professor else ""
     user_role_str = get_user_role_display(current_user)
-    action_text = f"قام بإلغاء خصم الساعات ({ded.deducted_hours} س) للدكتور {prof_name} ({ded.semester} - {ded.academic_year})"
+    action_text = f"قام بإلغاء خصم الساعات ({ded.deducted_hours} س) للدكتور {prof_name} ({ded.semester} - {ded.academic_year}) في صفحة تحديد الأعباء"
     create_notification(db, ded.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=ded.academic_year, semester=ded.semester)
     
     db.delete(ded)
@@ -4986,7 +4988,7 @@ def save_course_workload_weeks(
     fac = db.query(models.Faculty).filter(models.Faculty.id == data.faculty_id).first()
     fac_name = fac.name if fac else ""
     user_role_str = get_user_role_display(current_user)
-    action_text = f"قام بتحديد عدد أسابيع مقرر ({data.course_name}) بـ {data.weeks_count} أسبوع لكلية {fac_name} ({data.semester} - {data.academic_year})"
+    action_text = f"قام بتحديد عدد أسابيع مقرر ({data.course_name}) بـ {data.weeks_count} أسبوع لكلية {fac_name} ({data.semester} - {data.academic_year}) في صفحة تحديد الأعباء"
     create_notification(db, data.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=data.academic_year, semester=data.semester)
     db.commit()
     
@@ -5022,7 +5024,7 @@ def delete_course_workload_weeks(
     db.commit()
     
     user_role_str = get_user_role_display(current_user)
-    action_text = f"قام بإلغاء تخصيص أسابيع مقرر ({c_name}) واستعادة العدد الافتراضي للفصل ({sem} - {ay})"
+    action_text = f"قام بإلغاء تخصيص أسابيع مقرر ({c_name}) واستعادة العدد الافتراضي للفصل ({sem} - {ay}) في صفحة تحديد الأعباء"
     create_notification(db, fac_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=ay, semester=sem)
     db.commit()
     
@@ -5774,12 +5776,26 @@ def log_notification(data: schemas.NotificationCreate, db: Session = Depends(get
 
     # توثيق الحدث أيضاً في سجل العمليات (Audit Logs)
     try:
+        action_type = "EXPORT" if ("تصدير" in data.action_text or "تنزيل" in data.action_text) else (
+            "PRINT" if "طباعة" in data.action_text else (
+                "DELETE" if ("حذف" in data.action_text or "إلغاء" in data.action_text) else (
+                    "CREATE" if ("إضافة" in data.action_text or "تسجيل" in data.action_text) else "UPDATE"
+                )
+            )
+        )
+        
+        entity_type = "WORKLOAD" if any(w in data.action_text for w in ["أعباء", "العبء", "استقطاع", "خصم", "تحديد الأعباء", "تحديد عدد أسابيع", "إلغاء تخصيص أسابيع"]) else (
+            "MAIN_TABLE" if "الجدول الرئيسي" in data.action_text else (
+                "PROFESSORS" if "تدريس" in data.action_text else "STUDY_PLAN"
+            )
+        )
+
         log_activity(
             db=db,
             username=current_user.username,
-            action_type="EXPORT" if ("تصدير" in data.action_text or "تنزيل" in data.action_text) else "PRINT",
+            action_type=action_type,
             description=data.action_text,
-            entity_type="MAIN_TABLE" if "الجدول الرئيسي" in data.action_text else ("PROFESSORS" if "تدريس" in data.action_text else "STUDY_PLAN"),
+            entity_type=entity_type,
             user_id=current_user.id,
             user_role=get_user_role_display(current_user, db),
             faculty_id=data.faculty_ids[0] if (data.faculty_ids and len(data.faculty_ids) == 1) else None,
