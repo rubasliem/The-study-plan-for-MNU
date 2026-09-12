@@ -217,7 +217,6 @@ const StudyPlanPage = () => {
   const [copyingPlan, setCopyingPlan] = useState(false);
 
   // Excel Template & Import State
-  const [importFaculty, setImportFaculty] = useState("");
   const [importFile, setImportFile] = useState(null);
   const [importing, setImporting] = useState(false);
   const [importErrors, setImportErrors] = useState([]);
@@ -3398,7 +3397,6 @@ ${signaturesHtml}
   };
 
   const handleOpenImportModal = () => {
-    setImportFaculty(String(selectedFaculty || (faculties[0]?.id || "")));
     setImportFile(null);
     setImportErrors([]);
     setImportPreviewData([]);
@@ -3410,7 +3408,7 @@ ${signaturesHtml}
   };
 
   const handleDownloadImportTemplate = async () => {
-    const targetFacId = importFaculty || selectedFaculty;
+    const targetFacId = selectedFaculty;
     const facObj = faculties.find(f => String(f.id) === String(targetFacId));
     const facName = facObj?.name || "الكلية";
     const isHealthTech = Boolean(facName.includes("تكنولوجيا العلوم الصحية") || facName.includes("العلوم الصحية"));
@@ -3558,21 +3556,13 @@ ${signaturesHtml}
     setImportPreviewData([]);
 
     try {
-      const targetFacId = importFaculty || selectedFaculty;
+      const targetFacId = selectedFaculty;
       const facObj = faculties.find(f => String(f.id) === String(targetFacId));
       const facName = facObj?.name || "الكلية المختارة";
       const isHealthTech = Boolean(facName.includes("تكنولوجيا العلوم الصحية") || facName.includes("العلوم الصحية"));
 
-      let targetCourses = courses;
-      let targetPrograms = programs;
-      if (String(targetFacId) !== String(selectedFaculty)) {
-        const [cRes, pRes] = await Promise.all([
-          axios.get(`${API}/api/courses`),
-          axios.get(`${API}/api/programs`)
-        ]);
-        targetCourses = (cRes.data || []).filter(c => String(c.faculty_id) === String(targetFacId));
-        targetPrograms = (pRes.data || []).filter(p => String(p.faculty_id) === String(targetFacId));
-      }
+      const targetCourses = courses;
+      const targetPrograms = programs;
 
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: 'array' });
@@ -6162,68 +6152,52 @@ ${signaturesHtml}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body className="p-4" style={{ backgroundColor: "#f8fafc" }}>
-          {/* الخطوة 1: الكلية والنموذج */}
+          {/* الخطوة 1: الكلية المحددة وتحميل النموذج */}
           <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "10px" }}>
             <Card.Body className="p-3">
-              <h5 className="fw-bold text-dark d-flex align-items-center gap-2 mb-3">
-                <span className="badge bg-success rounded-pill px-3 py-2">1</span>
-                <span>تحديد الكلية وتحميل النموذج المعتمد</span>
-              </h5>
-              <Row className="align-items-end g-3">
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label className="fw-bold text-muted small">اختر الكلية المستهدفة لتحميل النموذج المطابق لها:</Form.Label>
-                    <Form.Select 
-                      value={importFaculty} 
-                      onChange={e => {
-                        setImportFaculty(e.target.value);
-                        setImportErrors([]);
-                        setImportPreviewData([]);
-                        if (fileInputRef.current) fileInputRef.current.value = "";
-                      }}
-                      className="form-select-lg fw-bold"
-                    >
-                      {faculties.map(f => (
-                        <option key={f.id} value={f.id}>{f.name}</option>
-                      ))}
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Button 
-                    variant="outline-success" 
-                    className="w-100 py-2 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm"
-                    onClick={handleDownloadImportTemplate}
-                    disabled={isDownloadingTemplate}
-                    style={{ borderColor: "#15803d", color: "#15803d" }}
-                  >
-                    {isDownloadingTemplate ? (
-                      <Spinner animation="border" size="sm" />
-                    ) : (
-                      <>
-                        <FaFileDownload className="fs-5" />
-                        <span>تحميل نموذج Excel المعتمد للكلية</span>
-                      </>
-                    )}
-                  </Button>
-                </Col>
-              </Row>
-              <div className="mt-2 text-muted small">
-                {(() => {
-                  const selFac = faculties.find(f => String(f.id) === String(importFaculty));
-                  const isHealth = selFac?.name?.includes("تكنولوجيا العلوم الصحية") || selFac?.name?.includes("العلوم الصحية");
-                  return (
-                    <span>
-                      {isHealth ? (
+              <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                  <h5 className="fw-bold text-dark d-flex align-items-center gap-2 mb-2">
+                    <span className="badge bg-success rounded-pill px-3 py-2">1</span>
+                    <span>الكلية المختارة وتحميل النموذج المعتمد</span>
+                  </h5>
+                  <div className="d-flex align-items-center gap-2 mt-2">
+                    <span className="text-muted fw-bold">الكلية المحددة بالصفحة:</span>
+                    <span className="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 fs-6 fw-bold">
+                      🏛️ {faculties.find(f => String(f.id) === String(selectedFaculty))?.name || "الكلية المحددة"}
+                    </span>
+                  </div>
+                  <div className="mt-2 text-muted small">
+                    {(() => {
+                      const selFac = faculties.find(f => String(f.id) === String(selectedFaculty));
+                      const isHealth = selFac?.name?.includes("تكنولوجيا العلوم الصحية") || selFac?.name?.includes("العلوم الصحية");
+                      return isHealth ? (
                         <span className="text-primary fw-bold">
-                          💡 ملاحظة خاصة: كلية تكنولوجيا العلوم الصحية تشمل تلقائياً أعمدة (مجموعات وساعات التوتوريال والحقل).
+                          💡 ملاحظة خاصة: نموذج كلية تكنولوجيا العلوم الصحية يشمل تلقائياً أعمدة (مجموعات وساعات التوتوريال والحقل).
                         </span>
                       ) : (
-                        <span>💡 النموذج يحتوي على الأعمدة القياسية للمقررات والمجموعات والأستاذ ومطابق للوائح الكلية.</span>
-                      )}
-                    </span>
-                  );
-                })()}
+                        <span>💡 النموذج يحتوي على الأعمدة المعتمدة للمقررات والمجموعات وأعضاء هيئة التدريس الخاصة بهذه الكلية.</span>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                <Button 
+                  variant="success" 
+                  className="px-4 py-2 fw-bold d-flex align-items-center gap-2 shadow-sm"
+                  onClick={handleDownloadImportTemplate}
+                  disabled={isDownloadingTemplate}
+                  style={{ backgroundColor: "#15803d", borderColor: "#15803d" }}
+                >
+                  {isDownloadingTemplate ? (
+                    <Spinner animation="border" size="sm" />
+                  ) : (
+                    <>
+                      <FaFileDownload className="fs-5" />
+                      <span>تحميل نموذج Excel المعتمد</span>
+                    </>
+                  )}
+                </Button>
               </div>
             </Card.Body>
           </Card>
