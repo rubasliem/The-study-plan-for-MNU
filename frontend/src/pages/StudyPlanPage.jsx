@@ -6668,97 +6668,133 @@ ${signaturesHtml}
                               }
                             });
 
-                            return groups.map((group, gIdx) =>
-                              group.rows.map((row, rIdx) => (
-                                <tr key={row._key || `${gIdx}-${rIdx}`}>
-                                  {/* رقم الصف / السجل */}
-                                  <td className="align-middle text-center text-muted fw-bold" style={{ verticalAlign: "middle" }}>
-                                    {row.rowIndex}
-                                  </td>
+                            let globalRowNumber = 0;
 
-                                  {/* أعمدة المقرر - دمج وتوسيط (Merge and Center) للصفوف المتكررة لنفس المقرر */}
-                                  {rIdx === 0 && (
-                                    <>
-                                      <td
-                                        rowSpan={group.rows.length}
-                                        className="fw-bold text-primary align-middle text-center"
-                                        style={{
-                                          verticalAlign: "middle",
-                                          backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
-                                        }}
-                                      >
-                                        {group.code}
+                            return groups.map((group, gIdx) => {
+                              // تنظيم الصفوف داخل المقرر (لأقسام كلية الطب والجراحة)
+                              let deptGroups = [];
+                              if (isMedicineFaculty) {
+                                group.rows.forEach(row => {
+                                  const dept = (row.department_name || "").trim();
+                                  const existing = deptGroups.find(d => d.name === dept);
+                                  if (existing) {
+                                    existing.rows.push(row);
+                                  } else {
+                                    deptGroups.push({ name: dept, rows: [row] });
+                                  }
+                                });
+                              } else {
+                                deptGroups = [{ name: "", rows: group.rows }];
+                              }
+
+                              const totalCourseRows = group.rows.length;
+                              let courseRowIndex = 0;
+
+                              return deptGroups.map((deptGroup, dIdx) =>
+                                deptGroup.rows.map((row, rInDeptIdx) => {
+                                  globalRowNumber++;
+                                  const isFirstInCourse = (courseRowIndex === 0);
+                                  courseRowIndex++;
+
+                                  return (
+                                    <tr key={row._key || `${gIdx}-${dIdx}-${rInDeptIdx}`}>
+                                      {/* رقم الصف / السجل */}
+                                      <td className="align-middle text-center text-muted fw-bold" style={{ verticalAlign: "middle" }}>
+                                        {globalRowNumber}
                                       </td>
-                                      <td
-                                        rowSpan={group.rows.length}
-                                        className="align-middle text-center fw-medium"
-                                        style={{
-                                          verticalAlign: "middle",
-                                          backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
-                                        }}
-                                      >
-                                        {group.nameAr}
+
+                                      {/* أعمدة المقرر - دمج وتوسيط (Merge and Center) للصفوف المتكررة لنفس المقرر */}
+                                      {isFirstInCourse && (
+                                        <>
+                                          <td
+                                            rowSpan={totalCourseRows}
+                                            className="fw-bold text-primary align-middle text-center"
+                                            style={{
+                                              verticalAlign: "middle",
+                                              backgroundColor: totalCourseRows > 1 ? "#f0fdf4" : undefined
+                                            }}
+                                          >
+                                            {group.code}
+                                          </td>
+                                          <td
+                                            rowSpan={totalCourseRows}
+                                            className="align-middle text-center fw-medium"
+                                            style={{
+                                              verticalAlign: "middle",
+                                              backgroundColor: totalCourseRows > 1 ? "#f0fdf4" : undefined
+                                            }}
+                                          >
+                                            {group.nameAr}
+                                          </td>
+                                          <td
+                                            rowSpan={totalCourseRows}
+                                            className="align-middle text-center"
+                                            style={{
+                                              verticalAlign: "middle",
+                                              backgroundColor: totalCourseRows > 1 ? "#f0fdf4" : undefined
+                                            }}
+                                          >
+                                            {group.program_names || "--"}
+                                          </td>
+                                          <td
+                                            rowSpan={totalCourseRows}
+                                            className="align-middle text-center fw-bold"
+                                            style={{
+                                              verticalAlign: "middle",
+                                              backgroundColor: totalCourseRows > 1 ? "#f0fdf4" : undefined
+                                            }}
+                                          >
+                                            {group.student_count}
+                                          </td>
+                                          <td
+                                            rowSpan={totalCourseRows}
+                                            className="align-middle text-center fw-bold"
+                                            style={{
+                                              verticalAlign: "middle",
+                                              backgroundColor: totalCourseRows > 1 ? "#f0fdf4" : undefined
+                                            }}
+                                          >
+                                            {isHealthTechFaculty
+                                              ? `${group.groups_theory} / ${group.groups_practical} / ${group.groups_training || 0} / ${group.groups_field || 0}`
+                                              : `${group.groups_theory} / ${group.groups_practical}`}
+                                          </td>
+                                        </>
+                                      )}
+
+                                      {/* القسم العلمي لكلية الطب والجراحة - دمج وتوسيط (Merge and Center) للأساتذة التابعين لنفس القسم */}
+                                      {isMedicineFaculty && rInDeptIdx === 0 && (
+                                        <td
+                                          rowSpan={deptGroup.rows.length}
+                                          className="fw-bold text-secondary align-middle text-center"
+                                          style={{
+                                            verticalAlign: "middle",
+                                            backgroundColor: deptGroup.rows.length > 1 ? "#f0fdf4" : undefined
+                                          }}
+                                        >
+                                          {deptGroup.name || "--"}
+                                        </td>
+                                      )}
+
+                                      {/* بيانات عضو هيئة التدريس وساعاته - غير مكررة ومستقلة لكل صف */}
+                                      <td className="fw-bold text-success align-middle text-center" style={{ verticalAlign: "middle" }}>
+                                        {row.professor_name}
                                       </td>
-                                      <td
-                                        rowSpan={group.rows.length}
-                                        className="align-middle text-center"
-                                        style={{
-                                          verticalAlign: "middle",
-                                          backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
-                                        }}
-                                      >
-                                        {group.program_names || "--"}
+                                      <td className="align-middle text-center" style={{ verticalAlign: "middle" }}>
+                                        {getJobTitleFull(row.prof_job_title)}
                                       </td>
-                                      <td
-                                        rowSpan={group.rows.length}
-                                        className="align-middle text-center fw-bold"
-                                        style={{
-                                          verticalAlign: "middle",
-                                          backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
-                                        }}
-                                      >
-                                        {group.student_count}
+                                      <td className="small text-muted align-middle text-center" style={{ verticalAlign: "middle" }}>
+                                        {row.prof_workplace || "--"}
                                       </td>
-                                      <td
-                                        rowSpan={group.rows.length}
-                                        className="align-middle text-center fw-bold"
-                                        style={{
-                                          verticalAlign: "middle",
-                                          backgroundColor: group.rows.length > 1 ? "#f0fdf4" : undefined
-                                        }}
-                                      >
+                                      <td className="fw-bold align-middle text-center" style={{ verticalAlign: "middle" }}>
                                         {isHealthTechFaculty
-                                          ? `${group.groups_theory} / ${group.groups_practical} / ${group.groups_training || 0} / ${group.groups_field || 0}`
-                                          : `${group.groups_theory} / ${group.groups_practical}`}
+                                          ? `${row.hours_actual_theory} / ${row.hours_actual_practical} / ${row.hours_actual_training || 0} / ${row.hours_actual_field || 0}`
+                                          : `${row.hours_actual_theory} / ${row.hours_actual_practical}`}
                                       </td>
-                                    </>
-                                  )}
-
-                                  {/* القسم العلمي لكلية الطب والجراحة */}
-                                  {isMedicineFaculty && (
-                                    <td className="align-middle text-center fw-bold text-secondary" style={{ verticalAlign: "middle" }}>
-                                      {row.department_name || "--"}
-                                    </td>
-                                  )}
-
-                                  {/* بيانات عضو هيئة التدريس وساعاته - غير مكررة ومستقلة لكل صف */}
-                                  <td className="fw-bold text-success align-middle text-center" style={{ verticalAlign: "middle" }}>
-                                    {row.professor_name}
-                                  </td>
-                                  <td className="align-middle text-center" style={{ verticalAlign: "middle" }}>
-                                    {getJobTitleFull(row.prof_job_title)}
-                                  </td>
-                                  <td className="small text-muted align-middle text-center" style={{ verticalAlign: "middle" }}>
-                                    {row.prof_workplace || "--"}
-                                  </td>
-                                  <td className="fw-bold align-middle text-center" style={{ verticalAlign: "middle" }}>
-                                    {isHealthTechFaculty
-                                      ? `${row.hours_actual_theory} / ${row.hours_actual_practical} / ${row.hours_actual_training || 0} / ${row.hours_actual_field || 0}`
-                                      : `${row.hours_actual_theory} / ${row.hours_actual_practical}`}
-                                  </td>
-                                </tr>
-                              ))
-                            );
+                                    </tr>
+                                  );
+                                })
+                              );
+                            });
                           })()}
                         </tbody>
                       </Table>
