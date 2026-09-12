@@ -5252,23 +5252,7 @@ ${signaturesHtml}
                             />
                           </Form.Group>
                         </Col>
-                        {isMedicineFac && (
-                          <Col md xs={6}>
-                            <Form.Group>
-                              <Form.Label className="fw-bold small">عدد مجموعات الأنشطة:</Form.Label>
-                              <Form.Control
-                                type="number"
-                                min="0"
-                                disabled={!formData.base_course_id || actHours === 0}
-                                value={formData.groups_activity || 0}
-                                onChange={e => {
-                                  const val = Math.max(0, parseInt(e.target.value) || 0);
-                                  setFormData(prev => ({ ...prev, groups_activity: val }));
-                                }}
-                              />
-                            </Form.Group>
-                          </Col>
-                        )}
+
                         {isHealthTechFac && (
                           <>
                             <Col md xs={6}>
