@@ -3624,6 +3624,58 @@ ${signaturesHtml}
       const errors = [];
       const parsedRows = [];
 
+      const normalizeArabicText = (text) => {
+        if (!text) return "";
+        return String(text)
+          .trim()
+          .toLowerCase()
+          .replace(/[\u064B-\u065F\u0670]/g, "") // tashkeel
+          .replace(/\u0640/g, "") // tatweel
+          .replace(/[أإآٱ]/g, "ا") // alif variants
+          .replace(/ة/g, "ه") // taa marbuta -> haa
+          .replace(/ى/g, "ي") // alif maqsura -> yaa
+          .replace(/ؤ/g, "و")
+          .replace(/ئ/g, "ي")
+          .replace(/\s+/g, " "); // multiple spaces -> single space
+      };
+
+      const findMatchingProgram = (inputName) => {
+        if (!inputName) return null;
+        const raw = String(inputName).trim().toLowerCase();
+        // 1. Direct exact match
+        let found = targetPrograms.find(p => p.name && p.name.trim().toLowerCase() === raw);
+        if (found) return found;
+
+        // 2. Normalized Arabic match (e.g. هندسة الحاسوب vs هندسه الحاسوب)
+        const normInput = normalizeArabicText(inputName);
+        found = targetPrograms.find(p => p.name && normalizeArabicText(p.name) === normInput);
+        if (found) return found;
+
+        // 3. Match without prefix "برنامج" or "قسم"
+        const cleanInput = normInput.replace(/^(برنامج|قسم)\s+/, '');
+        found = targetPrograms.find(p => {
+          const cleanP = normalizeArabicText(p.name).replace(/^(برنامج|قسم)\s+/, '');
+          return cleanP === cleanInput;
+        });
+        if (found) return found;
+
+        // 4. Substring inclusion match (e.g. هندسة الحاسوب in هندسة الحاسوب والذكاء الاصطناعي)
+        found = targetPrograms.find(p => {
+          const normP = normalizeArabicText(p.name);
+          return normP.includes(normInput) || normInput.includes(normP);
+        });
+        return found || null;
+      };
+
+      const parseSafeNumber = (val) => {
+        if (val === undefined || val === null) return 0;
+        const str = String(val).trim();
+        if (str === "" || str === "-" || str === "--" || str === "لا يوجد" || str === "صفر") return 0;
+        const western = str.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
+        const num = Number(western);
+        return isNaN(num) ? null : num;
+      };
+
       rawRows.forEach((row, idx) => {
         const rowNum = idx + 2;
 
@@ -3647,12 +3699,12 @@ ${signaturesHtml}
           errors.push(`الصف ${rowNum}: كود المقرر "${cleanCode}" غير صحيح أو غير مسجل في مقررات ${facName}.`);
         }
 
-        // 2. اسم البرنامج 1 - إلزامي
+        // 2. اسم البرنامج 1 - إلزامي (مع التقريب والتطابق العربي الذكي)
         const rawProg1Val = row[prog1Key] !== undefined ? String(row[prog1Key]).trim() : "";
         if (!rawProg1Val) {
           errors.push(`الصف ${rowNum}: اسم البرنامج 1 حقل إلزامي مطلوب.`);
         }
-        const prog1Obj = rawProg1Val ? targetPrograms.find(p => p.name && p.name.trim().toLowerCase() === rawProg1Val.toLowerCase()) : null;
+        const prog1Obj = rawProg1Val ? findMatchingProgram(rawProg1Val) : null;
         if (rawProg1Val && !prog1Obj) {
           errors.push(`الصف ${rowNum}: اسم البرنامج 1 "${rawProg1Val}" غير مسجل ضمن برامج ${facName}.`);
         }
@@ -3661,7 +3713,7 @@ ${signaturesHtml}
         const rawProg2Val = (prog2Key && row[prog2Key] !== undefined) ? String(row[prog2Key]).trim() : "";
         let prog2Obj = null;
         if (rawProg2Val) {
-          prog2Obj = targetPrograms.find(p => p.name && p.name.trim().toLowerCase() === rawProg2Val.toLowerCase());
+          prog2Obj = findMatchingProgram(rawProg2Val);
           if (!prog2Obj) {
             errors.push(`الصف ${rowNum}: اسم البرنامج 2 "${rawProg2Val}" غير مسجل ضمن برامج ${facName}.`);
           }
@@ -3679,9 +3731,9 @@ ${signaturesHtml}
 
         // 5. الساعات التدريسية نظري للأستاذ (اختياري، افتراضي 0)
         let thVal = 0;
-        if (thHoursKey && row[thHoursKey] !== undefined && String(row[thHoursKey]).trim() !== "") {
-          const parsedTh = Number(row[thHoursKey]);
-          if (isNaN(parsedTh) || parsedTh < 0) {
+        if (thHoursKey && row[thHoursKey] !== undefined) {
+          const parsedTh = parseSafeNumber(row[thHoursKey]);
+          if (parsedTh === null || parsedTh < 0) {
             errors.push(`الصف ${rowNum}: ساعات النظري للأستاذ يجب أن تكون قيمة رقمية صحيحة (0 أو أكثر).`);
           } else {
             thVal = parsedTh;
@@ -3689,15 +3741,15 @@ ${signaturesHtml}
         }
 
         if (courseObj && prog1Obj && profObj && rawCodeVal === rawCodeVal.trim()) {
-          const prVal = (prHoursKey && row[prHoursKey] !== undefined && String(row[prHoursKey]).trim() !== "") ? (Number(row[prHoursKey]) || 0) : 0;
-          const trVal = isHealthTech && trHoursKey && row[trHoursKey] !== undefined ? (Number(row[trHoursKey]) || 0) : 0;
-          const fldVal = isHealthTech && fldHoursKey && row[fldHoursKey] !== undefined ? (Number(row[fldHoursKey]) || 0) : 0;
+          const prVal = (prHoursKey && row[prHoursKey] !== undefined) ? (parseSafeNumber(row[prHoursKey]) || 0) : 0;
+          const trVal = isHealthTech && trHoursKey && row[trHoursKey] !== undefined ? (parseSafeNumber(row[trHoursKey]) || 0) : 0;
+          const fldVal = isHealthTech && fldHoursKey && row[fldHoursKey] !== undefined ? (parseSafeNumber(row[fldHoursKey]) || 0) : 0;
 
-          const stdCount = (stdCountKey && row[stdCountKey] !== undefined) ? (parseInt(row[stdCountKey]) || 0) : 0;
-          const grTh = (grThKey && row[grThKey] !== undefined) ? (parseInt(row[grThKey]) || 0) : 0;
-          const grPr = (grPrKey && row[grPrKey] !== undefined) ? (parseInt(row[grPrKey]) || 0) : 0;
-          const grTr = (isHealthTech && grTrKey && row[grTrKey] !== undefined) ? (parseInt(row[grTrKey]) || 0) : 0;
-          const grFld = (isHealthTech && grFldKey && row[grFldKey] !== undefined) ? (parseInt(row[grFldKey]) || 0) : 0;
+          const stdCount = (stdCountKey && row[stdCountKey] !== undefined) ? (parseInt(parseSafeNumber(row[stdCountKey])) || 0) : 0;
+          const grTh = (grThKey && row[grThKey] !== undefined) ? (parseInt(parseSafeNumber(row[grThKey])) || 0) : 0;
+          const grPr = (grPrKey && row[grPrKey] !== undefined) ? (parseInt(parseSafeNumber(row[grPrKey])) || 0) : 0;
+          const grTr = (isHealthTech && grTrKey && row[grTrKey] !== undefined) ? (parseInt(parseSafeNumber(row[grTrKey])) || 0) : 0;
+          const grFld = (isHealthTech && grFldKey && row[grFldKey] !== undefined) ? (parseInt(parseSafeNumber(row[grFldKey])) || 0) : 0;
 
           const cReqTh = (Number(courseObj.theory_hours) || 0) * grTh;
           const cReqPr = (Number(courseObj.practical_hours) || 0) * grPr;
