@@ -68,7 +68,7 @@ const getProfAttendanceWeeksForSemester = (profObj, targetYear, targetSemester, 
   let parsedAyWeeks = {};
   if (profObj.academic_year_weeks) {
     if (typeof profObj.academic_year_weeks === "string") {
-      try { parsedAyWeeks = JSON.parse(profObj.academic_year_weeks); } catch (e) {}
+      try { parsedAyWeeks = JSON.parse(profObj.academic_year_weeks); } catch (e) { }
     } else if (typeof profObj.academic_year_weeks === "object") {
       parsedAyWeeks = profObj.academic_year_weeks;
     }
@@ -1380,7 +1380,7 @@ const StudyPlanPage = () => {
 
 
   // Helper to build rows for Table 1 with exact rowSpan merging for courses and medicine modules
-    const buildRenderRows = () => {
+  const buildRenderRows = () => {
     const activeFac = faculties.find(f => String(f.id) === String(selectedFaculty));
     const isMedicineFaculty = Boolean(activeFac && (activeFac.name.includes("الطب والجراحة") || activeFac.name.includes("طب بشري") || activeFac.name.includes("كلية الطب")) && !activeFac.name.includes("البيطري") && !activeFac.name.includes("الأسنان") && !activeFac.name.includes("الاسنان") && !activeFac.name.includes("تكنولوجيا"));
 
@@ -1402,7 +1402,7 @@ const StudyPlanPage = () => {
 
       // Filter out empty placeholder rows if there are assigned professors
       const assignedItems = rawGroupItems.filter(item => item.professor_id || Number(item.hours_actual_theory) > 0 || Number(item.hours_actual_practical) > 0 || Number(item.hours_actual_training) > 0 || Number(item.hours_actual_field) > 0);
-      
+
       // Deduplicate professor assignments under the course block to eliminate duplicate/empty ghost rows
       const profSeen = new Set();
       const distinctAssignedItems = [];
@@ -2288,7 +2288,7 @@ ${namesRow}
     });
   };
 
-    const renderSubHeaderTh = (text, isHealthTechParam, isForPrintParam) => {
+  const renderSubHeaderTh = (text, isHealthTechParam, isForPrintParam) => {
     const isVertical = isHealthTechParam && isForPrintParam;
     if (isVertical) {
       return `<th bgcolor="#4caf50" style="background-color: #4caf50 !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 8pt; padding: 2px 0px; -webkit-print-color-adjust: exact; print-color-adjust: exact;"><div style="display: inline-block; transform: rotate(-45deg); transform-origin: center; white-space: nowrap; margin: auto; padding: 2px 0; line-height: 1;"><font color="#ffffff">${text}</font></div></th>`;
@@ -2689,13 +2689,13 @@ ${namesRow}
     const totProfessors = new Set(planRows.map(r => r.professor_id).filter(Boolean)).size;
 
     const totalCols = isMedicine ? 15 : (isHealthTech ? 23 : (!isSingleProgram ? 16 : 15));
-    const model1ColWidths = isMedicine 
+    const model1ColWidths = isMedicine
       ? [200, 40, 40, 50, 40, 40, 40, 40, 130, 180, 60, 130, 40, 40, 80]
-      : (isHealthTech 
-          ? [160, 45, 22, 22, 22, 22, 35, 22, 22, 22, 22, 22, 22, 22, 22, 140, 50, 90, 22, 22, 22, 22, 60]
-          : (isSingleProgram 
-              ? [220, 55, 35, 35, 50, 35, 35, 35, 35, 180, 55, 130, 40, 40, 65]
-              : [210, 55, 135, 40, 40, 55, 40, 40, 40, 40, 185, 60, 135, 43, 43, 80]));
+      : (isHealthTech
+        ? [160, 45, 22, 22, 22, 22, 35, 22, 22, 22, 22, 22, 22, 22, 22, 140, 50, 90, 22, 22, 22, 22, 60]
+        : (isSingleProgram
+          ? [220, 55, 35, 35, 50, 35, 35, 35, 35, 180, 55, 130, 40, 40, 65]
+          : [210, 55, 135, 40, 40, 55, 40, 40, 40, 40, 185, 60, 135, 43, 43, 80]));
     const signaturesHtml = renderSignaturesExcel(signatures, totalCols, model1ColWidths);
     const footerSummaryHtml = isForPrint ? "" : (
       isMedicine ? `
@@ -3161,8 +3161,8 @@ ${signaturesHtml}
     const model2ColWidths = isHealthTech
       ? [35, 190, 60, 140, 200, 50, 140, 60, 40, 40, 40, 40, 40, 40, 40, 40, 80]
       : (isSingleProgram
-          ? [35, 190, 60, 140, 200, 50, 60, 40, 40, 50, 50, 80]
-          : [35, 190, 60, 140, 200, 50, 140, 60, 40, 40, 50, 50, 80]);
+        ? [35, 190, 60, 140, 200, 50, 60, 40, 40, 50, 50, 80]
+        : [35, 190, 60, 140, 200, 50, 140, 60, 40, 40, 50, 50, 80]);
     const signaturesHtml = renderSignaturesExcel(signatures, totalCols, model2ColWidths);
     const tableHeadersHtml = `
     <tr class="header-row-main" height="34" style="height: 26pt; mso-height-source: userset;">
@@ -3523,6 +3523,35 @@ ${signaturesHtml}
         cell.font = { name: "Cairo", size: 10 };
       });
 
+      // Sample Row 2 (يوضح كيفية إضافة أستاذ آخر لنفس المقرر مع ترك بيانات المقرر فارغة لوراثتها تلقائياً)
+      let sampleNatId2 = "29405051809876";
+      if (professors && professors.length > 1 && professors[1].national_id) {
+        sampleNatId2 = professors[1].national_id;
+      }
+      const sampleRowData2 = {
+        course_code: "", // ترك فارغ لوراثة كود المقرر والبرنامج والطلاب تلقائياً
+        program_1: "",
+        program_2: "",
+        student_count: "",
+        groups_theory: "",
+        groups_practical: "",
+        national_id: sampleNatId2,
+        hours_theory: 0,
+        hours_practical: 2
+      };
+      if (isHealthTech) {
+        sampleRowData2.groups_training = "";
+        sampleRowData2.groups_field = "";
+        sampleRowData2.hours_training = 0;
+        sampleRowData2.hours_field = 2;
+      }
+      const row2 = worksheet.addRow(sampleRowData2);
+      row2.height = 25;
+      row2.eachCell((cell) => {
+        cell.alignment = { vertical: "middle", horizontal: "center" };
+        cell.font = { name: "Cairo", size: 10 };
+      });
+
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -3676,50 +3705,114 @@ ${signaturesHtml}
         return isNaN(num) ? null : num;
       };
 
+      let lastValidCourseContext = null;
+
       rawRows.forEach((row, idx) => {
         const rowNum = idx + 2;
 
         const values = Object.values(row).map(v => String(v || '').trim()).filter(Boolean);
         if (values.length === 0) return;
 
-        // 1. كود المقرر (تحقق المسافات الزائدة وصحة الكود) - إلزامي
+        // 1. كود المقرر: إذا تم كتابته نتحقق منه، وإذا تُرك فارغاً نقوم بوراثة بيانات المقرر السابق تلقائياً (Forward-Fill)
         const rawCodeVal = row[codeKey] !== undefined ? String(row[codeKey]) : "";
-        if (!rawCodeVal.trim()) {
-          errors.push(`الصف ${rowNum}: كود المقرر حقل إلزامي مطلوب.`);
-          return;
-        }
-
-        if (rawCodeVal !== rawCodeVal.trim()) {
-          errors.push(`الصف ${rowNum}: كود المقرر "${rawCodeVal}" يحتوي على مسافة زائدة في البداية أو النهاية، يرجى إزالتها وتصحيح الكود.`);
-        }
-
         const cleanCode = rawCodeVal.trim();
-        let courseObj = targetCourses.find(c => c.code && c.code.trim().toUpperCase() === cleanCode.toUpperCase());
-        if (!courseObj) {
-          const noSpaceCode = cleanCode.replace(/\s+/g, '').toUpperCase();
-          courseObj = targetCourses.find(c => c.code && c.code.trim().replace(/\s+/g, '').toUpperCase() === noSpaceCode);
-        }
-        if (!courseObj) {
-          errors.push(`الصف ${rowNum}: كود المقرر "${cleanCode}" غير مسجل في مقررات ${facName}.`);
-        }
+        const hasCode = Boolean(cleanCode);
 
-        // 2. اسم البرنامج 1 - إلزامي (مع التقريب والتطابق العربي الذكي)
-        const rawProg1Val = row[prog1Key] !== undefined ? String(row[prog1Key]).trim() : "";
-        if (!rawProg1Val) {
-          errors.push(`الصف ${rowNum}: اسم البرنامج 1 حقل إلزامي مطلوب.`);
-        }
-        const prog1Obj = rawProg1Val ? findMatchingProgram(rawProg1Val) : null;
-        if (rawProg1Val && !prog1Obj) {
-          errors.push(`الصف ${rowNum}: اسم البرنامج 1 "${rawProg1Val}" غير مسجل ضمن برامج ${facName}.`);
-        }
-
-        // 3. اسم البرنامج 2 (اختياري)
-        const rawProg2Val = (prog2Key && row[prog2Key] !== undefined) ? String(row[prog2Key]).trim() : "";
+        let courseObj = null;
+        let prog1Obj = null;
         let prog2Obj = null;
-        if (rawProg2Val) {
-          prog2Obj = findMatchingProgram(rawProg2Val);
-          if (!prog2Obj) {
-            errors.push(`الصف ${rowNum}: اسم البرنامج 2 "${rawProg2Val}" غير مسجل ضمن برامج ${facName}.`);
+        let stdCount = 0;
+        let grTh = 0;
+        let grPr = 0;
+        let grTr = 0;
+        let grFld = 0;
+
+        if (hasCode) {
+          if (rawCodeVal !== cleanCode) {
+            errors.push(`الصف ${rowNum}: كود المقرر "${rawCodeVal}" يحتوي على مسافة زائدة في البداية أو النهاية، يرجى إزالتها وتصحيح الكود.`);
+          }
+
+          courseObj = targetCourses.find(c => c.code && c.code.trim().toUpperCase() === cleanCode.toUpperCase());
+          if (!courseObj) {
+            const noSpaceCode = cleanCode.replace(/\s+/g, '').toUpperCase();
+            courseObj = targetCourses.find(c => c.code && c.code.trim().replace(/\s+/g, '').toUpperCase() === noSpaceCode);
+          }
+          if (!courseObj) {
+            errors.push(`الصف ${rowNum}: كود المقرر "${cleanCode}" غير مسجل في مقررات ${facName}.`);
+          }
+
+          // اسم البرنامج 1
+          const rawProg1Val = row[prog1Key] !== undefined ? String(row[prog1Key]).trim() : "";
+          if (rawProg1Val) {
+            prog1Obj = findMatchingProgram(rawProg1Val);
+            if (!prog1Obj) {
+              errors.push(`الصف ${rowNum}: اسم البرنامج 1 "${rawProg1Val}" غير مسجل ضمن برامج ${facName}.`);
+            }
+          } else if (lastValidCourseContext && courseObj && lastValidCourseContext.courseObj?.code === courseObj.code) {
+            // وراثة اسم البرنامج إذا كان نفس كود المقرر وترك البرنامج فارغاً
+            prog1Obj = lastValidCourseContext.prog1Obj;
+          } else {
+            errors.push(`الصف ${rowNum}: اسم البرنامج 1 حقل إلزامي مطلوب.`);
+          }
+
+          // اسم البرنامج 2 (اختياري)
+          const rawProg2Val = (prog2Key && row[prog2Key] !== undefined) ? String(row[prog2Key]).trim() : "";
+          if (rawProg2Val) {
+            prog2Obj = findMatchingProgram(rawProg2Val);
+            if (!prog2Obj) {
+              errors.push(`الصف ${rowNum}: اسم البرنامج 2 "${rawProg2Val}" غير مسجل ضمن برامج ${facName}.`);
+            }
+          } else if (lastValidCourseContext && courseObj && lastValidCourseContext.courseObj?.code === courseObj.code) {
+            prog2Obj = lastValidCourseContext.prog2Obj;
+          }
+
+          // عدد الطلاب والمجموعات
+          stdCount = (stdCountKey && row[stdCountKey] !== undefined && String(row[stdCountKey]).trim() !== "")
+            ? (parseInt(parseSafeNumber(row[stdCountKey])) || 0)
+            : (lastValidCourseContext && courseObj && lastValidCourseContext.courseObj?.code === courseObj.code ? lastValidCourseContext.stdCount : 0);
+
+          grTh = (grThKey && row[grThKey] !== undefined && String(row[grThKey]).trim() !== "")
+            ? (parseInt(parseSafeNumber(row[grThKey])) || 0)
+            : (lastValidCourseContext && courseObj && lastValidCourseContext.courseObj?.code === courseObj.code ? lastValidCourseContext.grTh : 0);
+
+          grPr = (grPrKey && row[grPrKey] !== undefined && String(row[grPrKey]).trim() !== "")
+            ? (parseInt(parseSafeNumber(row[grPrKey])) || 0)
+            : (lastValidCourseContext && courseObj && lastValidCourseContext.courseObj?.code === courseObj.code ? lastValidCourseContext.grPr : 0);
+
+          grTr = (isHealthTech && grTrKey && row[grTrKey] !== undefined && String(row[grTrKey]).trim() !== "")
+            ? (parseInt(parseSafeNumber(row[grTrKey])) || 0)
+            : (lastValidCourseContext && courseObj && lastValidCourseContext.courseObj?.code === courseObj.code ? lastValidCourseContext.grTr : 0);
+
+          grFld = (isHealthTech && grFldKey && row[grFldKey] !== undefined && String(row[grFldKey]).trim() !== "")
+            ? (parseInt(parseSafeNumber(row[grFldKey])) || 0)
+            : (lastValidCourseContext && courseObj && lastValidCourseContext.courseObj?.code === courseObj.code ? lastValidCourseContext.grFld : 0);
+
+          // حفظ السياق للاستخدام في الصفوف التالية في حال تُركت فارغة
+          if (courseObj && prog1Obj) {
+            lastValidCourseContext = {
+              courseObj,
+              prog1Obj,
+              prog2Obj,
+              stdCount,
+              grTh,
+              grPr,
+              grTr,
+              grFld
+            };
+          }
+        } else {
+          // كود المقرر فارغ: وراثة بيانات المقرر السابق تلقائياً
+          if (lastValidCourseContext) {
+            courseObj = lastValidCourseContext.courseObj;
+            prog1Obj = lastValidCourseContext.prog1Obj;
+            prog2Obj = lastValidCourseContext.prog2Obj;
+            stdCount = lastValidCourseContext.stdCount;
+            grTh = lastValidCourseContext.grTh;
+            grPr = lastValidCourseContext.grPr;
+            grTr = lastValidCourseContext.grTr;
+            grFld = lastValidCourseContext.grFld;
+          } else {
+            errors.push(`الصف ${rowNum}: كود المقرر غير محدد ولا يوجد مقرر سابق نشط لوراثة بياناته.`);
           }
         }
 
@@ -3744,16 +3837,10 @@ ${signaturesHtml}
           }
         }
 
-        if (courseObj && prog1Obj && profObj && rawCodeVal === rawCodeVal.trim()) {
+        if (courseObj && prog1Obj && profObj) {
           const prVal = (prHoursKey && row[prHoursKey] !== undefined) ? (parseSafeNumber(row[prHoursKey]) || 0) : 0;
           const trVal = isHealthTech && trHoursKey && row[trHoursKey] !== undefined ? (parseSafeNumber(row[trHoursKey]) || 0) : 0;
           const fldVal = isHealthTech && fldHoursKey && row[fldHoursKey] !== undefined ? (parseSafeNumber(row[fldHoursKey]) || 0) : 0;
-
-          const stdCount = (stdCountKey && row[stdCountKey] !== undefined) ? (parseInt(parseSafeNumber(row[stdCountKey])) || 0) : 0;
-          const grTh = (grThKey && row[grThKey] !== undefined) ? (parseInt(parseSafeNumber(row[grThKey])) || 0) : 0;
-          const grPr = (grPrKey && row[grPrKey] !== undefined) ? (parseInt(parseSafeNumber(row[grPrKey])) || 0) : 0;
-          const grTr = (isHealthTech && grTrKey && row[grTrKey] !== undefined) ? (parseInt(parseSafeNumber(row[grTrKey])) || 0) : 0;
-          const grFld = (isHealthTech && grFldKey && row[grFldKey] !== undefined) ? (parseInt(parseSafeNumber(row[grFldKey])) || 0) : 0;
 
           const cReqTh = (Number(courseObj.theory_hours) || 0) * grTh;
           const cReqPr = (Number(courseObj.practical_hours) || 0) * grPr;
@@ -3823,109 +3910,14 @@ ${signaturesHtml}
       return;
     }
 
-    let updatedCount = 0;
-    let addedCount = 0;
-
     if (importMode === "replace") {
       setPlanRows(importPreviewData);
-      addedCount = importPreviewData.length;
-    } else if (importMode === "append") {
-      setPlanRows(prev => [...prev, ...importPreviewData]);
-      addedCount = importPreviewData.length;
     } else {
-      // Default: Smart Merge / Update existing & add new
-      setPlanRows(prev => {
-        const currentRows = [...prev];
-        importPreviewData.forEach(newRow => {
-          const newCourseKey = String(newRow.course_id || newRow.base_course_id || '');
-          const newProfId = String(newRow.professor_id || '');
-          const newCode = (newRow.code || '').trim().toUpperCase();
-
-          // 1. Check exact match on (course + professor)
-          const exactIdx = currentRows.findIndex(r => {
-            const rCourseKey = String(r.course_id || r.base_course_id || '');
-            const rProfId = String(r.professor_id || '');
-            const codeMatch = r.code && newCode && r.code.trim().toUpperCase() === newCode;
-            return (rCourseKey === newCourseKey || codeMatch) && rProfId === newProfId && rProfId !== '';
-          });
-
-          if (exactIdx !== -1) {
-            // Update existing row
-            currentRows[exactIdx] = {
-              ...currentRows[exactIdx],
-              student_count: (newRow.student_count !== undefined && newRow.student_count !== null && newRow.student_count !== 0) ? newRow.student_count : currentRows[exactIdx].student_count,
-              groups_theory: newRow.groups_theory,
-              groups_practical: newRow.groups_practical,
-              groups_training: newRow.groups_training,
-              groups_field: newRow.groups_field,
-              groups_activity: newRow.groups_activity,
-              hours_actual_theory: newRow.hours_actual_theory,
-              hours_actual_practical: newRow.hours_actual_practical,
-              hours_actual_training: newRow.hours_actual_training,
-              hours_actual_field: newRow.hours_actual_field,
-              req_theory: newRow.req_theory,
-              req_practical: newRow.req_practical,
-              req_training: newRow.req_training,
-              req_field: newRow.req_field,
-              program_id: newRow.program_id || currentRows[exactIdx].program_id,
-              program_ids: (newRow.program_ids && newRow.program_ids.length > 0) ? newRow.program_ids : currentRows[exactIdx].program_ids,
-              program_names: newRow.program_names || currentRows[exactIdx].program_names
-            };
-            updatedCount++;
-          } else {
-            // 2. Check if the course exists with unassigned / placeholder professor
-            const unassignedIdx = currentRows.findIndex(r => {
-              const rCourseKey = String(r.course_id || r.base_course_id || '');
-              const codeMatch = r.code && newCode && r.code.trim().toUpperCase() === newCode;
-              return (rCourseKey === newCourseKey || codeMatch) && (!r.professor_id || r.professor_id === '');
-            });
-
-            if (unassignedIdx !== -1) {
-              currentRows[unassignedIdx] = {
-                ...currentRows[unassignedIdx],
-                professor_id: newRow.professor_id,
-                professor_name: newRow.professor_name,
-                prof_job_title: newRow.prof_job_title,
-                prof_workplace: newRow.prof_workplace,
-                student_count: (newRow.student_count !== undefined && newRow.student_count !== null && newRow.student_count !== 0) ? newRow.student_count : currentRows[unassignedIdx].student_count,
-                groups_theory: newRow.groups_theory,
-                groups_practical: newRow.groups_practical,
-                groups_training: newRow.groups_training,
-                groups_field: newRow.groups_field,
-                groups_activity: newRow.groups_activity,
-                hours_actual_theory: newRow.hours_actual_theory,
-                hours_actual_practical: newRow.hours_actual_practical,
-                hours_actual_training: newRow.hours_actual_training,
-                hours_actual_field: newRow.hours_actual_field,
-                req_theory: newRow.req_theory,
-                req_practical: newRow.req_practical,
-                req_training: newRow.req_training,
-                req_field: newRow.req_field,
-                program_id: newRow.program_id || currentRows[unassignedIdx].program_id,
-                program_ids: (newRow.program_ids && newRow.program_ids.length > 0) ? newRow.program_ids : currentRows[unassignedIdx].program_ids,
-                program_names: newRow.program_names || currentRows[unassignedIdx].program_names
-              };
-              updatedCount++;
-            } else {
-              // 3. New record
-              currentRows.push({ ...newRow, _key: Date.now() + Math.random() });
-              addedCount++;
-            }
-          }
-        });
-        return currentRows;
-      });
+      setPlanRows(prev => [...prev, ...importPreviewData]);
     }
 
     setShowImportModal(false);
-
-    if (importMode === "merge") {
-      let msg = `تم تحديث (${updatedCount}) مقرر مسبق، وإضافة (${addedCount}) مقرر جديد بنجاح!`;
-      if (importErrors.length > 0) {
-        msg += ` (وتم استبعاد ${importErrors.length} سجل بها أخطاء)`;
-      }
-      toast.success(msg + ' يرجى مراجعة الجدول ثم الضغط على "حفظ الخطة".');
-    } else if (importErrors.length > 0) {
+    if (importErrors.length > 0) {
       toast.success(`تم استيراد (${importPreviewData.length}) سجل بنجاح في جدول الخطة، وتم استبعاد (${importErrors.length}) سجل بها أخطاء! يرجى مراجعة الجدول ثم الضغط على "حفظ الخطة".`);
     } else {
       toast.success(`تم استيراد كافة السجلات (${importPreviewData.length}) بنجاح في جدول الخطة الدراسية! يرجى مراجعتها ثم الضغط على "حفظ الخطة".`);
@@ -3997,17 +3989,17 @@ ${signaturesHtml}
           <Button variant="warning" className="fw-bold text-white shadow-sm" onClick={openModal} style={{ backgroundColor: "#d97706", borderColor: "#d97706" }}>
             <FaPlus className="ms-2" /> إضافة مقرر للخطة
           </Button>
-          <Button 
-            variant="warning" 
-            className={`fw-bold shadow-sm btn-copy-plan-glow ${isCopyGlowActive ? 'glow-active' : ''}`} 
+          <Button
+            variant="warning"
+            className={`fw-bold shadow-sm btn-copy-plan-glow ${isCopyGlowActive ? 'glow-active' : ''}`}
             onClick={handleOpenCopyModal}
             style={{ color: '#78350f' }}
           >
             <FaCopy className="ms-2" style={{ color: '#78350f' }} /> نسخ خطة من عام سابق
           </Button>
-          <Button 
-            variant="success" 
-            className="fw-bold text-white shadow-sm d-flex align-items-center gap-2" 
+          <Button
+            variant="success"
+            className="fw-bold text-white shadow-sm d-flex align-items-center gap-2"
             onClick={handleOpenImportModal}
             style={{ backgroundColor: "#15803d", borderColor: "#15803d" }}
           >
@@ -4419,10 +4411,10 @@ ${signaturesHtml}
                       !currentPlan
                         ? "يجب حفظ الخطة أولاً"
                         : (currentPlan?.is_finished && currentPlan?.is_approved
-                            ? "لا يمكن إلغاء إنهاء الخطة بعد اعتمادها (يمكن تفعيله فقط عند إلغاء اعتماد الخطة من المسؤول)"
-                            : (currentPlan?.is_finished && currentPlan?.is_reviewed_1
-                                ? "لا يمكن إلغاء الإنهاء بعد بدء المراجعة الأولى"
-                                : ""))
+                          ? "لا يمكن إلغاء إنهاء الخطة بعد اعتمادها (يمكن تفعيله فقط عند إلغاء اعتماد الخطة من المسؤول)"
+                          : (currentPlan?.is_finished && currentPlan?.is_reviewed_1
+                            ? "لا يمكن إلغاء الإنهاء بعد بدء المراجعة الأولى"
+                            : ""))
                     }
                     onClick={() => handleWorkflowAction(currentPlan?.is_finished ? "cancel_finish" : "finish", currentPlan?.is_finished ? "إلغاء إنهاء الخطة" : "إنهاء الخطة")}
                   >
@@ -5462,14 +5454,14 @@ ${signaturesHtml}
 
                 const profOtherCoursesHours = pRow.professor_id
                   ? planRows
-                      .filter(r => String(r.base_course_id || r.course_id) !== String(targetCourseId) && String(r.professor_id) === String(pRow.professor_id))
-                      .reduce((acc, r) => ({
-                        th: acc.th + (Number(r.hours_actual_theory) || 0),
-                        pr: acc.pr + (Number(r.hours_actual_practical) || 0),
-                        tr: acc.tr + (Number(r.hours_actual_training) || 0),
-                        fld: acc.fld + (Number(r.hours_actual_field) || 0),
-                        tot: acc.tot + (Number(r.hours_actual_theory) || 0) + (Number(r.hours_actual_practical) || 0) + (Number(r.hours_actual_training) || 0) + (Number(r.hours_actual_field) || 0)
-                      }), { th: 0, pr: 0, tr: 0, fld: 0, tot: 0 })
+                    .filter(r => String(r.base_course_id || r.course_id) !== String(targetCourseId) && String(r.professor_id) === String(pRow.professor_id))
+                    .reduce((acc, r) => ({
+                      th: acc.th + (Number(r.hours_actual_theory) || 0),
+                      pr: acc.pr + (Number(r.hours_actual_practical) || 0),
+                      tr: acc.tr + (Number(r.hours_actual_training) || 0),
+                      fld: acc.fld + (Number(r.hours_actual_field) || 0),
+                      tot: acc.tot + (Number(r.hours_actual_theory) || 0) + (Number(r.hours_actual_practical) || 0) + (Number(r.hours_actual_training) || 0) + (Number(r.hours_actual_field) || 0)
+                    }), { th: 0, pr: 0, tr: 0, fld: 0, tot: 0 })
                   : { th: 0, pr: 0, tr: 0, fld: 0, tot: 0 };
 
                 const otherTheoryHours = pRow.professor_id
@@ -6292,17 +6284,17 @@ ${signaturesHtml}
       </Modal>
 
       {/* ── Import Study Plan Modal ── */}
-      <Modal 
-        show={showImportModal} 
-        onHide={() => setShowImportModal(false)} 
-        size="xl" 
-        centered 
-        dir="rtl" 
+      <Modal
+        show={showImportModal}
+        onHide={() => setShowImportModal(false)}
+        size="xl"
+        centered
+        dir="rtl"
         backdrop="static"
       >
         <Modal.Header closeButton style={{ backgroundColor: "#15803d" }}>
           <Modal.Title className="fw-bold text-white d-flex align-items-center gap-2">
-            <FaFileExcel className="fs-4" /> استيراد الخطة الدراسية من ملف Excel 
+            <FaFileExcel className="fs-4" /> استيراد الخطة الدراسية من ملف Excel
           </Modal.Title>
         </Modal.Header>
         <Modal.Body className="p-4" style={{ backgroundColor: "#f8fafc" }}>
@@ -6336,8 +6328,8 @@ ${signaturesHtml}
                   </div>
                 </div>
 
-                <Button 
-                  variant="success" 
+                <Button
+                  variant="success"
                   className="px-4 py-2 fw-bold d-flex align-items-center gap-2 shadow-sm"
                   onClick={handleDownloadImportTemplate}
                   disabled={isDownloadingTemplate}
@@ -6363,14 +6355,14 @@ ${signaturesHtml}
                 <span className="badge bg-success rounded-pill px-3 py-2">2</span>
                 <span>رفع ملف الخطة بعد تعبئته (Excel)</span>
               </h5>
-              
+
               <div className="border border-2 border-dashed rounded-3 p-4 text-center bg-white" style={{ borderColor: "#cbd5e1" }}>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  accept=".xlsx, .xls" 
-                  onChange={handleProcessImportFile} 
-                  style={{ display: "none" }} 
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".xlsx, .xls"
+                  onChange={handleProcessImportFile}
+                  style={{ display: "none" }}
                   id="excelImportFileInput"
                 />
                 <FaFileUpload className="text-success mb-2" size={40} />
@@ -6378,9 +6370,9 @@ ${signaturesHtml}
                 <p className="text-muted small mb-3">
                   سيقوم النظام بفحص كود المقرر، البرامج، والرقم القومي للأساتذة ومطابقتها مع قاعدة البيانات بدقة.
                 </p>
-                <Button 
-                  variant="success" 
-                  className="fw-bold px-4 py-2" 
+                <Button
+                  variant="success"
+                  className="fw-bold px-4 py-2"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={importing}
                   style={{ backgroundColor: "#15803d", borderColor: "#15803d" }}
@@ -6409,7 +6401,7 @@ ${signaturesHtml}
             <Alert variant="warning" className="border-0 shadow-sm mb-4" style={{ borderRadius: "10px", backgroundColor: "#fffbeb", borderRight: "5px solid #d97706" }}>
               <div className="d-flex align-items-center gap-2 mb-2 fw-bold fs-6 text-danger">
                 <FaExclamationTriangle size={20} className="text-danger flex-shrink-0" />
-                <span>تم استبعاد ({importErrors.length}) سجل لوجود أخطاء بها (لن يتم استيرادها):</span>
+                <span>تم استبعاد ({importErrors.length}) صف لوجود أخطاء بها (لن يتم استيرادها):</span>
               </div>
               <ul className="mb-0 pe-4 small" style={{ maxHeight: "180px", overflowY: "auto", lineHeight: "1.8" }}>
                 {importErrors.map((err, i) => (
@@ -6428,24 +6420,14 @@ ${signaturesHtml}
                     <FaCheckCircle className="text-success" />
                     <span>جاهز للاستيراد ({importPreviewData.length} سجل صحيح ومطابق لقاعدة البيانات)</span>
                   </h5>
-                  <div className="d-flex align-items-center gap-2 flex-wrap">
+                  <div className="d-flex align-items-center gap-2">
                     <span className="fw-bold small text-muted">طريقة الإدراج:</span>
-                    <Form.Check
-                      inline
-                      type="radio"
-                      id="importModeMerge"
-                      name="importMode"
-                      label="تحديث المقررات الحالية وإضافة الجديد (دمج ذكي)"
-                      checked={importMode === "merge"}
-                      onChange={() => setImportMode("merge")}
-                      className="fw-bold small text-success"
-                    />
                     <Form.Check
                       inline
                       type="radio"
                       id="importModeAppend"
                       name="importMode"
-                      label="إضافة كصفوف جديدة فقط"
+                      label="إضافة للجدول الحالي"
                       checked={importMode === "append"}
                       onChange={() => setImportMode("append")}
                       className="fw-bold small"
@@ -6455,7 +6437,7 @@ ${signaturesHtml}
                       type="radio"
                       id="importModeReplace"
                       name="importMode"
-                      label="استبدال الجدول بالكامل"
+                      label="استبدال الجدول الحالي"
                       checked={importMode === "replace"}
                       onChange={() => setImportMode("replace")}
                       className="fw-bold small text-danger"
@@ -6502,10 +6484,10 @@ ${signaturesHtml}
           )}
         </Modal.Body>
         <Modal.Footer className="d-flex justify-content-between p-3 bg-light">
-          <Button 
-            variant="success" 
-            className="fw-bold px-4 py-2" 
-            onClick={handleConfirmImport} 
+          <Button
+            variant="success"
+            className="fw-bold px-4 py-2"
+            onClick={handleConfirmImport}
             disabled={importPreviewData.length === 0 || importing}
             style={{ backgroundColor: "#15803d", borderColor: "#15803d" }}
           >
