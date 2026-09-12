@@ -3985,26 +3985,38 @@ ${signaturesHtml}
 
       {/* ── 3. Add & Import Buttons (تختفي عند إنهاء الخطة) ── */}
       {!isPlanLocked && !loading && (
-        <div className="d-flex justify-content-start gap-2 mb-3 no-print flex-wrap">
-          <Button variant="warning" className="fw-bold text-white shadow-sm" onClick={openModal} style={{ backgroundColor: "#d97706", borderColor: "#d97706" }}>
-            <FaPlus className="ms-2" /> إضافة مقرر للخطة
-          </Button>
-          <Button
-            variant="warning"
-            className={`fw-bold shadow-sm btn-copy-plan-glow ${isCopyGlowActive ? 'glow-active' : ''}`}
-            onClick={handleOpenCopyModal}
-            style={{ color: '#78350f' }}
-          >
-            <FaCopy className="ms-2" style={{ color: '#78350f' }} /> نسخ خطة من عام سابق
-          </Button>
-          <Button
-            variant="success"
-            className="fw-bold text-white shadow-sm d-flex align-items-center gap-2"
-            onClick={handleOpenImportModal}
-            style={{ backgroundColor: "#15803d", borderColor: "#15803d" }}
-          >
-            <FaFileExcel className="ms-1 fs-5" /> استيراد الخطة من Excel
-          </Button>
+        <div className="d-flex justify-content-between align-items-center mb-3 no-print flex-wrap gap-2">
+          {/* الجانب الأيمن: إضافة مقرر واستيراد من Excel بجانبه */}
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <Button
+              variant="warning"
+              className="fw-bold text-white shadow-sm d-flex align-items-center gap-2 px-3"
+              onClick={openModal}
+              style={{ backgroundColor: "#d97706", borderColor: "#d97706" }}
+            >
+              <FaPlus className="ms-1" /> إضافة مقرر للخطة
+            </Button>
+            <Button
+              variant="success"
+              className="fw-bold text-white shadow-sm d-flex align-items-center gap-2 px-3"
+              onClick={handleOpenImportModal}
+              style={{ backgroundColor: "#16a34a", borderColor: "#16a34a" }}
+            >
+              <FaFileExcel className="ms-1 fs-5" /> استيراد الخطة من Excel
+            </Button>
+          </div>
+
+          {/* الجانب الأيسر: نسخ خطة من عام سابق */}
+          <div>
+            <Button
+              variant="warning"
+              className={`fw-bold shadow-sm btn-copy-plan-glow d-flex align-items-center gap-2 px-3 ${isCopyGlowActive ? 'glow-active' : ''}`}
+              onClick={handleOpenCopyModal}
+              style={{ color: '#78350f' }}
+            >
+              <FaCopy className="ms-1" style={{ color: '#78350f' }} /> نسخ خطة من عام سابق
+            </Button>
+          </div>
         </div>
       )}
 
