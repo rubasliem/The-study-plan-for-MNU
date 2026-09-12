@@ -6376,21 +6376,6 @@ ${signaturesHtml}
                         </span>
                       </div>
                     </div>
-
-                    <div className="col-12">
-                      <div className="p-2 bg-white rounded-2 border shadow-xs d-flex align-items-start gap-2">
-                        <span className="badge bg-success bg-opacity-20 text-success fw-bold px-2 py-1 mt-1 flex-shrink-0">
-                          نموذج التحميل التوضيحي
-                        </span>
-                        <div className="flex-grow-1">
-                          <strong>تم تحديث زر &quot;تحميل نموذج Excel المعتمد&quot; ليحتوي ملف Excel المُنزل على مثال عملي لمقرر مشترك بين أستاذين:</strong>
-                          <ul className="mb-0 pe-3 mt-1">
-                            <li><strong>الصف الأول:</strong> بيانات المقرر كاملة + الرقم القومي للأستاذ الأول وساعاته التدريسية.</li>
-                            <li><strong>الصف الثاني:</strong> خانات المقرر فارغة + الرقم القومي للأستاذ الثاني وساعاته التدريسية.</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
