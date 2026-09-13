@@ -4800,7 +4800,7 @@ def save_workload_deduction(
     type_info = f" ({hour_type_str})" if hour_type_str else ""
     course_info = f" من مقرر ({data.course_name})" if data.course_name else ""
     reason_str = data.reason.strip() if (data.reason and data.reason.strip()) else "بدون ذكر سبب"
-    action_text = f"تم انقاص عدد الساعات بسبب {reason_str} للدكتور {prof_name} بمقدار ({data.deducted_hours} ساعة{type_info}{course_info} في {weeks_str}) ({data.semester} - {data.academic_year}) في صفحة تحديد الأعباء"
+    action_text = f"تم انقاص عدد الساعات بسبب {reason_str} للدكتور {prof_name} بمقدار {data.deducted_hours} ساعة{type_info}{course_info} في {weeks_str} ({data.semester} - {data.academic_year}) في صفحة تحديد الأعباء"
     create_notification(db, data.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=data.academic_year, semester=data.semester)
     db.commit()
     
@@ -4846,7 +4846,7 @@ def update_workload_deduction(
     type_info = f" ({ded.hour_type})" if ded.hour_type else ""
     course_info = f" من مقرر ({ded.course_name})" if ded.course_name else ""
     reason_str = ded.reason.strip() if (ded.reason and ded.reason.strip()) else "بدون ذكر سبب"
-    action_text = f"تم تعديل انقاص عدد الساعات بسبب {reason_str} للدكتور {prof_name} بمقدار ({ded.deducted_hours} ساعة{type_info}{course_info} في {ded.week_name or 'أسبوع غير محدد'}) ({ded.semester} - {ded.academic_year}) في صفحة تحديد الأعباء"
+    action_text = f"تم تعديل انقاص عدد الساعات بسبب {reason_str} للدكتور {prof_name} بمقدار {ded.deducted_hours} ساعة{type_info}{course_info} في {ded.week_name or 'أسبوع غير محدد'} ({ded.semester} - {ded.academic_year}) في صفحة تحديد الأعباء"
     create_notification(db, ded.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=ded.academic_year, semester=ded.semester)
     db.commit()
     
