@@ -400,6 +400,10 @@ class FacultyWorkloadLimit(Base):
     min_hours_per_day = Column(Float, default=0.0, nullable=True)
     max_hours_per_semester = Column(Float, default=0.0, nullable=True)
     min_hours_per_semester = Column(Float, default=0.0, nullable=True)
+
+    # صيغ المعادلات الديناميكية لاحتساب الحد الأقصى لساعات اليوم والانتداب
+    faculty_formula = Column(String, nullable=True) # معادلة أعضاء هيئة التدريس
+    assistant_formula = Column(String, nullable=True) # معادلة الهيئة المعاونة
     
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

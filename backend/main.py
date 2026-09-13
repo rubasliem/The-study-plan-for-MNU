@@ -4396,9 +4396,35 @@ def get_workload_limits(
             "max_tutorial_hours_per_course": 0.0,
             "max_field_hours_per_course": 0.0,
             "max_hours_per_day": 0.0,
-            "min_hours_per_day": 0.0
+            "min_hours_per_day": 0.0,
+            "faculty_formula": "[ساعات النظري] + ([مجموع غير النظري] / 2) <= 6 * [أيام الانتداب]",
+            "assistant_formula": "[مجموع غير النظري] <= 8 * [أيام الانتداب]"
         }
-    return limit
+    return {
+        "id": limit.id,
+        "faculty_id": limit.faculty_id,
+        "academic_year": limit.academic_year,
+        "semester": limit.semester,
+        "max_faculty_hours_per_day": limit.max_faculty_hours_per_day,
+        "max_assistant_hours_per_day": limit.max_assistant_hours_per_day,
+        "min_theory_hours_per_day": limit.min_theory_hours_per_day,
+        "max_theory_hours_per_day": limit.max_theory_hours_per_day,
+        "min_practical_hours_per_day": limit.min_practical_hours_per_day,
+        "max_practical_hours_per_day": limit.max_practical_hours_per_day,
+        "min_tutorial_hours_per_day": limit.min_tutorial_hours_per_day,
+        "max_tutorial_hours_per_day": limit.max_tutorial_hours_per_day,
+        "min_field_hours_per_day": limit.min_field_hours_per_day,
+        "max_field_hours_per_day": limit.max_field_hours_per_day,
+        "max_theory_hours_per_course": limit.max_theory_hours_per_course,
+        "max_practical_hours_per_course": limit.max_practical_hours_per_course,
+        "max_tutorial_hours_per_course": limit.max_tutorial_hours_per_course,
+        "max_field_hours_per_course": limit.max_field_hours_per_course,
+        "max_hours_per_day": limit.max_hours_per_day,
+        "min_hours_per_day": limit.min_hours_per_day,
+        "faculty_formula": limit.faculty_formula or "[ساعات النظري] + ([مجموع غير النظري] / 2) <= 6 * [أيام الانتداب]",
+        "assistant_formula": limit.assistant_formula or "[مجموع غير النظري] <= 8 * [أيام الانتداب]",
+        "updated_at": limit.updated_at.isoformat() if limit.updated_at else None
+    }
 
 @app.post("/api/workload/limits")
 def save_workload_limits(
@@ -4408,66 +4434,87 @@ def save_workload_limits(
 ):
     if current_user.role in [models.UserRole.faculty_admin, models.UserRole.student_affairs, models.UserRole.reviewer] and not getattr(current_user, 'perm_view_professors_load', False):
         raise HTTPException(status_code=403, detail="لا تمتلك صلاحية تعديل حدود الأعباء التدريسية (عرض فقط)")
+
+    target_faculty_ids = []
+    if data.faculty_ids and len(data.faculty_ids) > 0:
+        target_faculty_ids = data.faculty_ids
+    elif data.faculty_id:
+        target_faculty_ids = [data.faculty_id]
+
+    if not target_faculty_ids:
+        raise HTTPException(status_code=400, detail="يرجى تحديد كلية واحدة على الأقل")
+
+    saved_limits = []
+    for fid in target_faculty_ids:
+        limit = db.query(models.FacultyWorkloadLimit).filter(
+            models.FacultyWorkloadLimit.faculty_id == fid,
+            models.FacultyWorkloadLimit.academic_year == data.academic_year,
+            models.FacultyWorkloadLimit.semester == data.semester
+        ).first()
         
-    limit = db.query(models.FacultyWorkloadLimit).filter(
-        models.FacultyWorkloadLimit.faculty_id == data.faculty_id,
-        models.FacultyWorkloadLimit.academic_year == data.academic_year,
-        models.FacultyWorkloadLimit.semester == data.semester
-    ).first()
-    
-    if limit:
-        limit.max_faculty_hours_per_day = data.max_faculty_hours_per_day if data.max_faculty_hours_per_day is not None else 6.0
-        limit.max_assistant_hours_per_day = data.max_assistant_hours_per_day if data.max_assistant_hours_per_day is not None else 8.0
-        limit.min_theory_hours_per_day = data.min_theory_hours_per_day
-        limit.max_theory_hours_per_day = data.max_theory_hours_per_day
-        limit.min_practical_hours_per_day = data.min_practical_hours_per_day
-        limit.max_practical_hours_per_day = data.max_practical_hours_per_day
-        limit.min_tutorial_hours_per_day = data.min_tutorial_hours_per_day
-        limit.max_tutorial_hours_per_day = data.max_tutorial_hours_per_day
-        limit.min_field_hours_per_day = data.min_field_hours_per_day
-        limit.max_field_hours_per_day = data.max_field_hours_per_day
-        limit.max_theory_hours_per_course = data.max_theory_hours_per_course or 0.0
-        limit.max_practical_hours_per_course = data.max_practical_hours_per_course or 0.0
-        limit.max_tutorial_hours_per_course = data.max_tutorial_hours_per_course or 0.0
-        limit.max_field_hours_per_course = data.max_field_hours_per_course or 0.0
-        limit.max_hours_per_day = data.max_hours_per_day or (data.max_theory_hours_per_day + data.max_practical_hours_per_day + data.max_tutorial_hours_per_day + data.max_field_hours_per_day)
-        limit.min_hours_per_day = data.min_hours_per_day or (data.min_theory_hours_per_day + data.min_practical_hours_per_day + data.min_tutorial_hours_per_day + data.min_field_hours_per_day)
-        limit.updated_at = datetime.utcnow()
-    else:
-        limit = models.FacultyWorkloadLimit(
-            faculty_id=data.faculty_id,
-            academic_year=data.academic_year,
-            semester=data.semester,
-            max_faculty_hours_per_day=data.max_faculty_hours_per_day if data.max_faculty_hours_per_day is not None else 6.0,
-            max_assistant_hours_per_day=data.max_assistant_hours_per_day if data.max_assistant_hours_per_day is not None else 8.0,
-            min_theory_hours_per_day=data.min_theory_hours_per_day,
-            max_theory_hours_per_day=data.max_theory_hours_per_day,
-            min_practical_hours_per_day=data.min_practical_hours_per_day,
-            max_practical_hours_per_day=data.max_practical_hours_per_day,
-            min_tutorial_hours_per_day=data.min_tutorial_hours_per_day,
-            max_tutorial_hours_per_day=data.max_tutorial_hours_per_day,
-            min_field_hours_per_day=data.min_field_hours_per_day,
-            max_field_hours_per_day=data.max_field_hours_per_day,
-            max_theory_hours_per_course=data.max_theory_hours_per_course or 0.0,
-            max_practical_hours_per_course=data.max_practical_hours_per_course or 0.0,
-            max_tutorial_hours_per_course=data.max_tutorial_hours_per_course or 0.0,
-            max_field_hours_per_course=data.max_field_hours_per_course or 0.0,
-            max_hours_per_day=data.max_hours_per_day or (data.max_theory_hours_per_day + data.max_practical_hours_per_day + data.max_tutorial_hours_per_day + data.max_field_hours_per_day),
-            min_hours_per_day=data.min_hours_per_day or (data.min_theory_hours_per_day + data.min_practical_hours_per_day + data.min_tutorial_hours_per_day + data.min_field_hours_per_day),
-        )
-        db.add(limit)
+        if limit:
+            limit.max_faculty_hours_per_day = data.max_faculty_hours_per_day if data.max_faculty_hours_per_day is not None else 6.0
+            limit.max_assistant_hours_per_day = data.max_assistant_hours_per_day if data.max_assistant_hours_per_day is not None else 8.0
+            limit.min_theory_hours_per_day = data.min_theory_hours_per_day
+            limit.max_theory_hours_per_day = data.max_theory_hours_per_day
+            limit.min_practical_hours_per_day = data.min_practical_hours_per_day
+            limit.max_practical_hours_per_day = data.max_practical_hours_per_day
+            limit.min_tutorial_hours_per_day = data.min_tutorial_hours_per_day
+            limit.max_tutorial_hours_per_day = data.max_tutorial_hours_per_day
+            limit.min_field_hours_per_day = data.min_field_hours_per_day
+            limit.max_field_hours_per_day = data.max_field_hours_per_day
+            limit.max_theory_hours_per_course = data.max_theory_hours_per_course or 0.0
+            limit.max_practical_hours_per_course = data.max_practical_hours_per_course or 0.0
+            limit.max_tutorial_hours_per_course = data.max_tutorial_hours_per_course or 0.0
+            limit.max_field_hours_per_course = data.max_field_hours_per_course or 0.0
+            limit.max_hours_per_day = data.max_hours_per_day or (data.max_theory_hours_per_day + data.max_practical_hours_per_day + data.max_tutorial_hours_per_day + data.max_field_hours_per_day)
+            limit.min_hours_per_day = data.min_hours_per_day or (data.min_theory_hours_per_day + data.min_practical_hours_per_day + data.min_tutorial_hours_per_day + data.min_field_hours_per_day)
+            limit.faculty_formula = data.faculty_formula
+            limit.assistant_formula = data.assistant_formula
+            limit.updated_at = datetime.utcnow()
+        else:
+            limit = models.FacultyWorkloadLimit(
+                faculty_id=fid,
+                academic_year=data.academic_year,
+                semester=data.semester,
+                max_faculty_hours_per_day=data.max_faculty_hours_per_day if data.max_faculty_hours_per_day is not None else 6.0,
+                max_assistant_hours_per_day=data.max_assistant_hours_per_day if data.max_assistant_hours_per_day is not None else 8.0,
+                min_theory_hours_per_day=data.min_theory_hours_per_day,
+                max_theory_hours_per_day=data.max_theory_hours_per_day,
+                min_practical_hours_per_day=data.min_practical_hours_per_day,
+                max_practical_hours_per_day=data.max_practical_hours_per_day,
+                min_tutorial_hours_per_day=data.min_tutorial_hours_per_day,
+                max_tutorial_hours_per_day=data.max_tutorial_hours_per_day,
+                min_field_hours_per_day=data.min_field_hours_per_day,
+                max_field_hours_per_day=data.max_field_hours_per_day,
+                max_theory_hours_per_course=data.max_theory_hours_per_course or 0.0,
+                max_practical_hours_per_course=data.max_practical_hours_per_course or 0.0,
+                max_tutorial_hours_per_course=data.max_tutorial_hours_per_course or 0.0,
+                max_field_hours_per_course=data.max_field_hours_per_course or 0.0,
+                max_hours_per_day=data.max_hours_per_day or (data.max_theory_hours_per_day + data.max_practical_hours_per_day + data.max_tutorial_hours_per_day + data.max_field_hours_per_day),
+                min_hours_per_day=data.min_hours_per_day or (data.min_theory_hours_per_day + data.min_practical_hours_per_day + data.min_tutorial_hours_per_day + data.min_field_hours_per_day),
+                faculty_formula=data.faculty_formula,
+                assistant_formula=data.assistant_formula
+            )
+            db.add(limit)
+        saved_limits.append(limit)
         
     db.commit()
-    db.refresh(limit)
+    for lim in saved_limits:
+        db.refresh(lim)
     
-    fac = db.query(models.Faculty).filter(models.Faculty.id == data.faculty_id).first()
-    fac_name = fac.name if fac else ""
+    fac_names = [f.name for f in db.query(models.Faculty).filter(models.Faculty.id.in_(target_faculty_ids)).all()]
+    fac_names_str = "، ".join(fac_names) if fac_names else "الكليات المحددة"
     user_role_str = get_user_role_display(current_user)
-    action_text = f"قام بتحديث حدود الأعباء التدريسية لكلية {fac_name} ({data.semester} - {data.academic_year})"
-    create_notification(db, data.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=data.academic_year, semester=data.semester)
+    action_text = f"قام بتحديث حدود ومعادلات الأعباء التدريسية لكلية ({fac_names_str}) ({data.semester} - {data.academic_year})"
+    create_notification(db, target_faculty_ids[0], f"{current_user.username} ({user_role_str})", action_text, academic_year=data.academic_year, semester=data.semester)
     db.commit()
     
-    return limit
+    return {
+        "message": f"تم حفظ وتحديث حدود ومعادلات الساعات لعدد {len(saved_limits)} كلية بنجاح",
+        "count": len(saved_limits),
+        "limit": saved_limits[0] if saved_limits else None
+    }
 
 @app.get("/api/workload/professor-courses")
 def get_workload_professor_courses(

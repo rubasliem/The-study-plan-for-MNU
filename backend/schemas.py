@@ -474,7 +474,8 @@ ProfessorOut.update_forward_refs()
 # 12. Schemas الخاص بحدود الأعباء (Faculty Workload Limits)
 # ==========================================
 class FacultyWorkloadLimitBase(BaseModel):
-    faculty_id: int
+    faculty_id: Optional[int] = None
+    faculty_ids: Optional[List[int]] = None
     academic_year: str
     semester: str
     max_faculty_hours_per_day: Optional[float] = 6.0
@@ -495,6 +496,8 @@ class FacultyWorkloadLimitBase(BaseModel):
     min_hours_per_day: Optional[float] = 0.0
     max_hours_per_semester: Optional[float] = 0.0
     min_hours_per_semester: Optional[float] = 0.0
+    faculty_formula: Optional[str] = None
+    assistant_formula: Optional[str] = None
 
 class FacultyWorkloadLimitCreate(FacultyWorkloadLimitBase):
     pass

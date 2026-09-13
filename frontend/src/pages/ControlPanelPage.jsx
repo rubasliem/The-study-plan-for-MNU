@@ -1,11 +1,17 @@
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import React, { useState, useEffect, useContext, useMemo, useRef } from 'react';
 import axios from 'axios';
 import Select from 'react-select';
 import { AuthContext } from '../context/AuthContext';
-import { Container, Card, Table, Form, Spinner, Button, InputGroup, Modal, Row, Col, Badge } from 'react-bootstrap';
-import { FaShieldAlt, FaEyeSlash, FaEye, FaSearch, FaUser, FaTimes, FaUndo, FaListUl, FaCheckCircle, FaBalanceScale, FaSave } from 'react-icons/fa';
+import { Container, Card, Table, Form, Spinner, Button, InputGroup, Modal, Row, Col, Badge, Dropdown } from 'react-bootstrap';
+import { FaShieldAlt, FaEyeSlash, FaEye, FaSearch, FaUser, FaTimes, FaUndo, FaListUl, FaCheckCircle, FaBalanceScale, FaSave, FaClock, FaRedo } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { confirmAction } from '../utils/confirmAlert';
+import { 
+    HOUR_VARIABLES, 
+    MATH_OPERATORS, 
+    DEFAULT_FACULTY_FORMULA, 
+    DEFAULT_ASSISTANT_FORMULA 
+} from '../utils/workloadFormula';
 
 const SIDEBAR_PAGES = [
     { id: 'dashboard', label: 'الجدول الرئيسي', icon: '📊' },
@@ -44,10 +50,14 @@ const ControlPanelPage = () => {
     const [loading, setLoading] = useState(true);
     const [draggedYearIndex, setDraggedYearIndex] = useState(null);
 
-    // Workload Limits State for Control Panel
-    const [selectedLimitFaculty, setSelectedLimitFaculty] = useState("");
+    // Workload Limits & Dynamic Formulas State for Control Panel
+    const [selectedLimitFaculties, setSelectedLimitFaculties] = useState([]);
     const [selectedLimitYear, setSelectedLimitYear] = useState("");
     const [selectedLimitSemester, setSelectedLimitSemester] = useState("الفصل الدراسي الأول");
+    const [facultyFormula, setFacultyFormula] = useState(DEFAULT_FACULTY_FORMULA);
+    const [assistantFormula, setAssistantFormula] = useState(DEFAULT_ASSISTANT_FORMULA);
+    const facultyInputRef = useRef(null);
+    const assistantInputRef = useRef(null);
     const [workloadLimitsLoading, setWorkloadLimitsLoading] = useState(false);
     const [workloadLimitsSaving, setWorkloadLimitsSaving] = useState(false);
     const [workloadLimits, setWorkloadLimits] = useState({
@@ -111,13 +121,15 @@ const ControlPanelPage = () => {
             setAcademicYears(yrsList);
 
             if (facList.length > 0) {
-                setSelectedLimitFaculty(prev => {
-                    if (prev) return prev;
-                    if (user?.role === 'faculty_professor' && user?.faculty_id) {
-                        return String(user.faculty_id);
+                if (user?.role === 'faculty_professor' && user?.faculty_id) {
+                    const myFac = facList.find(f => String(f.id) === String(user.faculty_id));
+                    if (myFac) {
+                        setSelectedLimitFaculties([{ value: String(myFac.id), label: myFac.name }]);
                     }
-                    return String(facList[0].id);
-                });
+                } else {
+                    // Default select all faculties for convenience
+                    setSelectedLimitFaculties(facList.map(f => ({ value: String(f.id), label: f.name })));
+                }
             }
             if (yrsList.length > 0) {
                 setSelectedLimitYear(prev => prev || yrsList[0].name);
@@ -142,30 +154,55 @@ const ControlPanelPage = () => {
         return faculties;
     }, [faculties, user]);
 
-    const selectedLimitFacultyObj = useMemo(() => {
-        return faculties.find(f => String(f.id) === String(selectedLimitFaculty));
-    }, [faculties, selectedLimitFaculty]);
-
     const isLimitHealthTechFaculty = useMemo(() => {
-        if (!selectedLimitFacultyObj) return false;
-        const name = selectedLimitFacultyObj.name || "";
-        return name.includes("العلوم الصحية") || name.includes("تكنولوجيا العلوم");
-    }, [selectedLimitFacultyObj]);
+        if (!selectedLimitFaculties || selectedLimitFaculties.length === 0) return false;
+        return selectedLimitFaculties.some(f => {
+            const name = f.label || "";
+            return name.includes("العلوم الصحية") || name.includes("تكنولوجيا العلوم");
+        });
+    }, [selectedLimitFaculties]);
 
-    // Fetch limits for Control Panel when faculty, year, or semester changes
+    // Insert token into formula input at cursor position
+    const insertToken = (target, token) => {
+        const isAssistant = target === 'assistant';
+        const formula = isAssistant ? assistantFormula : facultyFormula;
+        const setFormula = isAssistant ? setAssistantFormula : setFacultyFormula;
+        const inputRef = isAssistant ? assistantInputRef : facultyInputRef;
+
+        if (inputRef.current) {
+            const input = inputRef.current;
+            const start = input.selectionStart != null ? input.selectionStart : formula.length;
+            const end = input.selectionEnd != null ? input.selectionEnd : formula.length;
+            const newFormula = formula.substring(0, start) + token + formula.substring(end);
+            setFormula(newFormula);
+            setTimeout(() => {
+                if (inputRef.current) {
+                    inputRef.current.focus();
+                    inputRef.current.setSelectionRange(start + token.length, start + token.length);
+                }
+            }, 50);
+        } else {
+            setFormula(prev => prev + token);
+        }
+    };
+
+    // Fetch limits for Control Panel when faculty selection, year, or semester changes
     useEffect(() => {
-        if (!selectedLimitFaculty || !selectedLimitYear || !selectedLimitSemester) return;
+        if (!selectedLimitFaculties || selectedLimitFaculties.length === 0 || !selectedLimitYear || !selectedLimitSemester) return;
         const fetchLimits = async () => {
             setWorkloadLimitsLoading(true);
             try {
+                const primaryFacultyId = selectedLimitFaculties[0].value;
                 const res = await axios.get(`${API}/api/workload/limits`, {
                     params: {
-                        faculty_id: selectedLimitFaculty,
+                        faculty_id: primaryFacultyId,
                         academic_year: selectedLimitYear,
                         semester: selectedLimitSemester
                     }
                 });
                 const d = res.data || {};
+                setFacultyFormula(d.faculty_formula || DEFAULT_FACULTY_FORMULA);
+                setAssistantFormula(d.assistant_formula || DEFAULT_ASSISTANT_FORMULA);
                 setWorkloadLimits({
                     max_faculty_hours_per_day: d.max_faculty_hours_per_day != null ? Number(d.max_faculty_hours_per_day) : 6.0,
                     max_assistant_hours_per_day: d.max_assistant_hours_per_day != null ? Number(d.max_assistant_hours_per_day) : 8.0,
@@ -189,18 +226,26 @@ const ControlPanelPage = () => {
             }
         };
         fetchLimits();
-    }, [selectedLimitFaculty, selectedLimitYear, selectedLimitSemester]);
+    }, [selectedLimitFaculties, selectedLimitYear, selectedLimitSemester]);
 
     const handleSaveWorkloadLimits = async (e) => {
         e?.preventDefault();
+        if (!selectedLimitFaculties || selectedLimitFaculties.length === 0) {
+            toast.error("يرجى اختيار كلية واحدة على الأقل لتطبيق الحدود والمعادلات عليها");
+            return;
+        }
         setWorkloadLimitsSaving(true);
         try {
+            const facultyIds = selectedLimitFaculties.map(f => parseInt(f.value));
             await axios.post(`${API}/api/workload/limits`, {
-                faculty_id: parseInt(selectedLimitFaculty),
+                faculty_id: facultyIds[0],
+                faculty_ids: facultyIds,
                 academic_year: selectedLimitYear,
                 semester: selectedLimitSemester,
-                max_faculty_hours_per_day: parseFloat(workloadLimits.max_faculty_hours_per_day) || 6.0,
-                max_assistant_hours_per_day: parseFloat(workloadLimits.max_assistant_hours_per_day) || 8.0,
+                faculty_formula: facultyFormula || DEFAULT_FACULTY_FORMULA,
+                assistant_formula: assistantFormula || DEFAULT_ASSISTANT_FORMULA,
+                max_faculty_hours_per_day: 6.0,
+                max_assistant_hours_per_day: 8.0,
                 min_theory_hours_per_day: parseFloat(workloadLimits.min_theory_hours_per_day) || 0.0,
                 max_theory_hours_per_day: parseFloat(workloadLimits.max_theory_hours_per_day) || 0.0,
                 min_practical_hours_per_day: parseFloat(workloadLimits.min_practical_hours_per_day) || 0.0,
@@ -214,10 +259,10 @@ const ControlPanelPage = () => {
                 max_tutorial_hours_per_course: isLimitHealthTechFaculty ? (parseFloat(workloadLimits.max_tutorial_hours_per_course) || 0.0) : 0.0,
                 max_field_hours_per_course: isLimitHealthTechFaculty ? (parseFloat(workloadLimits.max_field_hours_per_course) || 0.0) : 0.0
             });
-            toast.success("تم حفظ وتحديث حدود ساعات الكلية بنجاح");
+            toast.success(`تم حفظ وتحديث معادلات وحدود الساعات لعدد (${facultyIds.length}) كلية بنجاح`);
         } catch (err) {
             console.error("Error saving workload limits", err);
-            toast.error(err.response?.data?.detail || "حدث خطأ أثناء حفظ الحدود");
+            toast.error(err.response?.data?.detail || "حدث خطأ أثناء حفظ الحدود والمعادلات");
         } finally {
             setWorkloadLimitsSaving(false);
         }
@@ -311,6 +356,30 @@ const ControlPanelPage = () => {
             color: '#212529',
             fontSize: '0.92rem',
             fontWeight: '600'
+        }),
+        multiValue: (base) => ({
+            ...base,
+            backgroundColor: '#e8f5e9',
+            borderRadius: '6px',
+            border: '1px solid #c8e6c9',
+            margin: '3px'
+        }),
+        multiValueLabel: (base) => ({
+            ...base,
+            color: '#1b5e20',
+            fontWeight: 'bold',
+            fontSize: '0.85rem',
+            padding: '2px 8px'
+        }),
+        multiValueRemove: (base) => ({
+            ...base,
+            color: '#1b5e20',
+            borderRadius: '0 4px 4px 0',
+            cursor: 'pointer',
+            ':hover': {
+                backgroundColor: '#ffcdd2',
+                color: '#b71c1c'
+            }
         })
     };
 
@@ -1160,24 +1229,10 @@ const ControlPanelPage = () => {
                     )}
                 </Card.Header>
                 <Card.Body className="px-4 pb-4">
-                    {/* شريط الفلاتر: الكلية، العام الجامعي، الفصل الدراسي */}
+                    {/* شريط الفلاتر: العام الجامعي، الفصل الدراسي */}
                     <div className="p-3 rounded-3 mb-4" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
                         <Row className="g-3 align-items-end">
-                            <Col lg={5} md={6}>
-                                <Form.Label className="fw-bold small text-muted">🏛️ الكلية:</Form.Label>
-                                <Select
-                                    options={accessibleLimitFaculties.map(f => ({ value: String(f.id), label: f.name }))}
-                                    value={selectedLimitFaculty ? {
-                                        value: String(selectedLimitFaculty),
-                                        label: accessibleLimitFaculties.find(f => String(f.id) === String(selectedLimitFaculty))?.name || "اختر الكلية"
-                                    } : null}
-                                    onChange={(opt) => setSelectedLimitFaculty(opt ? opt.value : "")}
-                                    placeholder="-- اختر الكلية --"
-                                    styles={customSelectStyles}
-                                    isSearchable
-                                />
-                            </Col>
-                            <Col lg={4} md={6}>
+                            <Col md={6}>
                                 <Form.Label className="fw-bold small text-muted">📅 العام الجامعي:</Form.Label>
                                 <Select
                                     options={academicYears.map(y => ({ value: y.name, label: y.name }))}
@@ -1188,7 +1243,7 @@ const ControlPanelPage = () => {
                                     isSearchable
                                 />
                             </Col>
-                            <Col lg={3} md={12}>
+                            <Col md={6}>
                                 <Form.Label className="fw-bold small text-muted">🗓️ الفصل الدراسي:</Form.Label>
                                 <Select
                                     options={[
@@ -1208,11 +1263,11 @@ const ControlPanelPage = () => {
                     {workloadLimitsLoading ? (
                         <div className="text-center py-5">
                             <Spinner animation="border" variant="success" />
-                            <p className="mt-2 text-muted">جاري تحميل حدود الساعات...</p>
+                            <p className="mt-2 text-muted">جاري تحميل حدود الساعات والمعادلات...</p>
                         </div>
                     ) : (
                         <Form onSubmit={handleSaveWorkloadLimits}>
-                            {/* القسم الرئيسي 1: الحقول الديناميكية للحد الأقصى في اليوم لعضو هيئة التدريس وللهيئة المعاونة */}
+                            {/* القسم الرئيسي 1: اختيار الكليات المتعدد والمعادلات الديناميكية */}
                             <div className="p-3 rounded-4 mb-4 border" style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}>
                                 <div className="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom" style={{ borderColor: '#dcfce7' }}>
                                     <span style={{ fontSize: '1.25rem' }}>⚡</span>
@@ -1220,62 +1275,273 @@ const ControlPanelPage = () => {
                                         الحدود اليومية العامة (معاملات حساب الحد الأقصى للانتداب)
                                     </h5>
                                 </div>
+
+                                {/* قائمة الكليات متعددة الاختيار */}
+                                <div className="p-3 rounded-3 bg-white border mb-3 shadow-sm">
+                                    <div className="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+                                        <div className="d-flex align-items-center gap-2">
+                                            <span className="fw-bold text-dark fs-6">🏛️ الكليات المطبق عليها المعادلة والضوابط:</span>
+                                            <Badge bg="success" className="px-2 py-1">
+                                                تم اختيار {selectedLimitFaculties.length} من أصل {accessibleLimitFaculties.length} كلية
+                                            </Badge>
+                                        </div>
+                                        <div className="d-flex gap-2">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline-success"
+                                                className="fw-bold px-2 py-1"
+                                                onClick={() => setSelectedLimitFaculties(accessibleLimitFaculties.map(f => ({ value: String(f.id), label: f.name })))}
+                                            >
+                                                ✓ تحديد جميع الكليات
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline-secondary"
+                                                className="px-2 py-1"
+                                                onClick={() => setSelectedLimitFaculties([])}
+                                            >
+                                                ✕ إلغاء التحديد
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <Select
+                                        isMulti
+                                        options={accessibleLimitFaculties.map(f => ({ value: String(f.id), label: f.name }))}
+                                        value={selectedLimitFaculties}
+                                        onChange={(opts) => setSelectedLimitFaculties(opts || [])}
+                                        placeholder="-- اختر كلية واحدة أو كليات متعددة أو اضغط تحديد جميع الكليات --"
+                                        closeMenuOnSelect={false}
+                                        styles={customSelectStyles}
+                                        isSearchable
+                                    />
+                                    <small className="text-muted d-block mt-2" style={{ fontSize: '0.82rem' }}>
+                                        💡 يمكنك تحديد كلية واحدة أو مجموعة كليات أو كافة الكليات معاً لتطبيق وتعميم نفس المعادلات والضوابط عليها دفعة واحدة.
+                                    </small>
+                                </div>
+
+                                {/* حقول المعادلات الديناميكية وزر الساعات */}
                                 <Row className="g-3">
-                                    {/* 1. الحد الأقصى في اليوم لعضو هيئة التدريس (أي وظيفة ما عدا المعيد والمدرس المساعد) */}
+                                    {/* 1. أعضاء هيئة التدريس */}
                                     <Col md={6}>
-                                        <div className="p-3 rounded-3 bg-white border h-100 shadow-sm">
-                                            <div className="d-flex align-items-center justify-content-between mb-2">
-                                                <span className="fw-bold text-dark fs-6">👨‍🏫 عضو هيئة التدريس</span>
-                                                <Badge bg="primary" className="px-2 py-1">أستاذ / أ.مساعد / مدرس</Badge>
+                                        <div className="p-3 rounded-3 bg-white border h-100 shadow-sm d-flex flex-column justify-content-between">
+                                            <div>
+                                                <div className="d-flex align-items-center justify-content-between mb-2">
+                                                    <span className="fw-bold text-dark fs-6">👨‍🏫 أعضاء هيئة التدريس</span>
+                                                    <Badge bg="primary" className="px-2 py-1">أستاذ / أ.مساعد / مدرس</Badge>
+                                                </div>
+                                                <p className="text-muted small mb-2" style={{ fontSize: '0.82rem' }}>
+                                                    المعادلة: أي وظيفة ما عدا المعيد والمدرس المساعد
+                                                </p>
+
+                                                {/* شريط الأدوات: زر الساعات والعمليات السريعة */}
+                                                <div className="p-2 rounded-2 mb-2 border" style={{ backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }}>
+                                                    <div className="d-flex flex-wrap align-items-center justify-content-between gap-1 mb-2">
+                                                        <Dropdown>
+                                                            <Dropdown.Toggle
+                                                                variant="primary"
+                                                                size="sm"
+                                                                className="d-flex align-items-center gap-1 rounded-2 fw-bold shadow-sm"
+                                                                style={{ fontSize: '0.82rem' }}
+                                                            >
+                                                                <FaClock />
+                                                                <span>⏱️ زر الساعات (إدراج متغير) ▾</span>
+                                                            </Dropdown.Toggle>
+                                                            <Dropdown.Menu className="shadow-lg border-0 p-2" style={{ maxHeight: '350px', overflowY: 'auto', minWidth: '280px', zIndex: 1050 }}>
+                                                                <Dropdown.Header className="fw-bold text-primary border-bottom pb-1 mb-1">
+                                                                    اضغط على المتغير لإدراجه داخل المعادلة:
+                                                                </Dropdown.Header>
+                                                                {HOUR_VARIABLES.map(v => (
+                                                                    <Dropdown.Item
+                                                                        key={v.token}
+                                                                        onClick={() => insertToken('faculty', v.token)}
+                                                                        className="py-2 px-2 rounded-2 d-flex align-items-center justify-content-between text-end"
+                                                                        style={{ fontSize: '0.86rem' }}
+                                                                    >
+                                                                        <div>
+                                                                            <div className="fw-bold text-dark">{v.icon} {v.label}</div>
+                                                                            <small className="text-muted" style={{ fontSize: '0.75rem' }}>{v.desc}</small>
+                                                                        </div>
+                                                                        <Badge bg="light" text="dark" className="border ms-2 font-monospace">
+                                                                            {v.token}
+                                                                        </Badge>
+                                                                    </Dropdown.Item>
+                                                                ))}
+                                                            </Dropdown.Menu>
+                                                        </Dropdown>
+
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline-secondary"
+                                                            className="d-flex align-items-center gap-1 rounded-2 py-1 px-2"
+                                                            style={{ fontSize: '0.78rem' }}
+                                                            onClick={() => setFacultyFormula(DEFAULT_FACULTY_FORMULA)}
+                                                            title="استعادة المعادلة الافتراضية"
+                                                        >
+                                                            <FaUndo /> <span>استعادة الافتراضي</span>
+                                                        </Button>
+                                                    </div>
+
+                                                    {/* أزرار العمليات الرياضية السريعة */}
+                                                    <div className="d-flex flex-wrap align-items-center gap-1">
+                                                        <small className="text-muted fw-bold me-1" style={{ fontSize: '0.75rem' }}>عمليات سريعة:</small>
+                                                        {MATH_OPERATORS.map(op => (
+                                                            <Button
+                                                                key={op.label}
+                                                                type="button"
+                                                                size="sm"
+                                                                variant="light"
+                                                                className="border fw-bold px-2 py-0 font-monospace text-primary shadow-xs"
+                                                                style={{ fontSize: '0.82rem', minWidth: '28px', height: '26px' }}
+                                                                onClick={() => insertToken('faculty', op.token)}
+                                                                title={`إدراج ${op.label}`}
+                                                            >
+                                                                {op.label}
+                                                            </Button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* حقل المعادلة الديناميكي */}
+                                                <Form.Group>
+                                                    <Form.Label className="small text-muted fw-bold mb-1">
+                                                        صيغة المعادلة الرياضية المعتمدة:
+                                                    </Form.Label>
+                                                    <Form.Control
+                                                        as="textarea"
+                                                        rows={2}
+                                                        ref={facultyInputRef}
+                                                        value={facultyFormula}
+                                                        onChange={(e) => setFacultyFormula(e.target.value)}
+                                                        className="font-monospace fw-bold fs-6 p-2 rounded-3 border-2"
+                                                        dir="ltr"
+                                                        style={{
+                                                            textAlign: 'left',
+                                                            borderColor: '#3b82f6',
+                                                            backgroundColor: '#ffffff',
+                                                            color: '#1e3a8a',
+                                                            letterSpacing: '0.3px'
+                                                        }}
+                                                        placeholder={DEFAULT_FACULTY_FORMULA}
+                                                    />
+                                                </Form.Group>
                                             </div>
-                                            <Form.Group>
-                                                <Form.Label className="small text-muted fw-bold">
-                                                    الحد الأقصى في اليوم لعضو هيئة التدريس (ساعة/يوم)
-                                                </Form.Label>
-                                                <Form.Control
-                                                    type="number"
-                                                    step="0.5"
-                                                    min="1"
-                                                    max="24"
-                                                    placeholder="6"
-                                                    value={workloadLimits.max_faculty_hours_per_day}
-                                                    onChange={(e) => setWorkloadLimits(prev => ({ ...prev, max_faculty_hours_per_day: e.target.value }))}
-                                                    className="rounded-3 fw-bold fs-5 text-center text-primary"
-                                                    style={{ height: '48px' }}
-                                                />
-                                                <small className="text-muted d-block mt-2" style={{ fontSize: '0.82rem' }}>
-                                                    * يطبق على أي وظيفة ما عدا المعيد والمدرس المساعد (الافتراضي: 6 ساعات/يوم).
-                                                </small>
-                                            </Form.Group>
+                                            <small className="text-muted d-block mt-2 pt-2 border-top" style={{ fontSize: '0.78rem' }}>
+                                                ℹ️ اكتب المعادلة مع رمز المقارنة (<code>&lt;=</code>). الطرف الأيسر هو العبء المحتسب، والطرف الأيمن هو الحد الأقصى المسموح.
+                                            </small>
                                         </div>
                                     </Col>
 
-                                    {/* 2. الحد الأقصى في اليوم للهيئة المعاونة (المعيد والمدرس المساعد فقط) */}
+                                    {/* 2. الهيئة المعاونة */}
                                     <Col md={6}>
-                                        <div className="p-3 rounded-3 bg-white border h-100 shadow-sm">
-                                            <div className="d-flex align-items-center justify-content-between mb-2">
-                                                <span className="fw-bold text-dark fs-6">🧑‍🔬 الهيئة المعاونة</span>
-                                                <Badge bg="success" className="px-2 py-1">معيد / مدرس مساعد فقط</Badge>
+                                        <div className="p-3 rounded-3 bg-white border h-100 shadow-sm d-flex flex-column justify-content-between">
+                                            <div>
+                                                <div className="d-flex align-items-center justify-content-between mb-2">
+                                                    <span className="fw-bold text-dark fs-6">🧑‍🔬 الهيئة المعاونة</span>
+                                                    <Badge bg="success" className="px-2 py-1">معيد / مدرس مساعد فقط</Badge>
+                                                </div>
+                                                <p className="text-muted small mb-2" style={{ fontSize: '0.82rem' }}>
+                                                    المعادلة: معيد ومدرس مساعد فقط (عملي وتوتوريال وحقل)
+                                                </p>
+
+                                                {/* شريط الأدوات: زر الساعات والعمليات السريعة */}
+                                                <div className="p-2 rounded-2 mb-2 border" style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                                                    <div className="d-flex flex-wrap align-items-center justify-content-between gap-1 mb-2">
+                                                        <Dropdown>
+                                                            <Dropdown.Toggle
+                                                                variant="success"
+                                                                size="sm"
+                                                                className="d-flex align-items-center gap-1 rounded-2 fw-bold shadow-sm"
+                                                                style={{ fontSize: '0.82rem' }}
+                                                            >
+                                                                <FaClock />
+                                                                <span>⏱️ زر الساعات (إدراج متغير) ▾</span>
+                                                            </Dropdown.Toggle>
+                                                            <Dropdown.Menu className="shadow-lg border-0 p-2" style={{ maxHeight: '350px', overflowY: 'auto', minWidth: '280px', zIndex: 1050 }}>
+                                                                <Dropdown.Header className="fw-bold text-success border-bottom pb-1 mb-1">
+                                                                    اضغط على المتغير لإدراجه داخل المعادلة:
+                                                                </Dropdown.Header>
+                                                                {HOUR_VARIABLES.map(v => (
+                                                                    <Dropdown.Item
+                                                                        key={v.token}
+                                                                        onClick={() => insertToken('assistant', v.token)}
+                                                                        className="py-2 px-2 rounded-2 d-flex align-items-center justify-content-between text-end"
+                                                                        style={{ fontSize: '0.86rem' }}
+                                                                    >
+                                                                        <div>
+                                                                            <div className="fw-bold text-dark">{v.icon} {v.label}</div>
+                                                                            <small className="text-muted" style={{ fontSize: '0.75rem' }}>{v.desc}</small>
+                                                                        </div>
+                                                                        <Badge bg="light" text="dark" className="border ms-2 font-monospace">
+                                                                            {v.token}
+                                                                        </Badge>
+                                                                    </Dropdown.Item>
+                                                                ))}
+                                                            </Dropdown.Menu>
+                                                        </Dropdown>
+
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline-secondary"
+                                                            className="d-flex align-items-center gap-1 rounded-2 py-1 px-2"
+                                                            style={{ fontSize: '0.78rem' }}
+                                                            onClick={() => setAssistantFormula(DEFAULT_ASSISTANT_FORMULA)}
+                                                            title="استعادة المعادلة الافتراضية"
+                                                        >
+                                                            <FaUndo /> <span>استعادة الافتراضي</span>
+                                                        </Button>
+                                                    </div>
+
+                                                    {/* أزرار العمليات الرياضية السريعة */}
+                                                    <div className="d-flex flex-wrap align-items-center gap-1">
+                                                        <small className="text-muted fw-bold me-1" style={{ fontSize: '0.75rem' }}>عمليات سريعة:</small>
+                                                        {MATH_OPERATORS.map(op => (
+                                                            <Button
+                                                                key={op.label}
+                                                                type="button"
+                                                                size="sm"
+                                                                variant="light"
+                                                                className="border fw-bold px-2 py-0 font-monospace text-success shadow-xs"
+                                                                style={{ fontSize: '0.82rem', minWidth: '28px', height: '26px' }}
+                                                                onClick={() => insertToken('assistant', op.token)}
+                                                                title={`إدراج ${op.label}`}
+                                                            >
+                                                                {op.label}
+                                                            </Button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* حقل المعادلة الديناميكي */}
+                                                <Form.Group>
+                                                    <Form.Label className="small text-muted fw-bold mb-1">
+                                                        صيغة المعادلة الرياضية المعتمدة:
+                                                    </Form.Label>
+                                                    <Form.Control
+                                                        as="textarea"
+                                                        rows={2}
+                                                        ref={assistantInputRef}
+                                                        value={assistantFormula}
+                                                        onChange={(e) => setAssistantFormula(e.target.value)}
+                                                        className="font-monospace fw-bold fs-6 p-2 rounded-3 border-2"
+                                                        dir="ltr"
+                                                        style={{
+                                                            textAlign: 'left',
+                                                            borderColor: '#10b981',
+                                                            backgroundColor: '#ffffff',
+                                                            color: '#065f46',
+                                                            letterSpacing: '0.3px'
+                                                        }}
+                                                        placeholder={DEFAULT_ASSISTANT_FORMULA}
+                                                    />
+                                                </Form.Group>
                                             </div>
-                                            <Form.Group>
-                                                <Form.Label className="small text-muted fw-bold">
-                                                    الحد الأقصى في اليوم للهيئة المعاونة (ساعة/يوم)
-                                                </Form.Label>
-                                                <Form.Control
-                                                    type="number"
-                                                    step="0.5"
-                                                    min="1"
-                                                    max="24"
-                                                    placeholder="8"
-                                                    value={workloadLimits.max_assistant_hours_per_day}
-                                                    onChange={(e) => setWorkloadLimits(prev => ({ ...prev, max_assistant_hours_per_day: e.target.value }))}
-                                                    className="rounded-3 fw-bold fs-5 text-center text-success"
-                                                    style={{ height: '48px' }}
-                                                />
-                                                <small className="text-muted d-block mt-2" style={{ fontSize: '0.82rem' }}>
-                                                    * يطبق على المعيد والمدرس المساعد فقط (للساعات العملية والتوتوريال والحقل). الافتراضي: 8 ساعات/يوم.
-                                                </small>
-                                            </Form.Group>
+                                            <small className="text-muted d-block mt-2 pt-2 border-top" style={{ fontSize: '0.78rem' }}>
+                                                ℹ️ يطبق على المعيد والمدرس المساعد فقط (للساعات غير النظرية). لا يمكنهم إعطاء نظري.
+                                            </small>
                                         </div>
                                     </Col>
                                 </Row>
@@ -1382,27 +1648,27 @@ const ControlPanelPage = () => {
                             <div className="p-3 rounded-4 mb-4 border" style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0' }}>
                                 <div className="fw-bold text-dark mb-2 d-flex align-items-center gap-2" style={{ fontSize: '0.95rem' }}>
                                     <FaBalanceScale className="text-success" /> 
-                                    <span>ضوابط احتساب الحد الأقصى لساعات اليوم والانتداب (تُحسب بالقيم المدخلة أعلاه):</span>
+                                    <span>ملخص ضوابط ومعادلات احتساب الأعباء والانتداب المعتمدة:</span>
                                 </div>
                                 <div className="d-flex flex-column gap-2" style={{ fontSize: '0.88rem', lineHeight: 1.6 }}>
                                     <div className="p-3 rounded-3 bg-white border">
                                         <div className="fw-bold text-primary mb-1">
-                                            👨‍🏫 أعضاء هيئة التدريس (أستاذ / أستاذ مساعد / مدرس - أي وظيفة ما عدا المعيد والمدرس المساعد):
+                                            👨‍🏫 معادلة أعضاء هيئة التدريس المعتمدة:
                                         </div>
-                                        <div>
-                                            <strong>المعادلة:</strong> [مجموع النظري + (مجموع العملي والتوتوريال والحقل ÷ 2)] ≤ <strong className="text-primary">{workloadLimits.max_faculty_hours_per_day || 6} ساعات × عدد أيام انتداب الأستاذ</strong>
+                                        <div className="font-monospace text-primary p-2 bg-light rounded-2 border fw-bold" dir="ltr" style={{ textAlign: 'left' }}>
+                                            {facultyFormula || DEFAULT_FACULTY_FORMULA}
                                         </div>
                                     </div>
                                     <div className="p-3 rounded-3 bg-white border">
                                         <div className="fw-bold text-success mb-1">
-                                            🧑‍🔬 الهيئة المعاونة (معيد / مدرس مساعد فقط):
+                                            🧑‍🔬 معادلة الهيئة المعاونة المعتمدة:
                                         </div>
-                                        <div>
-                                            <strong>المعادلة:</strong> مجموع (العملي + التوتوريال + الحقل) ≤ <strong className="text-success">{workloadLimits.max_assistant_hours_per_day || 8} ساعات × عدد أيام انتداب الأستاذ</strong> (لا يمكنهم إعطاء نظري).
+                                        <div className="font-monospace text-success p-2 bg-light rounded-2 border fw-bold" dir="ltr" style={{ textAlign: 'left' }}>
+                                            {assistantFormula || DEFAULT_ASSISTANT_FORMULA}
                                         </div>
                                     </div>
                                     <div className="p-2 rounded-3 bg-white border text-muted small">
-                                        📅 <strong>أيام الانتداب:</strong> انتداب كلي = 5 أيام | انتداب جزئي = 1 أو 2 أو 3 أيام.
+                                        📅 <strong>أيام الانتداب:</strong> انتداب كلي = 5 أيام | انتداب جزئي = 1 أو 2 أو 3 أيام (تُسحب تلقائياً من بيانات الأستاذ).
                                     </div>
                                 </div>
                             </div>

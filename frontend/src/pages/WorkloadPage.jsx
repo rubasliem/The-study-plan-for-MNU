@@ -9,6 +9,7 @@ import { saveAs } from 'file-saver';
 import logo from '../assets/logo.png';
 import toast from 'react-hot-toast';
 import { confirmAction } from '../utils/confirmAlert';
+import { evaluateWorkloadFormula, DEFAULT_FACULTY_FORMULA, DEFAULT_ASSISTANT_FORMULA } from '../utils/workloadFormula';
 
 const API = "";
 
@@ -143,6 +144,8 @@ const WorkloadPage = ({ isReadOnly = false }) => {
   // Faculty Limits State (Daily hours breakdown & load limits)
   const [limitsLoading, setLimitsLoading] = useState(false);
   const [limits, setLimits] = useState({
+    faculty_formula: DEFAULT_FACULTY_FORMULA,
+    assistant_formula: DEFAULT_ASSISTANT_FORMULA,
     max_faculty_hours_per_day: 6.0,
     max_assistant_hours_per_day: 8.0,
     min_theory_hours_per_day: '',
@@ -431,6 +434,8 @@ const WorkloadPage = ({ isReadOnly = false }) => {
         });
         const d = res.data || {};
         setLimits({
+          faculty_formula: d.faculty_formula || DEFAULT_FACULTY_FORMULA,
+          assistant_formula: d.assistant_formula || DEFAULT_ASSISTANT_FORMULA,
           max_faculty_hours_per_day: d.max_faculty_hours_per_day != null ? Number(d.max_faculty_hours_per_day) : 6.0,
           max_assistant_hours_per_day: d.max_assistant_hours_per_day != null ? Number(d.max_assistant_hours_per_day) : 8.0,
           min_theory_hours_per_day: d.min_theory_hours_per_day != null && d.min_theory_hours_per_day > 0 ? String(d.min_theory_hours_per_day) : '',
@@ -1552,7 +1557,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                     </div>
                   </div>
 
-                  {/* بطاقة تحليل العبء التدريسي والحد الأقصى لليوم وفقاً لأيام الانتداب */}
+                  {/* بطاقة تحليل العبء التدريسي والحد الأقصى لليوم وفقاً لأيام الانتداب والمعادلات المعتمدة */}
                   {(() => {
                     const isTA = isTeachingAssistant(profData);
                     const workDays = getProfessorWorkDays(profData);
@@ -1564,32 +1569,33 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                     const totalExercise = (profData.courses || []).reduce((s, c) => s + (Number(c.hours_exercise) || 0), 0);
                     const totalActivity = (profData.courses || []).reduce((s, c) => s + (Number(c.hours_activity) || 0), 0);
                     const totalNonTheory = totalPractical + totalExercise + totalActivity;
+                    const totalHours = totalTheory + totalNonTheory;
 
-                    const maxFacultyDaily = (limits && Number(limits.max_faculty_hours_per_day) > 0) ? Number(limits.max_faculty_hours_per_day) : 6;
-                    const maxAssistantDaily = (limits && Number(limits.max_assistant_hours_per_day) > 0) ? Number(limits.max_assistant_hours_per_day) : 8;
+                    const formulaToUse = isTA
+                      ? (limits?.assistant_formula || DEFAULT_ASSISTANT_FORMULA)
+                      : (limits?.faculty_formula || DEFAULT_FACULTY_FORMULA);
 
-                    let maxAllowed = 0;
-                    let calculatedLoad = 0;
-                    let hasViolation = false;
+                    const evalResult = evaluateWorkloadFormula(formulaToUse, {
+                      totalTheory,
+                      totalPractical,
+                      totalExercise,
+                      totalActivity,
+                      totalNonTheory,
+                      workDays,
+                      totalHours,
+                      isTA
+                    });
+
+                    let calculatedLoad = evalResult.calculatedLoad;
+                    let maxAllowed = evalResult.maxAllowed;
+                    let hasViolation = evalResult.hasViolation;
                     let violationMsg = "";
 
-                    if (isTA) {
-                      maxAllowed = maxAssistantDaily * workDays;
-                      calculatedLoad = totalNonTheory;
-                      if (totalTheory > 0) {
-                        hasViolation = true;
-                        violationMsg = `تنبيه نظامي: المعيد والمدرس المساعد لا يمكنهم تدريس ساعات نظري (مسجل له ${totalTheory} س نظري).`;
-                      } else if (calculatedLoad > maxAllowed) {
-                        hasViolation = true;
-                        violationMsg = `تجاوز الحد الأقصى: مجموع الساعات (العملي والتوتوريال والحقل) = ${calculatedLoad} ساعة ويتجاوز الحد الأقصى المسموح (${maxAllowed} ساعة = ${workDays} أيام انتداب × ${maxAssistantDaily} ساعات).`;
-                      }
-                    } else {
-                      maxAllowed = maxFacultyDaily * workDays;
-                      calculatedLoad = Number((totalTheory + (totalNonTheory / 2)).toFixed(2));
-                      if (calculatedLoad > maxAllowed) {
-                        hasViolation = true;
-                        violationMsg = `تجاوز الحد الأقصى: العبء التدريسي المحتسب [نظري (${totalTheory} س) + نصف العملي (${(totalNonTheory / 2).toFixed(1)} س) = ${calculatedLoad} س] يتجاوز الحد الأقصى المسموح (${maxAllowed} ساعة = ${workDays} أيام انتداب × ${maxFacultyDaily} ساعات).`;
-                      }
+                    if (isTA && totalTheory > 0) {
+                      hasViolation = true;
+                      violationMsg = `تنبيه نظامي: المعيد والمدرس المساعد لا يمكنهم تدريس ساعات نظري (مسجل له ${totalTheory} س نظري).`;
+                    } else if (hasViolation) {
+                      violationMsg = `تجاوز الحد الأقصى: العبء المحتسب (${calculatedLoad} ساعة) يتجاوز الحد الأقصى المسموح (${maxAllowed} ساعة) وفق معادلة الكلية المعتمدة.`;
                     }
 
                     return (
@@ -1637,22 +1643,38 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                           <Col xs={6} md={3}>
                             <div className="p-2 rounded-3 bg-light border h-100">
                               <small className="text-muted d-block mb-1">
-                                {isTA ? "العبء المحتسب (عملي)" : "العبء المحتسب (نظري + عملي/2)"}
+                                العبء الفعلي المحتسب
                               </small>
                               <strong className={hasViolation ? "text-danger fs-6" : "text-success fs-6"}>
                                 {calculatedLoad} س
                               </strong>
-                              <small className="text-muted d-block mt-1">العبء الفعلي المحتسب</small>
+                              <small className="text-muted d-block mt-1">طرف المعادلة المحتسب</small>
                             </div>
                           </Col>
                           <Col xs={6} md={3}>
                             <div className="p-2 rounded-3 bg-light border h-100">
                               <small className="text-muted d-block mb-1">الحد الأقصى المسموح</small>
                               <strong className="text-primary fs-6">{maxAllowed} س</strong>
-                              <small className="text-muted d-block mt-1">{workDays} أيام × {isTA ? maxAssistantDaily : maxFacultyDaily} ساعات</small>
+                              <small className="text-muted d-block mt-1">وفق أيام الانتداب والمعادلة</small>
                             </div>
                           </Col>
                         </Row>
+
+                        {/* شريط عرض المعادلة المطبقة */}
+                        <div className="mt-3 pt-2 border-top d-flex flex-wrap align-items-center justify-content-between gap-2 text-muted" style={{ fontSize: '0.82rem' }}>
+                          <div className="d-flex align-items-center gap-1">
+                            <span className="fw-bold text-dark">📐 المعادلة المطبقة:</span>
+                            <code className="text-primary bg-light px-2 py-1 rounded border font-monospace" dir="ltr">
+                              {formulaToUse}
+                            </code>
+                          </div>
+                          <div>
+                            <span className="text-muted">التعويض بالأرقام: </span>
+                            <code className="text-secondary bg-light px-2 py-1 rounded border font-monospace" dir="ltr">
+                              {evalResult.lhsExpression} ≤ {evalResult.rhsExpression}
+                            </code>
+                          </div>
+                        </div>
 
                         {hasViolation && (
                           <div className="mt-3 p-2 rounded-3 bg-danger bg-opacity-10 text-danger fw-bold border border-danger small text-center">
