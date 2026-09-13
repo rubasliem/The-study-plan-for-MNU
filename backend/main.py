@@ -248,7 +248,7 @@ def create_notification(db, faculty_id, action_by, action_text, academic_year=No
             atype = "EXPORT"
         
         etype = "SYSTEM"
-        if any(w in txt for w in ["أعباء", "العبء", "استقطاع", "خصم", "تحديد الأعباء", "تحديد عدد أسابيع", "إلغاء تخصيص أسابيع"]):
+        if any(w in txt for w in ["أعباء", "العبء", "انقاص", "إنقاص", "استقطاع", "انتقاص", "تحديد الأعباء", "تحديد عدد أسابيع", "إلغاء تخصيص أسابيع"]):
             etype = "WORKLOAD"
         elif "هيئة التدريس" in txt or "عضو" in txt:
             etype = "PROFESSORS"
@@ -4799,7 +4799,8 @@ def save_workload_deduction(
     weeks_str = "، ".join([w[1] for w in weeks_to_process])
     type_info = f" ({hour_type_str})" if hour_type_str else ""
     course_info = f" من مقرر ({data.course_name})" if data.course_name else ""
-    action_text = f"قام بخصم/انتقاص {data.deducted_hours} ساعة{type_info}{course_info} في ({weeks_str}) من عبء التدريس للدكتور {prof_name} ({data.semester} - {data.academic_year}) - السبب: {data.reason or 'بدون سبب'} في صفحة تحديد الأعباء"
+    reason_str = data.reason.strip() if (data.reason and data.reason.strip()) else "بدون ذكر سبب"
+    action_text = f"تم انقاص عدد الساعات بسبب {reason_str} للدكتور {prof_name} بمقدار ({data.deducted_hours} ساعة{type_info}{course_info} في {weeks_str}) ({data.semester} - {data.academic_year}) في صفحة تحديد الأعباء"
     create_notification(db, data.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=data.academic_year, semester=data.semester)
     db.commit()
     
@@ -4824,7 +4825,7 @@ def delete_workload_deduction(
         
     prof_name = ded.professor.name_ar if ded.professor else ""
     user_role_str = get_user_role_display(current_user)
-    action_text = f"قام بإلغاء خصم الساعات ({ded.deducted_hours} س) للدكتور {prof_name} ({ded.semester} - {ded.academic_year}) في صفحة تحديد الأعباء"
+    action_text = f"قام بإلغاء انقاص الساعات ({ded.deducted_hours} س) للدكتور {prof_name} ({ded.semester} - {ded.academic_year}) في صفحة تحديد الأعباء"
     create_notification(db, ded.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=ded.academic_year, semester=ded.semester)
     
     db.delete(ded)
@@ -5784,7 +5785,7 @@ def log_notification(data: schemas.NotificationCreate, db: Session = Depends(get
             )
         )
         
-        entity_type = "WORKLOAD" if any(w in data.action_text for w in ["أعباء", "العبء", "استقطاع", "خصم", "تحديد الأعباء", "تحديد عدد أسابيع", "إلغاء تخصيص أسابيع"]) else (
+        entity_type = "WORKLOAD" if any(w in data.action_text for w in ["أعباء", "العبء", "انقاص", "إنقاص", "استقطاع", "انتقاص", "تحديد الأعباء", "تحديد عدد أسابيع", "إلغاء تخصيص أسابيع"]) else (
             "MAIN_TABLE" if "الجدول الرئيسي" in data.action_text else (
                 "PROFESSORS" if "تدريس" in data.action_text else "STUDY_PLAN"
             )
