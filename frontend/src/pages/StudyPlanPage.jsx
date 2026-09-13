@@ -1367,7 +1367,13 @@ const StudyPlanPage = () => {
     }
   };
 
-  const fmt = (n) => (n && !isNaN(n) ? parseFloat(parseFloat(n).toFixed(2)).toString() : "0");
+  const fmt = (n) => {
+    if (n === null || n === undefined || n === "" || isNaN(n)) return "0";
+    const num = Number(n);
+    if (num === 0) return "0";
+    if (Number.isInteger(num)) return String(num);
+    return String(parseFloat(num.toFixed(4)));
+  };
 
   const formatCourseNameInline = (nameAr, nameEn) => {
     const validAr = nameAr && nameAr !== "-" && nameAr !== "--";
@@ -3471,6 +3477,30 @@ ${signaturesHtml}
 
       worksheet.columns = columns;
 
+      // ضبط تنسيق أعمدة الساعات لتستقبل أرقاماً صحيحة وعشرية بدون تقريب
+      const hoursColKeys = ['hours_theory', 'hours_practical'];
+      if (isHealthTech) {
+        hoursColKeys.push('hours_training', 'hours_field');
+      }
+
+      hoursColKeys.forEach(colKey => {
+        const col = worksheet.getColumn(colKey);
+        col.numFmt = '0.##';
+        for (let r = 2; r <= 500; r++) {
+          const cell = worksheet.getCell(`${col.letter}${r}`);
+          cell.numFmt = '0.##';
+          cell.dataValidation = {
+            type: 'decimal',
+            operator: 'greaterThanOrEqual',
+            formulae: [0],
+            allowBlank: true,
+            showErrorMessage: true,
+            errorTitle: 'قيمة غير صحيحة',
+            error: 'يرجى إدخال عدد ساعات صحيح أو عشري بدون تقريب (0 أو أكثر، مثل: 2 أو 1.5 أو 2.25)'
+          };
+        }
+      });
+
       // Style Header Row (Row 1)
       const headerRow = worksheet.getRow(1);
       headerRow.height = 32;
@@ -3577,8 +3607,8 @@ ${signaturesHtml}
         groups_theory: "",
         groups_practical: "",
         national_id: sampleNatId2,
-        hours_theory: 0,
-        hours_practical: 2
+        hours_theory: 1.5,
+        hours_practical: 2.5
       };
 
       if (!isMedicine) {
@@ -3591,8 +3621,8 @@ ${signaturesHtml}
       if (isHealthTech) {
         sampleRowData2.groups_training = "";
         sampleRowData2.groups_field = "";
-        sampleRowData2.hours_training = 0;
-        sampleRowData2.hours_field = 2;
+        sampleRowData2.hours_training = 1.5;
+        sampleRowData2.hours_field = 2.5;
       }
       const row2 = worksheet.addRow(sampleRowData2);
       row2.height = 25;
@@ -3749,10 +3779,13 @@ ${signaturesHtml}
 
       const parseSafeNumber = (val) => {
         if (val === undefined || val === null) return 0;
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
         const str = String(val).trim();
         if (str === "" || str === "-" || str === "--" || str === "لا يوجد" || str === "صفر") return 0;
-        const western = str.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
-        const num = Number(western);
+        const western = str
+          .replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
+          .replace(/[\u066B,]/g, '.');
+        const num = parseFloat(western);
         return isNaN(num) ? null : num;
       };
 
@@ -3929,22 +3962,48 @@ ${signaturesHtml}
           errors.push(`الصف ${rowNum}: لم يتم العثور على عضو هيئة تدريس بالرقم القومي (${rawNatIdVal}) في قاعدة البيانات.`);
         }
 
-        // 5. الساعات التدريسية نظري للأستاذ (اختياري، افتراضي 0)
+        // 5. الساعات التدريسية نظري للأستاذ (اختياري، افتراضي 0، يقبل أرقام صحيحة وعشرية بدون تقريب)
         let thVal = 0;
         if (thHoursKey && row[thHoursKey] !== undefined) {
           const parsedTh = parseSafeNumber(row[thHoursKey]);
           if (parsedTh === null || parsedTh < 0) {
-            errors.push(`الصف ${rowNum}: ساعات النظري للأستاذ يجب أن تكون قيمة رقمية صحيحة (0 أو أكثر).`);
+            errors.push(`الصف ${rowNum}: ساعات النظري للأستاذ يجب أن تكون قيمة رقمية صحيحة أو عشرية بدون تقريب (0 أو أكثر).`);
           } else {
             thVal = parsedTh;
           }
         }
 
-        if (courseObj && prog1Obj && profObj) {
-          const prVal = (prHoursKey && row[prHoursKey] !== undefined) ? (parseSafeNumber(row[prHoursKey]) || 0) : 0;
-          const trVal = isHealthTech && trHoursKey && row[trHoursKey] !== undefined ? (parseSafeNumber(row[trHoursKey]) || 0) : 0;
-          const fldVal = isHealthTech && fldHoursKey && row[fldHoursKey] !== undefined ? (parseSafeNumber(row[fldHoursKey]) || 0) : 0;
+        let prVal = 0;
+        if (prHoursKey && row[prHoursKey] !== undefined) {
+          const parsedPr = parseSafeNumber(row[prHoursKey]);
+          if (parsedPr === null || parsedPr < 0) {
+            errors.push(`الصف ${rowNum}: ساعات العملي للأستاذ يجب أن تكون قيمة رقمية صحيحة أو عشرية بدون تقريب (0 أو أكثر).`);
+          } else {
+            prVal = parsedPr;
+          }
+        }
 
+        let trVal = 0;
+        if (isHealthTech && trHoursKey && row[trHoursKey] !== undefined) {
+          const parsedTr = parseSafeNumber(row[trHoursKey]);
+          if (parsedTr === null || parsedTr < 0) {
+            errors.push(`الصف ${rowNum}: ساعات التوتوريال للأستاذ يجب أن تكون قيمة رقمية صحيحة أو عشرية بدون تقريب (0 أو أكثر).`);
+          } else {
+            trVal = parsedTr;
+          }
+        }
+
+        let fldVal = 0;
+        if (isHealthTech && fldHoursKey && row[fldHoursKey] !== undefined) {
+          const parsedFld = parseSafeNumber(row[fldHoursKey]);
+          if (parsedFld === null || parsedFld < 0) {
+            errors.push(`الصف ${rowNum}: ساعات الحقل للأستاذ يجب أن تكون قيمة رقمية صحيحة أو عشرية بدون تقريب (0 أو أكثر).`);
+          } else {
+            fldVal = parsedFld;
+          }
+        }
+
+        if (courseObj && prog1Obj && profObj) {
           const cReqTh = (isMedicine && matchedModObj)
             ? (Number(matchedModObj.theory_hours) || 0) * grTh
             : (Number(courseObj.theory_hours) || 0) * grTh;
@@ -5690,6 +5749,7 @@ ${signaturesHtml}
                             </Form.Label>
                             <Form.Control
                               type="number"
+                              step="any"
                               min="0"
                               disabled={!formData.base_course_id || profTheoryHours === 0 || isTA || isTheoryLimitReached}
                               value={isTA || isTheoryLimitReached ? 0 : pRow.hours_actual_theory}
@@ -5706,6 +5766,7 @@ ${signaturesHtml}
                             <Form.Label className="fw-bold small">ساعات عملي:</Form.Label>
                             <Form.Control
                               type="number"
+                              step="any"
                               min="0"
                               disabled={!formData.base_course_id || profPracticalHours === 0 || isPracticalLimitReached}
                               value={isPracticalLimitReached ? 0 : pRow.hours_actual_practical}
@@ -5722,6 +5783,7 @@ ${signaturesHtml}
                               <Form.Label className="fw-bold small">ساعات تدريب:</Form.Label>
                               <Form.Control
                                 type="number"
+                                step="any"
                                 min="0"
                                 disabled={!formData.base_course_id || profTrainingHours === 0 || isTrainingLimitReached}
                                 value={isTrainingLimitReached ? 0 : pRow.hours_actual_training}
@@ -5739,6 +5801,7 @@ ${signaturesHtml}
                               <Form.Label className="fw-bold small">ساعات حقل:</Form.Label>
                               <Form.Control
                                 type="number"
+                                step="any"
                                 min="0"
                                 disabled={!formData.base_course_id || profFieldHours === 0 || isFieldLimitReached}
                                 value={isFieldLimitReached ? 0 : pRow.hours_actual_field}
