@@ -4810,6 +4810,62 @@ def save_workload_deduction(
         "hour_type": hour_type_str
     }
 
+@app.put("/api/workload/deductions/{id}")
+def update_workload_deduction(
+    id: int,
+    data: schemas.ProfessorLoadDeductionUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if current_user.role in [models.UserRole.faculty_admin, models.UserRole.student_affairs, models.UserRole.reviewer] and not getattr(current_user, 'perm_view_professors_load', False):
+        raise HTTPException(status_code=403, detail="لا تمتلك صلاحية تعديل تخفيض الساعات (عرض فقط)")
+        
+    ded = db.query(models.ProfessorLoadDeduction).filter(models.ProfessorLoadDeduction.id == id).first()
+    if not ded:
+        raise HTTPException(status_code=404, detail="سجل الخصم غير موجود")
+        
+    ded.deducted_hours = data.deducted_hours
+    ded.week_number = data.week_number
+    ded.week_name = data.week_name
+    ded.hour_type = data.hour_type
+    if data.course_id is not None:
+        ded.course_id = data.course_id
+    if data.course_name is not None:
+        ded.course_name = data.course_name
+    ded.reason = data.reason
+    
+    user_action_by_str = get_user_action_by(current_user, db)
+    ded.created_by = user_action_by_str
+    ded.updated_at = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(ded)
+    
+    prof_name = ded.professor.name_ar if ded.professor else ""
+    user_role_str = get_user_role_display(current_user)
+    type_info = f" ({ded.hour_type})" if ded.hour_type else ""
+    course_info = f" من مقرر ({ded.course_name})" if ded.course_name else ""
+    reason_str = ded.reason.strip() if (ded.reason and ded.reason.strip()) else "بدون ذكر سبب"
+    action_text = f"تم تعديل انقاص عدد الساعات بسبب {reason_str} للدكتور {prof_name} بمقدار ({ded.deducted_hours} ساعة{type_info}{course_info} في {ded.week_name or 'أسبوع غير محدد'}) ({ded.semester} - {ded.academic_year}) في صفحة تحديد الأعباء"
+    create_notification(db, ded.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=ded.academic_year, semester=ded.semester)
+    db.commit()
+    
+    return {
+        "message": "تم تعديل انتقاص الساعات بنجاح",
+        "deduction": {
+            "id": ded.id,
+            "deducted_hours": ded.deducted_hours,
+            "week_number": ded.week_number,
+            "week_name": ded.week_name,
+            "hour_type": ded.hour_type,
+            "course_id": ded.course_id,
+            "course_name": ded.course_name,
+            "reason": ded.reason,
+            "created_by": ded.created_by,
+            "updated_at": ded.updated_at.isoformat() if ded.updated_at else None
+        }
+    }
+
 @app.delete("/api/workload/deductions/{id}")
 def delete_workload_deduction(
     id: int,

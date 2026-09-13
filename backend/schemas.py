@@ -528,6 +528,15 @@ class ProfessorLoadDeductionBase(BaseModel):
 class ProfessorLoadDeductionCreate(ProfessorLoadDeductionBase):
     pass
 
+class ProfessorLoadDeductionUpdate(BaseModel):
+    deducted_hours: float
+    week_number: Optional[int] = None
+    week_name: Optional[str] = None
+    hour_type: Optional[str] = None
+    course_id: Optional[int] = None
+    course_name: Optional[str] = None
+    reason: Optional[str] = None
+
 class ProfessorLoadDeductionOut(ProfessorLoadDeductionBase):
     id: int
     created_by: Optional[str] = None

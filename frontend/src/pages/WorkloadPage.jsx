@@ -2,8 +2,8 @@ import React, { useState, useEffect, useContext, useMemo } from 'react';
 import axios from 'axios';
 import Select from 'react-select';
 import { AuthContext } from '../context/AuthContext';
-import { Card, Button, Form, Spinner, Row, Col, Table, Badge, Alert } from 'react-bootstrap';
-import { FaBalanceScale, FaSave, FaTrash, FaCheckCircle, FaInfoCircle, FaSearch, FaUserTie, FaBookOpen, FaCalendarWeek, FaPlus, FaBook, FaPrint, FaFileExcel, FaDownload, FaTimes } from 'react-icons/fa';
+import { Card, Button, Form, Spinner, Row, Col, Table, Badge, Alert, Modal } from 'react-bootstrap';
+import { FaBalanceScale, FaSave, FaTrash, FaEdit, FaCheckCircle, FaInfoCircle, FaSearch, FaUserTie, FaBookOpen, FaCalendarWeek, FaPlus, FaBook, FaPrint, FaFileExcel, FaDownload, FaTimes } from 'react-icons/fa';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import logo from '../assets/logo.png';
@@ -186,6 +186,16 @@ const WorkloadPage = ({ isReadOnly = false }) => {
   const [facultyDeductions, setFacultyDeductions] = useState([]);
   const [facultyDeductionsLoading, setFacultyDeductionsLoading] = useState(false);
 
+  // Edit Deduction Modal State
+  const [showEditDeductionModal, setShowEditDeductionModal] = useState(false);
+  const [editingDeduction, setEditingDeduction] = useState(null);
+  const [editHours, setEditHours] = useState('');
+  const [editWeek, setEditWeek] = useState(null);
+  const [editHourType, setEditHourType] = useState('');
+  const [editCourseName, setEditCourseName] = useState('');
+  const [editReason, setEditReason] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+
   // All faculties access check
   const isAllFacultiesUser = user?.role === 'admin' || user?.role === 'student_affairs' || user?.all_faculties_access;
 
@@ -318,6 +328,21 @@ const WorkloadPage = ({ isReadOnly = false }) => {
     }
     return opts;
   }, [selectedCourse, profData?.weeks_count, currentFacultyWeeks]);
+
+  // Options for weeks in the Edit Deduction modal
+  const editWeekOptions = useMemo(() => {
+    const totalWeeks = currentFacultyWeeks || 15;
+    const opts = [
+      { value: null, label: 'عام / بدون أسبوع محدد' }
+    ];
+    for (let i = 1; i <= Math.max(totalWeeks, 16); i++) {
+      opts.push({
+        value: i,
+        label: `الأسبوع ${i}`
+      });
+    }
+    return opts;
+  }, [currentFacultyWeeks]);
 
   // Course Options for the selected professor in this semester
   const courseOptions = useMemo(() => {
@@ -719,6 +744,62 @@ const WorkloadPage = ({ isReadOnly = false }) => {
       toast.error(err.response?.data?.detail || "حدث خطأ أثناء إلغاء الانتقاص");
     } finally {
       setDeductionSaving(false);
+    }
+  };
+
+  // Open Edit Deduction Modal
+  const handleOpenEditModal = (deduction) => {
+    setEditingDeduction(deduction);
+    setEditHours(deduction.deducted_hours != null ? deduction.deducted_hours : '');
+    setEditHourType(deduction.hour_type || '');
+    setEditCourseName(deduction.course_name || '');
+    setEditReason(deduction.reason || '');
+    if (deduction.week_number) {
+      setEditWeek({ value: deduction.week_number, label: deduction.week_name || `الأسبوع ${deduction.week_number}` });
+    } else {
+      setEditWeek({ value: null, label: deduction.week_name || 'عام / بدون أسبوع محدد' });
+    }
+    setShowEditDeductionModal(true);
+  };
+
+  // Handle Update Deduction
+  const handleUpdateDeduction = async (e) => {
+    if (e) e.preventDefault();
+    if (isReadOnly) {
+      toast.error("غير مصرح لك بتعديل أو حفظ انتقاص الساعات");
+      return;
+    }
+
+    const hrs = parseFloat(editHours);
+    if (isNaN(hrs) || hrs <= 0) {
+      toast.error("يرجى إدخال عدد ساعات صحيح أكبر من الصفر للانتقاص");
+      return;
+    }
+
+    setEditSaving(true);
+    try {
+      const payload = {
+        deducted_hours: hrs,
+        week_number: editWeek?.value ?? null,
+        week_name: editWeek?.label || (editWeek?.value ? `الأسبوع ${editWeek.value}` : 'أسبوع غير محدد'),
+        hour_type: editHourType || null,
+        course_name: editCourseName?.trim() || null,
+        reason: editReason.trim()
+      };
+
+      await axios.put(`${API}/api/workload/deductions/${editingDeduction.id}`, payload);
+      toast.success("تم تعديل بيانات الانتقاص بنجاح");
+      setShowEditDeductionModal(false);
+      setEditingDeduction(null);
+      if (selectedProfessorId) {
+        fetchProfessorCourses(selectedProfessorId);
+      }
+      fetchFacultyDeductions();
+    } catch (err) {
+      console.error("Error updating deduction", err);
+      toast.error(err.response?.data?.detail || "حدث خطأ أثناء تعديل الاستقطاع");
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -1873,7 +1954,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                     <th>الساعات المنتقصة</th>
                     <th>سبب الانتقاص</th>
                     <th>سُجل بواسطة</th>
-                    {!isReadOnly && <th style={{ width: '80px' }}>إجراءات</th>}
+                    {!isReadOnly && <th style={{ width: '110px' }}>إجراءات</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -1895,16 +1976,28 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                       <td className="text-muted small">{d.created_by || '-'}</td>
                       {!isReadOnly && (
                         <td>
-                          <Button
-                            variant="outline-danger"
-                            size="sm"
-                            className="py-1 px-2"
-                            title="إلغاء هذا الانتقاص"
-                            onClick={() => handleDeleteDeduction(d.id, d.week_name, d.deducted_hours)}
-                            disabled={deductionSaving}
-                          >
-                            <FaTrash style={{ fontSize: '12px' }} />
-                          </Button>
+                          <div className="d-flex align-items-center justify-content-center gap-1">
+                            <Button
+                              variant="outline-warning"
+                              size="sm"
+                              className="py-1 px-2 text-dark shadow-sm"
+                              title="تعديل هذا الانتقاص"
+                              onClick={() => handleOpenEditModal(d)}
+                              disabled={deductionSaving || editSaving}
+                            >
+                              <FaEdit style={{ fontSize: '13px' }} />
+                            </Button>
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              className="py-1 px-2 shadow-sm"
+                              title="إلغاء هذا الانتقاص"
+                              onClick={() => handleDeleteDeduction(d.id, d.week_name, d.deducted_hours)}
+                              disabled={deductionSaving || editSaving}
+                            >
+                              <FaTrash style={{ fontSize: '12px' }} />
+                            </Button>
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -1929,6 +2022,183 @@ const WorkloadPage = ({ isReadOnly = false }) => {
           )}
         </Card.Body>
       </Card>
+
+      {/* نافذة تعديل الاستقطاع */}
+      <Modal
+        show={showEditDeductionModal}
+        onHide={() => !editSaving && setShowEditDeductionModal(false)}
+        centered
+        dir="rtl"
+        size="lg"
+        backdrop="static"
+      >
+        <Modal.Header
+          closeButton={!editSaving}
+          closeVariant="white"
+          style={{ backgroundColor: '#1b5e20', color: '#fff' }}
+        >
+          <Modal.Title className="fw-bold fs-5 d-flex align-items-center gap-2">
+            <FaEdit />
+            <span>تعديل استقطاع الساعات</span>
+          </Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleUpdateDeduction}>
+          <Modal.Body className="p-4" style={{ backgroundColor: '#fdfdfd' }}>
+            {editingDeduction && (
+              <>
+                {/* بطاقة معلومات الأستاذ والمقرر */}
+                <div
+                  className="p-3 mb-4 rounded-3 border shadow-sm"
+                  style={{
+                    backgroundColor: '#f1f8e9',
+                    borderColor: '#c8e6c9'
+                  }}
+                >
+                  <Row className="g-2">
+                    <Col md={6}>
+                      <div className="d-flex align-items-center gap-2">
+                        <FaUserTie className="text-success fs-5" />
+                        <div>
+                          <small className="text-muted d-block">عضو هيئة التدريس:</small>
+                          <strong className="text-dark fs-6">{editingDeduction.professor_name || 'غير محدد'}</strong>
+                        </div>
+                      </div>
+                    </Col>
+                    <Col md={6}>
+                      <div className="d-flex align-items-center gap-2">
+                        <FaBookOpen className="text-primary fs-5" />
+                        <div>
+                          <small className="text-muted d-block">المقرر الحالي:</small>
+                          <strong className="text-dark fs-6">{editingDeduction.course_name || 'عام / بدون تحديد'}</strong>
+                        </div>
+                      </div>
+                    </Col>
+                  </Row>
+                </div>
+
+                <Row className="g-3">
+                  <Col md={6}>
+                    <Form.Group>
+                      <Form.Label className="fw-bold text-dark mb-1">
+                        الساعات المنتقصة <span className="text-danger">*</span>
+                      </Form.Label>
+                      <Form.Control
+                        type="number"
+                        step="0.5"
+                        min="0.5"
+                        value={editHours}
+                        onChange={(e) => setEditHours(e.target.value)}
+                        placeholder="أدخل عدد الساعات..."
+                        required
+                        className="fw-bold fs-6 text-center"
+                        style={{ borderColor: '#2e7d32' }}
+                      />
+                    </Form.Group>
+                  </Col>
+
+                  <Col md={6}>
+                    <Form.Group>
+                      <Form.Label className="fw-bold text-dark mb-1">
+                        الأسبوع المستقطع منه
+                      </Form.Label>
+                      <Select
+                        options={editWeekOptions}
+                        value={editWeek}
+                        onChange={(val) => setEditWeek(val)}
+                        placeholder="اختر الأسبوع..."
+                        styles={customSelectStyles}
+                        isClearable={false}
+                      />
+                    </Form.Group>
+                  </Col>
+
+                  <Col md={6}>
+                    <Form.Group>
+                      <Form.Label className="fw-bold text-dark mb-1">
+                        نوع الساعات التدريسية
+                      </Form.Label>
+                      <Form.Select
+                        value={editHourType}
+                        onChange={(e) => setEditHourType(e.target.value)}
+                        className="fw-semibold"
+                        style={{ borderColor: '#2e7d32', height: '44px' }}
+                      >
+                        <option value="">بدون تحديد نوع</option>
+                        <option value="نظري">نظري</option>
+                        <option value="عملي">عملي</option>
+                        <option value="توتوريال">توتوريال</option>
+                        <option value="حقل">حقل / تدريب ميداني</option>
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+
+                  <Col md={6}>
+                    <Form.Group>
+                      <Form.Label className="fw-bold text-dark mb-1">
+                        اسم المقرر (أو عام)
+                      </Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={editCourseName}
+                        onChange={(e) => setEditCourseName(e.target.value)}
+                        placeholder="عام / بدون تحديد مقرر"
+                        className="fw-semibold"
+                        style={{ borderColor: '#ced4da', height: '44px' }}
+                      />
+                    </Form.Group>
+                  </Col>
+
+                  <Col md={12}>
+                    <Form.Group>
+                      <Form.Label className="fw-bold text-dark mb-1">
+                        سبب الانتقاص
+                      </Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={3}
+                        value={editReason}
+                        onChange={(e) => setEditReason(e.target.value)}
+                        placeholder="اذكر سبب الانتقاص أو التعديل (اختياري)..."
+                        className="fw-normal"
+                        style={{ borderColor: '#ced4da' }}
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+              </>
+            )}
+          </Modal.Body>
+          <Modal.Footer className="bg-light d-flex justify-content-between">
+            <Button
+              variant="outline-secondary"
+              onClick={() => setShowEditDeductionModal(false)}
+              disabled={editSaving}
+              className="px-4"
+            >
+              إلغاء
+            </Button>
+            <Button
+              variant="success"
+              type="submit"
+              disabled={editSaving}
+              className="d-flex align-items-center gap-2 px-4 shadow-sm"
+              style={{ backgroundColor: '#1b5e20', borderColor: '#1b5e20' }}
+            >
+              {editSaving ? (
+                <>
+                  <Spinner size="sm" animation="border" />
+                  <span>جاري الحفظ...</span>
+                </>
+              ) : (
+                <>
+                  <FaSave />
+                  <span>حفظ التعديلات</span>
+                </>
+              )}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
     </div>
   );
 };
