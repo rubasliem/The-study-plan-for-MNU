@@ -427,6 +427,7 @@ class ProfessorLoadDeduction(Base):
     course_name = Column(String, nullable=True) # اسم المقرر
     
     created_by = Column(String, nullable=True)
+    is_edited = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

@@ -4463,7 +4463,7 @@ def save_workload_limits(
     fac = db.query(models.Faculty).filter(models.Faculty.id == data.faculty_id).first()
     fac_name = fac.name if fac else ""
     user_role_str = get_user_role_display(current_user)
-    action_text = f"قام بتحديث حدود الأعباء التدريسية لكلية {fac_name} ({data.semester} - {data.academic_year}) في صفحة تحديد الأعباء"
+    action_text = f"قام بتحديث حدود الأعباء التدريسية لكلية {fac_name} ({data.semester} - {data.academic_year})"
     create_notification(db, data.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=data.academic_year, semester=data.semester)
     db.commit()
     
@@ -4717,6 +4717,7 @@ def get_workload_deductions(
             "deducted_hours": d.deducted_hours,
             "reason": d.reason,
             "created_by": d.created_by,
+            "is_edited": bool(getattr(d, 'is_edited', False) or (d.updated_at and d.created_at and (d.updated_at - d.created_at).total_seconds() > 2)),
             "created_at": d.created_at.isoformat() if d.created_at else None,
             "updated_at": d.updated_at.isoformat() if d.updated_at else None
         })
@@ -4800,7 +4801,7 @@ def save_workload_deduction(
     type_info = f" ({hour_type_str})" if hour_type_str else ""
     course_info = f" من مقرر ({data.course_name})" if data.course_name else ""
     reason_str = data.reason.strip() if (data.reason and data.reason.strip()) else "بدون ذكر سبب"
-    action_text = f"تم انقاص عدد الساعات بسبب {reason_str} للدكتور {prof_name} بمقدار {data.deducted_hours} ساعة{type_info}{course_info} في {weeks_str} ({data.semester} - {data.academic_year}) في صفحة تحديد الأعباء"
+    action_text = f"تم انقاص عدد الساعات بسبب {reason_str} للدكتور {prof_name} بمقدار {data.deducted_hours} ساعة{type_info}{course_info} في {weeks_str} ({data.semester} - {data.academic_year})"
     create_notification(db, data.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=data.academic_year, semester=data.semester)
     db.commit()
     
@@ -4836,6 +4837,7 @@ def update_workload_deduction(
     
     user_action_by_str = get_user_action_by(current_user, db)
     ded.created_by = user_action_by_str
+    ded.is_edited = True
     ded.updated_at = datetime.utcnow()
     
     db.commit()
@@ -4846,7 +4848,7 @@ def update_workload_deduction(
     type_info = f" ({ded.hour_type})" if ded.hour_type else ""
     course_info = f" من مقرر ({ded.course_name})" if ded.course_name else ""
     reason_str = ded.reason.strip() if (ded.reason and ded.reason.strip()) else "بدون ذكر سبب"
-    action_text = f"تم تعديل انقاص عدد الساعات بسبب {reason_str} للدكتور {prof_name} بمقدار {ded.deducted_hours} ساعة{type_info}{course_info} في {ded.week_name or 'أسبوع غير محدد'} ({ded.semester} - {ded.academic_year}) في صفحة تحديد الأعباء"
+    action_text = f"تم تعديل انقاص عدد الساعات بسبب {reason_str} للدكتور {prof_name} بمقدار {ded.deducted_hours} ساعة{type_info}{course_info} في {ded.week_name or 'أسبوع غير محدد'} ({ded.semester} - {ded.academic_year})"
     create_notification(db, ded.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=ded.academic_year, semester=ded.semester)
     db.commit()
     
@@ -4862,6 +4864,7 @@ def update_workload_deduction(
             "course_name": ded.course_name,
             "reason": ded.reason,
             "created_by": ded.created_by,
+            "is_edited": True,
             "updated_at": ded.updated_at.isoformat() if ded.updated_at else None
         }
     }
@@ -4881,7 +4884,7 @@ def delete_workload_deduction(
         
     prof_name = ded.professor.name_ar if ded.professor else ""
     user_role_str = get_user_role_display(current_user)
-    action_text = f"قام بإلغاء انقاص الساعات ({ded.deducted_hours} س) للدكتور {prof_name} ({ded.semester} - {ded.academic_year}) في صفحة تحديد الأعباء"
+    action_text = f"قام بإلغاء انقاص الساعات ({ded.deducted_hours} س) للدكتور {prof_name} ({ded.semester} - {ded.academic_year})"
     create_notification(db, ded.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=ded.academic_year, semester=ded.semester)
     
     db.delete(ded)
@@ -5045,7 +5048,7 @@ def save_course_workload_weeks(
     fac = db.query(models.Faculty).filter(models.Faculty.id == data.faculty_id).first()
     fac_name = fac.name if fac else ""
     user_role_str = get_user_role_display(current_user)
-    action_text = f"قام بتحديد عدد أسابيع مقرر ({data.course_name}) بـ {data.weeks_count} أسبوع لكلية {fac_name} ({data.semester} - {data.academic_year}) في صفحة تحديد الأعباء"
+    action_text = f"قام بتحديد عدد أسابيع مقرر ({data.course_name}) بـ {data.weeks_count} أسبوع لكلية {fac_name} ({data.semester} - {data.academic_year})"
     create_notification(db, data.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=data.academic_year, semester=data.semester)
     db.commit()
     
@@ -5081,7 +5084,7 @@ def delete_course_workload_weeks(
     db.commit()
     
     user_role_str = get_user_role_display(current_user)
-    action_text = f"قام بإلغاء تخصيص أسابيع مقرر ({c_name}) واستعادة العدد الافتراضي للفصل ({sem} - {ay}) في صفحة تحديد الأعباء"
+    action_text = f"قام بإلغاء تخصيص أسابيع مقرر ({c_name}) واستعادة العدد الافتراضي للفصل ({sem} - {ay})"
     create_notification(db, fac_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=ay, semester=sem)
     db.commit()
     

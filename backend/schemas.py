@@ -540,6 +540,7 @@ class ProfessorLoadDeductionUpdate(BaseModel):
 class ProfessorLoadDeductionOut(ProfessorLoadDeductionBase):
     id: int
     created_by: Optional[str] = None
+    is_edited: Optional[bool] = False
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     professor_name: Optional[str] = None

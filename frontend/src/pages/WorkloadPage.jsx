@@ -817,7 +817,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
 
     const fids = selectedFaculty ? [Number(selectedFaculty)] : null;
     logAction(
-      `قام بطباعة كشف وبيان استقطاع وتخفيض الساعات التدريسية لكلية (${facultyName}) للعام الجامعي ${selectedAcademicYear} (${selectedSemester}) في صفحة تحديد الأعباء`,
+      `قام بطباعة كشف وبيان استقطاع وتخفيض الساعات التدريسية لكلية (${facultyName}) للعام الجامعي ${selectedAcademicYear} (${selectedSemester})`,
       fids,
       selectedAcademicYear,
       selectedSemester
@@ -1189,7 +1189,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
 
       const fids = selectedFaculty ? [Number(selectedFaculty)] : null;
       logAction(
-        `قام بتصدير كشف وبيان استقطاع وتخفيض الساعات التدريسية (Excel) لكلية (${facultyName}) للعام الجامعي ${selectedAcademicYear} (${selectedSemester}) في صفحة تحديد الأعباء`,
+        `قام بتصدير كشف وبيان استقطاع وتخفيض الساعات التدريسية (Excel) لكلية (${facultyName}) للعام الجامعي ${selectedAcademicYear} (${selectedSemester})`,
         fids,
         selectedAcademicYear,
         selectedSemester
@@ -1978,10 +1978,10 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                         <td>
                           <div className="d-flex align-items-center justify-content-center gap-1">
                             <Button
-                              variant="outline-warning"
+                              variant={d.is_edited ? "warning" : "outline-warning"}
                               size="sm"
-                              className="py-1 px-2 text-dark shadow-sm"
-                              title="تعديل هذا الانتقاص"
+                              className={`py-1 px-2 shadow-sm ${d.is_edited ? 'text-white' : 'text-dark'}`}
+                              title={d.is_edited ? "تم تعديل هذا الانتقاص مسبقاً (اضغط لإعادة التعديل)" : "تعديل هذا الانتقاص"}
                               onClick={() => handleOpenEditModal(d)}
                               disabled={deductionSaving || editSaving}
                             >
