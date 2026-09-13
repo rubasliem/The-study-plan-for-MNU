@@ -13,7 +13,7 @@ const API = "";
 const StatisticsPage = () => {
     const [faculties, setFaculties] = useState([]);
     const [selectedFaculty, setSelectedFaculty] = useState("");
-    const [selectedYear, setSelectedYear] = useState("2026/2027");
+    const [selectedYear, setSelectedYear] = useState(() => localStorage.getItem('mnu_default_academic_year') || "2026/2027");
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -36,7 +36,9 @@ const StatisticsPage = () => {
                 const years = yearsRes.data.map(y => ({ value: y.name, label: y.name }));
                 setAcademicYearOptions(years);
                 if (years.length > 0) {
-                    setSelectedYear(years[0].value);
+                    const savedDefault = localStorage.getItem('mnu_default_academic_year');
+                    const matchedDefault = savedDefault && years.find(y => y.value === savedDefault);
+                    setSelectedYear(matchedDefault ? savedDefault : years[0].value);
                 }
             } catch (err) {
                 console.error("Error fetching initial data", err);

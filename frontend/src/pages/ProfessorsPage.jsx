@@ -500,7 +500,7 @@ const ProfessorsPage = () => {
   const [professorAssignments, setProfessorAssignments] = useState([]);
   const [professorDeductions, setProfessorDeductions] = useState([]);
 
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(() => localStorage.getItem('mnu_default_academic_year') || '');
 
   const [exportAcademicYear, setExportAcademicYear] = useState('');
   const [academicYears, setAcademicYears] = useState([]);

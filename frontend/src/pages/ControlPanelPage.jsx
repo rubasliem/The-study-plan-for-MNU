@@ -10,7 +10,10 @@ import {
     HOUR_VARIABLES, 
     MATH_OPERATORS, 
     DEFAULT_FACULTY_FORMULA, 
-    DEFAULT_ASSISTANT_FORMULA 
+    DEFAULT_ASSISTANT_FORMULA,
+    ACADEMIC_ROLE_OPTIONS,
+    DEFAULT_FACULTY_ROLES,
+    DEFAULT_ASSISTANT_ROLES
 } from '../utils/workloadFormula';
 
 const SIDEBAR_PAGES = [
@@ -50,6 +53,10 @@ const ControlPanelPage = () => {
     const [loading, setLoading] = useState(true);
     const [draggedYearIndex, setDraggedYearIndex] = useState(null);
 
+    // Default year/semester (starred) - stored in localStorage
+    const [defaultYear, setDefaultYear] = useState(() => localStorage.getItem('mnu_default_academic_year') || '');
+    const [defaultSemester, setDefaultSemester] = useState(() => localStorage.getItem('mnu_default_semester') || 'الفصل الدراسي الأول');
+
     // Workload Limits & Dynamic Rule Groups State for Control Panel
     const [ruleGroups, setRuleGroups] = useState([
         {
@@ -57,7 +64,9 @@ const ControlPanelPage = () => {
             title: 'القاعدة 1',
             faculties: [],
             facultyFormula: DEFAULT_FACULTY_FORMULA,
-            assistantFormula: DEFAULT_ASSISTANT_FORMULA
+            assistantFormula: DEFAULT_ASSISTANT_FORMULA,
+            facultyRoles: [...DEFAULT_FACULTY_ROLES],
+            assistantRoles: [...DEFAULT_ASSISTANT_ROLES]
         }
     ]);
     const [selectedLimitYear, setSelectedLimitYear] = useState("");
@@ -133,7 +142,9 @@ const ControlPanelPage = () => {
                             title: 'القاعدة 1',
                             faculties: [{ value: String(myFac.id), label: myFac.name }],
                             facultyFormula: DEFAULT_FACULTY_FORMULA,
-                            assistantFormula: DEFAULT_ASSISTANT_FORMULA
+                            assistantFormula: DEFAULT_ASSISTANT_FORMULA,
+                            facultyRoles: [...DEFAULT_FACULTY_ROLES],
+                            assistantRoles: [...DEFAULT_ASSISTANT_ROLES]
                         }]);
                     }
                 } else {
@@ -142,7 +153,9 @@ const ControlPanelPage = () => {
                         title: 'القاعدة 1 (الكليات العامة)',
                         faculties: facList.map(f => ({ value: String(f.id), label: f.name })),
                         facultyFormula: DEFAULT_FACULTY_FORMULA,
-                        assistantFormula: DEFAULT_ASSISTANT_FORMULA
+                        assistantFormula: DEFAULT_ASSISTANT_FORMULA,
+                        facultyRoles: [...DEFAULT_FACULTY_ROLES],
+                        assistantRoles: [...DEFAULT_ASSISTANT_ROLES]
                     }]);
                 }
             }
@@ -191,7 +204,9 @@ const ControlPanelPage = () => {
             title: `القاعدة ${newIndex}`,
             faculties: unselected.length > 0 ? [unselected[0]] : [],
             facultyFormula: DEFAULT_FACULTY_FORMULA,
-            assistantFormula: DEFAULT_ASSISTANT_FORMULA
+            assistantFormula: DEFAULT_ASSISTANT_FORMULA,
+            facultyRoles: [...DEFAULT_FACULTY_ROLES],
+            assistantRoles: [...DEFAULT_ASSISTANT_ROLES]
         };
         setRuleGroups(prev => [...prev, newGroup]);
         toast.success(`تمت إضافة قاعدة جديدة (القاعدة ${newIndex})`);
@@ -260,11 +275,17 @@ const ControlPanelPage = () => {
                     for (const item of allLimits) {
                         const facForm = (item.faculty_formula || DEFAULT_FACULTY_FORMULA).trim();
                         const assForm = (item.assistant_formula || DEFAULT_ASSISTANT_FORMULA).trim();
-                        const key = `${facForm}___SEPARATOR___${assForm}`;
+                        const rolesStr = (item.faculty_roles || DEFAULT_FACULTY_ROLES.join(',')).trim();
+                        const rolesArray = rolesStr ? rolesStr.split(',').map(s => s.trim()).filter(Boolean) : DEFAULT_FACULTY_ROLES;
+                        const assRolesStr = (item.assistant_roles || DEFAULT_ASSISTANT_ROLES.join(',')).trim();
+                        const assRolesArray = assRolesStr ? assRolesStr.split(',').map(s => s.trim()).filter(Boolean) : DEFAULT_ASSISTANT_ROLES;
+                        const key = `${facForm}___SEPARATOR___${assForm}___SEPARATOR___${rolesStr}___SEPARATOR___${assRolesStr}`;
                         if (!formulaMap.has(key)) {
                             formulaMap.set(key, {
                                 facultyFormula: facForm,
                                 assistantFormula: assForm,
+                                facultyRoles: rolesArray,
+                                assistantRoles: assRolesArray,
                                 facultyIds: []
                             });
                         }
@@ -286,7 +307,9 @@ const ControlPanelPage = () => {
                                 title: `القاعدة ${gIndex}`,
                                 faculties: matched,
                                 facultyFormula: data.facultyFormula,
-                                assistantFormula: data.assistantFormula
+                                assistantFormula: data.assistantFormula,
+                                facultyRoles: data.facultyRoles || [...DEFAULT_FACULTY_ROLES],
+                                assistantRoles: data.assistantRoles || [...DEFAULT_ASSISTANT_ROLES]
                             });
                             gIndex++;
                         }
@@ -298,23 +321,16 @@ const ControlPanelPage = () => {
                         .map(f => ({ value: String(f.id), label: f.name }));
 
                     if (unassigned.length > 0) {
-                        if (loadedGroups.length === 0) {
-                            loadedGroups.push({
-                                id: 'rule-1',
-                                title: 'القاعدة 1',
-                                faculties: unassigned,
-                                facultyFormula: DEFAULT_FACULTY_FORMULA,
-                                assistantFormula: DEFAULT_ASSISTANT_FORMULA
-                            });
-                        } else {
-                            loadedGroups.push({
-                                id: `rule-${loadedGroups.length + 1}`,
-                                title: `القاعدة ${loadedGroups.length + 1}`,
-                                faculties: unassigned,
-                                facultyFormula: DEFAULT_FACULTY_FORMULA,
-                                assistantFormula: DEFAULT_ASSISTANT_FORMULA
-                            });
-                        }
+                        const nextIdx = loadedGroups.length + 1;
+                        loadedGroups.push({
+                            id: `rule-${nextIdx}`,
+                            title: `القاعدة ${nextIdx}`,
+                            faculties: unassigned,
+                            facultyFormula: DEFAULT_FACULTY_FORMULA,
+                            assistantFormula: DEFAULT_ASSISTANT_FORMULA,
+                            facultyRoles: [...DEFAULT_FACULTY_ROLES],
+                            assistantRoles: [...DEFAULT_ASSISTANT_ROLES]
+                        });
                     }
 
                     if (loadedGroups.length > 0) {
@@ -327,7 +343,9 @@ const ControlPanelPage = () => {
                         title: 'القاعدة 1 (الكليات العامة)',
                         faculties: accessibleLimitFaculties.map(f => ({ value: String(f.id), label: f.name })),
                         facultyFormula: DEFAULT_FACULTY_FORMULA,
-                        assistantFormula: DEFAULT_ASSISTANT_FORMULA
+                        assistantFormula: DEFAULT_ASSISTANT_FORMULA,
+                        facultyRoles: [...DEFAULT_FACULTY_ROLES],
+                        assistantRoles: [...DEFAULT_ASSISTANT_ROLES]
                     }]);
                 }
             } catch (err) {
@@ -368,6 +386,8 @@ const ControlPanelPage = () => {
                     semester: selectedLimitSemester,
                     faculty_formula: group.facultyFormula || DEFAULT_FACULTY_FORMULA,
                     assistant_formula: group.assistantFormula || DEFAULT_ASSISTANT_FORMULA,
+                    faculty_roles: (group.facultyRoles && group.facultyRoles.length > 0 ? group.facultyRoles : DEFAULT_FACULTY_ROLES).join(','),
+                    assistant_roles: (group.assistantRoles && group.assistantRoles.length > 0 ? group.assistantRoles : DEFAULT_ASSISTANT_ROLES).join(','),
                     max_faculty_hours_per_day: 6.0,
                     max_assistant_hours_per_day: 8.0,
                     min_theory_hours_per_day: parseFloat(workloadLimits.min_theory_hours_per_day) || 0.0,
@@ -422,24 +442,29 @@ const ControlPanelPage = () => {
     }, [currentUserHiddenPages]);
 
     const userSelectOptions = useMemo(() => {
-        return allUsers.map(u => {
-            const facName = getFacultyName(u.faculty_id);
-            let roleText = u.job_title || (u.role === 'admin' ? 'مدير عام' : u.role === 'faculty_admin' ? 'مسؤول كلية' : u.role === 'faculty_professor' ? 'مدير برنامج' : u.role === 'student_affairs' ? 'شؤون طلاب' : u.role === 'reviewer' ? 'مراجع' : u.role);
-            const hiddenCount = parseHiddenPages(u).length;
-            const labelParts = [u.username];
-            if (roleText) labelParts.push(`(${roleText})`);
-            if (facName && facName !== 'غير محدد') labelParts.push(`- ${facName}`);
-            if (hiddenCount > 0) labelParts.push(`[${hiddenCount} صفحة مخفية]`);
-            return {
-                value: u.id,
-                label: labelParts.join(' '),
-                username: u.username,
-                roleText,
-                facName,
-                hiddenCount,
-                user: u
-            };
-        });
+        return allUsers
+            .filter(u => {
+                const role = (u.role || '').toLowerCase();
+                return role !== 'admin' && role !== 'super_admin' && !u.is_super_admin && !u.is_superuser;
+            })
+            .map(u => {
+                const facName = getFacultyName(u.faculty_id);
+                let roleText = u.job_title || (u.role === 'admin' ? 'مدير عام' : u.role === 'faculty_admin' ? 'مسؤول كلية' : u.role === 'faculty_professor' ? 'مدير برنامج' : u.role === 'student_affairs' ? 'شؤون طلاب' : u.role === 'reviewer' ? 'مراجع' : u.role);
+                const hiddenCount = parseHiddenPages(u).length;
+                const labelParts = [u.username];
+                if (roleText) labelParts.push(`(${roleText})`);
+                if (facName && facName !== 'غير محدد') labelParts.push(`- ${facName}`);
+                if (hiddenCount > 0) labelParts.push(`[${hiddenCount} صفحة مخفية]`);
+                return {
+                    value: u.id,
+                    label: labelParts.join(' '),
+                    username: u.username,
+                    roleText,
+                    facName,
+                    hiddenCount,
+                    user: u
+                };
+            });
     }, [allUsers, faculties]);
 
     const customSelectStyles = {
@@ -506,6 +531,106 @@ const ControlPanelPage = () => {
                 color: '#b71c1c'
             }
         })
+    };
+
+    const facultyRoleSelectStyles = {
+        ...customSelectStyles,
+        control: (base, state) => ({
+            ...base,
+            minHeight: '38px',
+            borderRadius: '8px',
+            borderColor: state.isFocused ? '#2563eb' : '#cbd5e1',
+            boxShadow: state.isFocused ? '0 0 0 0.2rem rgba(37, 99, 235, 0.2)' : 'none',
+            '&:hover': { borderColor: '#2563eb' },
+            direction: 'rtl',
+            textAlign: 'right',
+            backgroundColor: '#fff'
+        }),
+        option: (base, state) => ({
+            ...base,
+            backgroundColor: state.isSelected ? '#2563eb' : state.isFocused ? '#eff6ff' : 'transparent',
+            color: state.isSelected ? '#fff' : '#1e3a8a',
+            cursor: 'pointer',
+            direction: 'rtl',
+            textAlign: 'right',
+            padding: '8px 12px',
+            fontSize: '0.85rem'
+        }),
+        multiValue: (base) => ({
+            ...base,
+            backgroundColor: '#eff6ff',
+            borderRadius: '6px',
+            border: '1px solid #bfdbfe',
+            margin: '2px'
+        }),
+        multiValueLabel: (base) => ({
+            ...base,
+            color: '#1d4ed8',
+            fontWeight: 'bold',
+            fontSize: '0.82rem',
+            padding: '2px 6px'
+        }),
+        multiValueRemove: (base) => ({
+            ...base,
+            color: '#1d4ed8',
+            borderRadius: '0 4px 4px 0',
+            cursor: 'pointer',
+            ':hover': {
+                backgroundColor: '#fee2e2',
+                color: '#b91c1c'
+            }
+        }),
+        menuPortal: (base) => ({ ...base, zIndex: 9999 })
+    };
+
+    const assistantRoleSelectStyles = {
+        ...customSelectStyles,
+        control: (base, state) => ({
+            ...base,
+            minHeight: '38px',
+            borderRadius: '8px',
+            borderColor: state.isFocused ? '#10b981' : '#cbd5e1',
+            boxShadow: state.isFocused ? '0 0 0 0.2rem rgba(16, 185, 129, 0.2)' : 'none',
+            '&:hover': { borderColor: '#10b981' },
+            direction: 'rtl',
+            textAlign: 'right',
+            backgroundColor: '#fff'
+        }),
+        option: (base, state) => ({
+            ...base,
+            backgroundColor: state.isSelected ? '#059669' : state.isFocused ? '#ecfdf5' : 'transparent',
+            color: state.isSelected ? '#fff' : '#065f46',
+            cursor: 'pointer',
+            direction: 'rtl',
+            textAlign: 'right',
+            padding: '8px 12px',
+            fontSize: '0.85rem'
+        }),
+        multiValue: (base) => ({
+            ...base,
+            backgroundColor: '#ecfdf5',
+            borderRadius: '6px',
+            border: '1px solid #a7f3d0',
+            margin: '2px'
+        }),
+        multiValueLabel: (base) => ({
+            ...base,
+            color: '#047857',
+            fontWeight: 'bold',
+            fontSize: '0.82rem',
+            padding: '2px 6px'
+        }),
+        multiValueRemove: (base) => ({
+            ...base,
+            color: '#047857',
+            borderRadius: '0 4px 4px 0',
+            cursor: 'pointer',
+            ':hover': {
+                backgroundColor: '#fee2e2',
+                color: '#b91c1c'
+            }
+        }),
+        menuPortal: (base) => ({ ...base, zIndex: 9999 })
     };
 
     const handleHidePage = async () => {
@@ -1257,7 +1382,10 @@ const ControlPanelPage = () => {
                                 <span>سجل المستخدمين الذين لديهم صفحات مخفية</span>
                             </h6>
                             <span className="text-muted small">
-                                إجمالي: {allUsers.filter(u => parseHiddenPages(u).length > 0).length} مستخدم
+                                إجمالي: {allUsers.filter(u => {
+                                    const role = (u.role || '').toLowerCase();
+                                    return role !== 'admin' && role !== 'super_admin' && !u.is_super_admin && !u.is_superuser && parseHiddenPages(u).length > 0;
+                                }).length} مستخدم
                             </span>
                         </div>
                         <div className="table-responsive rounded-3 border">
@@ -1272,7 +1400,10 @@ const ControlPanelPage = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {allUsers.filter(u => parseHiddenPages(u).length > 0).map(u => {
+                                    {allUsers.filter(u => {
+                                        const role = (u.role || '').toLowerCase();
+                                        return role !== 'admin' && role !== 'super_admin' && !u.is_super_admin && !u.is_superuser && parseHiddenPages(u).length > 0;
+                                    }).map(u => {
                                         const hiddenList = parseHiddenPages(u);
                                         return (
                                             <tr key={u.id}>
@@ -1415,6 +1546,16 @@ const ControlPanelPage = () => {
                                     >
                                         <FaPlus /> <span>إضافة قاعدة ومعادلة جديدة لكليات أخرى</span>
                                     </Button>
+                                    <Button
+                                        type="submit"
+                                        variant="success"
+                                        size="sm"
+                                        className="d-flex align-items-center gap-2 fw-bold px-3 py-2 shadow-sm rounded-pill"
+                                        disabled={workloadLimitsSaving}
+                                    >
+                                        {workloadLimitsSaving ? <Spinner size="sm" /> : <FaSave />}
+                                        <span>حفظ القواعد</span>
+                                    </Button>
                                 </div>
 
                                 {/* بطاقات القواعد المختلفة */}
@@ -1525,7 +1666,7 @@ const ControlPanelPage = () => {
                                                     isSearchable
                                                 />
                                                 <small className="text-muted d-block mt-2" style={{ fontSize: '0.82rem' }}>
-                                                    💡 يمكنك اختيار كلية واحدة محددة (مثل: كلية تكنولوجيا العلوم الصحية أو كلية التمريض) أو مجموعة كليات لتنطبق عليها المعادلات المحددة أدناه.
+                                                    💡 يمكنك اختيار كلية واحدة محددة أو مجموعة كليات لتنطبق عليها المعادلات المحددة أدناه.
                                                 </small>
                                             </div>
 
@@ -1537,10 +1678,47 @@ const ControlPanelPage = () => {
                                                         <div>
                                                             <div className="d-flex align-items-center justify-content-between mb-2">
                                                                 <span className="fw-bold text-dark fs-6">👨‍🏫 أعضاء هيئة التدريس</span>
-                                                                <Badge bg="primary" className="px-2 py-1">أستاذ / أ.مساعد / مدرس</Badge>
+                                                                <Badge bg="primary" className="px-2 py-1">
+                                                                    {(group.facultyRoles || DEFAULT_FACULTY_ROLES).length} رتب محددة
+                                                                </Badge>
                                                             </div>
-                                                            <p className="text-muted small mb-2" style={{ fontSize: '0.82rem' }}>
-                                                                المعادلة: أي وظيفة ما عدا المعيد والمدرس المساعد
+
+                                                            {/* أداة اختيار وتحديد الوظائف والدرجات العلمية ديناميكياً (Droplist مع Multiple Selection) */}
+                                                            <div className="p-2 rounded-3 mb-2 border" style={{ backgroundColor: '#f8fafc', borderColor: '#cbd5e1' }}>
+                                                                <div className="d-flex align-items-center justify-content-between mb-1">
+                                                                    <small className="fw-bold text-dark" style={{ fontSize: '0.8rem' }}>
+                                                                        🎯 الوظائف والدرجات العلمية المشمولة بالمعادلة (Multiple Selection):
+                                                                    </small>
+                                                                    <Badge bg="primary" className="fw-normal" style={{ fontSize: '0.72rem' }}>
+                                                                        {(group.facultyRoles || DEFAULT_FACULTY_ROLES).length} مختارة
+                                                                    </Badge>
+                                                                </div>
+                                                                <Select
+                                                                    isMulti
+                                                                    options={ACADEMIC_ROLE_OPTIONS}
+                                                                    value={ACADEMIC_ROLE_OPTIONS.filter(opt => (group.facultyRoles || DEFAULT_FACULTY_ROLES).includes(opt.value))}
+                                                                    onChange={(selected) => {
+                                                                        const vals = selected ? selected.map(s => s.value) : [];
+                                                                        if (vals.length === 0) {
+                                                                            toast.error("يجب اختيار وظيفة أو درجة علمية واحدة على الأقل لأعضاء هيئة التدريس");
+                                                                            return;
+                                                                        }
+                                                                        handleUpdateRuleGroup(group.id, 'facultyRoles', vals);
+                                                                    }}
+                                                                    styles={facultyRoleSelectStyles}
+                                                                    placeholder="اختر الوظائف أو الدرجات العلمية لأعضاء هيئة التدريس..."
+                                                                    noOptionsMessage={() => "لا توجد خيارات"}
+                                                                    closeMenuOnSelect={false}
+                                                                    menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                                                    isSearchable
+                                                                />
+                                                                <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
+                                                                    💡 يطبق فحص الحد الأقصى (Validation) لهذه المعادلة على أصحاب الوظائف المختارة أعلاه.
+                                                                </small>
+                                                            </div>
+
+                                                            <p className="text-muted small mb-2" style={{ fontSize: '0.8rem' }}>
+                                                                المعادلة تطبق على: <strong className="text-primary">{(group.facultyRoles || DEFAULT_FACULTY_ROLES).join('، ')}</strong>
                                                             </p>
 
                                                             {/* شريط الأدوات: زر الساعات والعمليات السريعة */}
@@ -1648,10 +1826,47 @@ const ControlPanelPage = () => {
                                                         <div>
                                                             <div className="d-flex align-items-center justify-content-between mb-2">
                                                                 <span className="fw-bold text-dark fs-6">🧑‍🔬 الهيئة المعاونة</span>
-                                                                <Badge bg="success" className="px-2 py-1">معيد / مدرس مساعد فقط</Badge>
+                                                                <Badge bg="success" className="px-2 py-1">
+                                                                    {(group.assistantRoles || DEFAULT_ASSISTANT_ROLES).length} رتب محددة
+                                                                </Badge>
                                                             </div>
-                                                            <p className="text-muted small mb-2" style={{ fontSize: '0.82rem' }}>
-                                                                المعادلة: معيد ومدرس مساعد فقط (عملي وتوتوريال وحقل)
+
+                                                            {/* أداة اختيار وتحديد الوظائف والدرجات العلمية للهيئة المعاونة ديناميكياً (Droplist مع Multiple Selection) */}
+                                                            <div className="p-2 rounded-3 mb-2 border" style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                                                                <div className="d-flex align-items-center justify-content-between mb-1">
+                                                                    <small className="fw-bold text-dark" style={{ fontSize: '0.8rem' }}>
+                                                                        🎯 الوظائف والدرجات العلمية المشمولة بالمعادلة (Multiple Selection):
+                                                                    </small>
+                                                                    <Badge bg="success" className="fw-normal" style={{ fontSize: '0.72rem' }}>
+                                                                        {(group.assistantRoles || DEFAULT_ASSISTANT_ROLES).length} مختارة
+                                                                    </Badge>
+                                                                </div>
+                                                                <Select
+                                                                    isMulti
+                                                                    options={ACADEMIC_ROLE_OPTIONS}
+                                                                    value={ACADEMIC_ROLE_OPTIONS.filter(opt => (group.assistantRoles || DEFAULT_ASSISTANT_ROLES).includes(opt.value))}
+                                                                    onChange={(selected) => {
+                                                                        const vals = selected ? selected.map(s => s.value) : [];
+                                                                        if (vals.length === 0) {
+                                                                            toast.error("يجب اختيار وظيفة أو درجة علمية واحدة على الأقل للهيئة المعاونة");
+                                                                            return;
+                                                                        }
+                                                                        handleUpdateRuleGroup(group.id, 'assistantRoles', vals);
+                                                                    }}
+                                                                    styles={assistantRoleSelectStyles}
+                                                                    placeholder="اختر الوظائف أو الدرجات العلمية للهيئة المعاونة..."
+                                                                    noOptionsMessage={() => "لا توجد خيارات"}
+                                                                    closeMenuOnSelect={false}
+                                                                    menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                                                    isSearchable
+                                                                />
+                                                                <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
+                                                                    💡 يطبق فحص الحد الأقصى (Validation) لهذه المعادلة على أصحاب الوظائف المختارة أعلاه.
+                                                                </small>
+                                                            </div>
+
+                                                            <p className="text-muted small mb-2" style={{ fontSize: '0.8rem' }}>
+                                                                المعادلة تطبق على: <strong className="text-success">{(group.assistantRoles || DEFAULT_ASSISTANT_ROLES).join('، ')}</strong>
                                                             </p>
 
                                                             {/* شريط الأدوات: زر الساعات والعمليات السريعة */}
@@ -1761,13 +1976,13 @@ const ControlPanelPage = () => {
                                 <div className="text-center my-3">
                                     <Button
                                         type="button"
-                                        variant="outline-success"
+                                        variant="outline-primary"
                                         className="w-100 py-3 rounded-4 fw-bold shadow-xs border-2 d-flex align-items-center justify-content-center gap-2"
-                                        style={{ borderStyle: 'dashed', backgroundColor: '#f0fdf4', fontSize: '1rem' }}
+                                        style={{ borderStyle: 'dashed', backgroundColor: '#f5f3ff', fontSize: '1rem', color: '#7c3aed', borderColor: '#a78bfa' }}
                                         onClick={handleAddRuleGroup}
                                     >
-                                        <FaPlus />
-                                        <span>➕ إضافة قاعدة ومعادلة جديدة لكليات أخرى (مثل: كلية تكنولوجيا العلوم الصحية / كلية التمريض)</span>
+                                        <FaPlus style={{ color: '#7c3aed' }} />
+                                        <span style={{ color: '#7c3aed' }}>➕ إضافة قاعدة ومعادلة جديدة لكليات أخرى</span>
                                     </Button>
                                 </div>
                             </div>
@@ -1897,13 +2112,23 @@ const ControlPanelPage = () => {
                                             </div>
                                             <Row className="g-2">
                                                 <Col md={6}>
-                                                    <div className="small fw-bold text-primary mb-1">👨‍🏫 أعضاء هيئة التدريس:</div>
+                                                    <div className="small fw-bold text-primary mb-1 d-flex align-items-center justify-content-between">
+                                                        <span>👨‍🏫 أعضاء هيئة التدريس:</span>
+                                                        <span className="text-muted fw-normal" style={{ fontSize: '0.76rem' }}>
+                                                            ({(group.facultyRoles || DEFAULT_FACULTY_ROLES).join('، ')})
+                                                        </span>
+                                                    </div>
                                                     <div className="font-monospace text-primary p-2 bg-light rounded-2 border fw-bold" dir="ltr" style={{ textAlign: 'left', fontSize: '0.82rem' }}>
                                                         {group.facultyFormula || DEFAULT_FACULTY_FORMULA}
                                                     </div>
                                                 </Col>
                                                 <Col md={6}>
-                                                    <div className="small fw-bold text-success mb-1">🧑‍🔬 الهيئة المعاونة:</div>
+                                                    <div className="small fw-bold text-success mb-1 d-flex align-items-center justify-content-between">
+                                                        <span>🧑‍🔬 الهيئة المعاونة:</span>
+                                                        <span className="text-muted fw-normal" style={{ fontSize: '0.76rem' }}>
+                                                            ({(group.assistantRoles || DEFAULT_ASSISTANT_ROLES).join('، ')})
+                                                        </span>
+                                                    </div>
                                                     <div className="font-monospace text-success p-2 bg-light rounded-2 border fw-bold" dir="ltr" style={{ textAlign: 'left', fontSize: '0.82rem' }}>
                                                         {group.assistantFormula || DEFAULT_ASSISTANT_FORMULA}
                                                     </div>
@@ -2120,6 +2345,59 @@ const ControlPanelPage = () => {
                                             <td className="fw-bold text-end pe-3" style={{ verticalAlign: 'middle' }}>
                                                 <i className="bi bi-grip-vertical text-muted ms-2" style={{ cursor: 'grab' }}></i>
                                                 {y.name}
+                                                <span
+                                                    title={defaultYear === y.name ? `العام الافتراضي: ${y.name} - ${defaultSemester}` : 'تعيين كعام افتراضي'}
+                                                    style={{
+                                                        cursor: 'pointer',
+                                                        fontSize: '1.1rem',
+                                                        marginRight: '6px',
+                                                        color: defaultYear === y.name ? '#f59e0b' : '#d1d5db',
+                                                        transition: 'color 0.2s, transform 0.15s',
+                                                        display: 'inline-block',
+                                                        verticalAlign: 'middle'
+                                                    }}
+                                                    onMouseEnter={e => { if (defaultYear !== y.name) e.currentTarget.style.color = '#fbbf24'; }}
+                                                    onMouseLeave={e => { if (defaultYear !== y.name) e.currentTarget.style.color = '#d1d5db'; }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (defaultYear === y.name) {
+                                                            // show semester picker as small popover via a quick prompt
+                                                            const semChoices = ['الفصل الدراسي الأول', 'الفصل الدراسي الثاني', 'الفصل الدراسي الصيفي'];
+                                                            const idx = semChoices.indexOf(defaultSemester);
+                                                            const next = semChoices[(idx + 1) % semChoices.length];
+                                                            setDefaultSemester(next);
+                                                            localStorage.setItem('mnu_default_semester', next);
+                                                            toast.success(`تم تغيير الفصل الافتراضي إلى: ${next}`, { icon: '⭐' });
+                                                        } else {
+                                                            setDefaultYear(y.name);
+                                                            localStorage.setItem('mnu_default_academic_year', y.name);
+                                                            localStorage.setItem('mnu_default_semester', defaultSemester);
+                                                            toast.success(`تم تعيين ${y.name} كعام جامعي افتراضي`, { icon: '⭐' });
+                                                        }
+                                                    }}
+                                                >
+                                                    {defaultYear === y.name ? '⭐' : '☆'}
+                                                </span>
+                                                {defaultYear === y.name && (
+                                                    <Badge
+                                                        bg="warning"
+                                                        text="dark"
+                                                        className="ms-1"
+                                                        style={{ fontSize: '0.7rem', cursor: 'pointer' }}
+                                                        title="اضغط لتغيير الفصل الافتراضي"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const semChoices = ['الفصل الدراسي الأول', 'الفصل الدراسي الثاني', 'الفصل الدراسي الصيفي'];
+                                                            const idx = semChoices.indexOf(defaultSemester);
+                                                            const next = semChoices[(idx + 1) % semChoices.length];
+                                                            setDefaultSemester(next);
+                                                            localStorage.setItem('mnu_default_semester', next);
+                                                            toast.success(`تم تغيير الفصل الافتراضي إلى: ${next}`, { icon: '⭐' });
+                                                        }}
+                                                    >
+                                                        {defaultSemester === 'الفصل الدراسي الأول' ? 'الفصل الأول' : defaultSemester === 'الفصل الدراسي الثاني' ? 'الفصل الثاني' : 'الفصل الصيفي'}
+                                                    </Badge>
+                                                )}
                                             </td>
                                             {/* الكليات العامة */}
                                             <td><span className="badge bg-light text-success border px-2 py-2 fs-6">{y.semester1_weeks ?? 15} أسبوع</span></td>

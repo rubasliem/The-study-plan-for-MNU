@@ -197,8 +197,14 @@ const StudyPlanPage = () => {
   const [currentPlan, setCurrentPlan] = useState(null);
 
   const [selectedFaculty, setSelectedFaculty] = useState("");
-  const [selectedSemester, setSelectedSemester] = useState("الفصل الدراسي الأول");
-  const [selectedYear, setSelectedYear] = useState("2026/2027");
+  const [selectedSemester, setSelectedSemester] = useState(() => {
+    const saved = localStorage.getItem('mnu_default_semester');
+    if (!saved) return 'الفصل الدراسي الأول';
+    if (saved.includes('صيفي')) return 'الفصل الدراسي الصيفي';
+    if (saved.includes('ثاني')) return 'الفصل الدراسي الثاني';
+    return 'الفصل الدراسي الأول';
+  });
+  const [selectedYear, setSelectedYear] = useState(() => localStorage.getItem('mnu_default_academic_year') || "2026/2027");
   const [academicYears, setAcademicYears] = useState([]);
   const [signatures, setSignatures] = useState([]);
   const [workloadLimits, setWorkloadLimits] = useState(null);
@@ -255,6 +261,20 @@ const StudyPlanPage = () => {
             currentPlan?.is_finished)
   );
 
+  const logAction = async (actionText, facultyIds = null, academicYear = null, semester = null) => {
+    try {
+      await axios.post(`${API}/api/notifications/log`, {
+        action_text: actionText,
+        faculty_ids: facultyIds,
+        academic_year: academicYear,
+        semester: semester
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+    } catch (error) {
+      console.error("Error logging action", error);
+    }
+  };
 
   // States for the Modal Form
   useEffect(() => {
@@ -278,6 +298,7 @@ const StudyPlanPage = () => {
   const activeFac = faculties.find(f => String(f.id) === String(selectedFaculty));
   const isHealthTech = Boolean(activeFac && (activeFac.name.includes("تكنولوجيا العلوم الصحية") || activeFac.name.includes("العلوم الصحية")));
   const isMedicine = Boolean(activeFac && (activeFac.name.includes("الطب والجراحة") || activeFac.name.includes("طب بشري") || activeFac.name.includes("كلية الطب")) && !activeFac.name.includes("البيطري") && !activeFac.name.includes("الأسنان") && !activeFac.name.includes("الاسنان") && !activeFac.name.includes("تكنولوجيا"));
+  const isNursing = Boolean(activeFac && activeFac.name && (activeFac.name.includes("التمريض") || activeFac.name.includes("تمريض")));
   const hasMultiplePrograms = Boolean(programs && programs.length > 1);
 
   const isInitialMount = useRef(true);
@@ -974,6 +995,13 @@ const StudyPlanPage = () => {
 
       setPlanRows(cleanedRows);
       setShowCopyPlanModal(false);
+      const facName = faculties.find(f => String(f.id) === String(selectedFaculty))?.name || "الكلية";
+      logAction(
+        `قام بنسخ الخطة الدراسية من ${sourceSemester} العام الجامعي ${sourceAcademicYear}`,
+        selectedFaculty ? [Number(selectedFaculty)] : null,
+        selectedYear,
+        selectedSemester
+      );
       toast.success(`تم نسخ الخطة الدراسية من عام (${sourceAcademicYear}) بنجاح! يمكنك الآن مراجعتها وتعديلها والضغط على حفظ.`);
     } catch (err) {
       console.error("Error copying plan:", err);
@@ -2498,17 +2526,17 @@ ${namesRow}
         const formatSplitTableHtml = (items, customStyle = "") => {
           if (!items || items.length === 0) return "--";
           if (!isForPrint) {
-            return items.join('<br style="mso-data-placement:same-cell;"/>');
+            return `<div align="center" style="text-align: center; width: 100%; margin: 0 auto; display: block;">${items.map(it => `<span style="text-align: center; display: inline-block;">${it}</span>`).join('<br style="mso-data-placement:same-cell;"/>')}</div>`;
           }
           if (items.length === 1) {
-            return `<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 48px; width: 100%; padding: 4px 2px; box-sizing: border-box; ${customStyle}">${items[0]}</div>`;
+            return `<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 48px; width: 100%; padding: 4px 2px; box-sizing: border-box; text-align: center; ${customStyle}">${items[0]}</div>`;
           }
           const pct = `${100 / items.length}%`;
           return `<table style="width: 100%; height: 100%; min-height: 52px; border-collapse: collapse; margin: 0; padding: 0; border: none !important; table-layout: fixed;">
             <tbody>
               ${items.map((it, idx) => `
                 <tr style="height: ${pct}; border: none !important;">
-                  <td style="height: ${pct}; vertical-align: middle; text-align: center; padding: 4px 2px; border: none !important; ${idx > 0 ? 'border-top: 1px solid #777 !important;' : ''} ${customStyle}">
+                  <td align="center" style="height: ${pct}; vertical-align: middle; text-align: center; padding: 4px 2px; border: none !important; ${idx > 0 ? 'border-top: 1px solid #777 !important;' : ''} ${customStyle}">
                     ${it}
                   </td>
                 </tr>
@@ -2623,43 +2651,51 @@ ${namesRow}
         dataRowsHtml += `<tr style="mso-height-source: auto;">`;
 
         if (r.isFirstInCourse) {
-          dataRowsHtml += `<td rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; ${isForPrint ? (isHealthTech ? "width: 170px;" : "width: 205px;") + " padding: 0; line-height: 1.3; height: 1px;" : "padding: 4px 6px;"} font-size: ${isForPrint ? '8.5pt' : '11pt'}; font-weight: bold;">${formatSplitTableHtml(nameItems)}</td>`;
-          dataRowsHtml += `<td rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "padding: 0; width: 52px; font-size: 8.5pt; height: 1px;" : "padding: 4px 6px; font-size: 11pt;"}">${formatSplitTableHtml(codeItems)}</td>`;
+          dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; ${isForPrint ? (isHealthTech ? "width: 170px;" : "width: 205px;") + " padding: 0; line-height: 1.3; height: 1px;" : "padding: 4px 6px;"} font-size: ${isForPrint ? '8.5pt' : '11pt'}; font-weight: bold;">${formatSplitTableHtml(nameItems)}</td>`;
+          dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "padding: 0; width: 52px; font-size: 8.5pt; height: 1px;" : "padding: 4px 6px; font-size: 11pt;"}">${formatSplitTableHtml(codeItems)}</td>`;
           if (!isHealthTech && !isSingleProgram) {
-            dataRowsHtml += `<td rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: normal; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "width: 135px; font-size: 8.5pt; line-height: 1.3; padding: 0; height: 1px;" : "padding: 4px 6px; font-size: 11pt;"}">${formatSplitTableHtml(progItems)}</td>`;
+            dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: normal; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "width: 135px; font-size: 8.5pt; line-height: 1.3; padding: 0; height: 1px;" : "padding: 4px 6px; font-size: 11pt;"}">${formatSplitTableHtml(progItems)}</td>`;
           }
-          dataRowsHtml += `<td rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; vertical-align: middle; border: 1px solid #777; padding: 0; ${isForPrint ? "width: 17px; font-size: 8.5pt;" : "min-width: 50px; font-size: 11pt;"} height: 1px;">${formatSplitTableHtml(bylawThItems)}</td>`;
-          dataRowsHtml += `<td rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; vertical-align: middle; border: 1px solid #777; padding: 0; ${isForPrint ? "width: 17px; font-size: 8.5pt;" : "min-width: 50px; font-size: 11pt;"} height: 1px;">${formatSplitTableHtml(bylawPrItems)}</td>`;
+          dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; padding: 0; ${isForPrint ? "width: 17px; font-size: 8.5pt; height: 1px;" : "min-width: 50px; font-size: 11pt;"}">${formatSplitTableHtml(bylawThItems)}</td>`;
+          dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; padding: 0; ${isForPrint ? "width: 17px; font-size: 8.5pt; height: 1px;" : "min-width: 50px; font-size: 11pt;"}">${formatSplitTableHtml(bylawPrItems)}</td>`;
           if (isHealthTech) {
-            dataRowsHtml += `<td rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "padding: 1px; width: 17px; font-size: 8.5pt;" : "padding: 6px 12px; min-width: 50px; font-size: 11pt;"}">${bylawTr}</td>`;
-            dataRowsHtml += `<td rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "padding: 1px; width: 17px; font-size: 8.5pt;" : "padding: 6px 12px; min-width: 50px; font-size: 11pt;"}">${bylawFld}</td>`;
+            dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "padding: 1px; width: 17px; font-size: 8.5pt;" : "padding: 6px 12px; min-width: 50px; font-size: 11pt;"}">${bylawTr}</td>`;
+            dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "padding: 1px; width: 17px; font-size: 8.5pt;" : "padding: 6px 12px; min-width: 50px; font-size: 11pt;"}">${bylawFld}</td>`;
+          } else if (isNursing) {
+            dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "padding: 1px; width: 17px; font-size: 8.5pt;" : "padding: 6px 12px; min-width: 50px; font-size: 11pt;"}">${bylawTr}</td>`;
           }
-          dataRowsHtml += `<td rowspan="${r.courseSpan}" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; font-weight: bold; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "padding: 1px; width: 25px; font-size: 8.5pt;" : "padding: 6px 12px; min-width: 55px; font-size: 11pt;"}">${studentCount}</td>`;
-          dataRowsHtml += `<td rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; vertical-align: middle; border: 1px solid #777; padding: 0; ${isForPrint ? "width: 17px; font-size: 8.5pt;" : "min-width: 50px; font-size: 11pt;"} height: 1px;">${formatSplitTableHtml(groupsThItems)}</td>`;
-          dataRowsHtml += `<td rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; vertical-align: middle; border: 1px solid #777; padding: 0; ${isForPrint ? "width: 17px; font-size: 8.5pt;" : "min-width: 50px; font-size: 11pt;"} height: 1px;">${formatSplitTableHtml(groupsPrItems)}</td>`;
+          dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; font-weight: bold; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "padding: 1px; width: 25px; font-size: 8.5pt;" : "padding: 6px 12px; min-width: 55px; font-size: 11pt;"}">${studentCount}</td>`;
+          dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; padding: 0; ${isForPrint ? "width: 17px; font-size: 8.5pt; height: 1px;" : "min-width: 50px; font-size: 11pt;"}">${formatSplitTableHtml(groupsThItems)}</td>`;
+          dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; padding: 0; ${isForPrint ? "width: 17px; font-size: 8.5pt; height: 1px;" : "min-width: 50px; font-size: 11pt;"}">${formatSplitTableHtml(groupsPrItems)}</td>`;
           if (isHealthTech) {
-            dataRowsHtml += `<td rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "padding: 1px; width: 17px; font-size: 8.5pt;" : "font-size: 11pt; min-width: 50px;"}">${groupsTr}</td>`;
-            dataRowsHtml += `<td rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "padding: 1px; width: 17px; font-size: 8.5pt;" : "font-size: 11pt; min-width: 50px;"}">${groupsFld}</td>`;
+            dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "padding: 1px; width: 17px; font-size: 8.5pt;" : "font-size: 11pt; min-width: 50px;"}">${groupsTr}</td>`;
+            dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "padding: 1px; width: 17px; font-size: 8.5pt;" : "font-size: 11pt; min-width: 50px;"}">${groupsFld}</td>`;
+          } else if (isNursing) {
+            dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "padding: 1px; width: 17px; font-size: 8.5pt;" : "font-size: 11pt; min-width: 50px;"}">${groupsTr}</td>`;
           }
-          dataRowsHtml += `<td rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; vertical-align: middle; border: 1px solid #777; padding: 0; ${isForPrint ? "width: 17px; font-size: 8.5pt; font-weight: bold;" : "min-width: 50px; font-size: 11pt; font-weight: bold;"} height: 1px;">${formatSplitTableHtml(reqThItems, `font-weight: bold; font-size: ${isForPrint ? '8.5pt' : '11pt'};`)}</td>`;
-          dataRowsHtml += `<td rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; vertical-align: middle; border: 1px solid #777; padding: 0; ${isForPrint ? "width: 17px; font-size: 8.5pt; font-weight: bold;" : "min-width: 50px; font-size: 11pt; font-weight: bold;"} height: 1px;">${formatSplitTableHtml(reqPrItems, `font-weight: bold; font-size: ${isForPrint ? '8.5pt' : '11pt'};`)}</td>`;
+          dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; padding: 0; ${isForPrint ? "width: 17px; font-size: 8.5pt; font-weight: bold; height: 1px;" : "min-width: 50px; font-size: 11pt; font-weight: bold;"}">${formatSplitTableHtml(reqThItems, `font-weight: bold; font-size: ${isForPrint ? '8.5pt' : '11pt'}; text-align: center;`)}</td>`;
+          dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; padding: 0; ${isForPrint ? "width: 17px; font-size: 8.5pt; font-weight: bold; height: 1px;" : "min-width: 50px; font-size: 11pt; font-weight: bold;"}">${formatSplitTableHtml(reqPrItems, `font-weight: bold; font-size: ${isForPrint ? '8.5pt' : '11pt'}; text-align: center;`)}</td>`;
           if (isHealthTech) {
-            dataRowsHtml += `<td rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: bold; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "padding: 1px; width: 17px; font-size: 8.5pt;" : "font-size: 11pt;"}">${reqTr}</td>`;
-            dataRowsHtml += `<td rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: bold; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "padding: 1px; width: 17px; font-size: 8.5pt;" : "font-size: 11pt;"}">${reqFld}</td>`;
+            dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: bold; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "padding: 1px; width: 17px; font-size: 8.5pt;" : "font-size: 11pt;"}">${reqTr}</td>`;
+            dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: bold; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "padding: 1px; width: 17px; font-size: 8.5pt;" : "font-size: 11pt;"}">${reqFld}</td>`;
+          } else if (isNursing) {
+            dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: bold; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "padding: 1px; width: 17px; font-size: 8.5pt;" : "font-size: 11pt;"}">${reqTr}</td>`;
           }
         }
 
         dataRowsHtml += `<td bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: right; font-weight: normal; padding: 4px 6px; ${isForPrint ? (isHealthTech ? "width: 145px;" : "width: 175px;") : ""} border: 1px solid #777; line-height: 1.25; vertical-align: middle; font-size: ${isForPrint ? '9pt' : '11pt'};">${profName}</td>`;
-        dataRowsHtml += `<td bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; border: 1px solid #777; ${isForPrint ? "width: 52px; white-space: nowrap; padding: 2px 3px;" : "padding: 4px 8px;"} font-size: ${isForPrint ? '8.5pt' : '11pt'};">${profJob}</td>`;
-        dataRowsHtml += `<td bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; border: 1px solid #777; ${isForPrint ? (isHealthTech ? "width: 85px; font-size: 8pt; padding: 2px 3px; line-height: 1.2;" : "width: 140px; font-size: 8.5pt;") : "min-width: 150px; font-size: 11pt;"}">${profWorkplace}</td>`;
-        dataRowsHtml += `<td bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: bold; border: 1px solid #777; padding: 1px; ${isForPrint ? 'width: 17px; font-size: 8.5pt;' : 'font-size: 11pt;'}">${actTh}</td>`;
-        dataRowsHtml += `<td bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: bold; border: 1px solid #777; padding: 1px; ${isForPrint ? 'width: 17px; font-size: 8.5pt;' : 'font-size: 11pt;'}">${actPr}</td>`;
+        dataRowsHtml += `<td align="center" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; border: 1px solid #777; ${isForPrint ? "width: 52px; white-space: nowrap; padding: 2px 3px;" : "padding: 4px 8px;"} font-size: ${isForPrint ? '8.5pt' : '11pt'};">${profJob}</td>`;
+        dataRowsHtml += `<td align="center" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; border: 1px solid #777; ${isForPrint ? (isHealthTech ? "width: 85px; font-size: 8pt; padding: 2px 3px; line-height: 1.2;" : "width: 140px; font-size: 8.5pt;") : "min-width: 150px; font-size: 11pt;"}">${profWorkplace}</td>`;
+        dataRowsHtml += `<td align="center" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: bold; border: 1px solid #777; padding: 1px; ${isForPrint ? 'width: 17px; font-size: 8.5pt;' : 'font-size: 11pt;'}">${actTh}</td>`;
+        dataRowsHtml += `<td align="center" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: bold; border: 1px solid #777; padding: 1px; ${isForPrint ? 'width: 17px; font-size: 8.5pt;' : 'font-size: 11pt;'}">${actPr}</td>`;
         if (isHealthTech) {
-          dataRowsHtml += `<td bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: bold; border: 1px solid #777; padding: 1px; ${isForPrint ? 'width: 17px; font-size: 8.5pt;' : 'font-size: 11pt;'}">${actTr}</td>`;
-          dataRowsHtml += `<td bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: bold; border: 1px solid #777; padding: 1px; ${isForPrint ? 'width: 17px; font-size: 8.5pt;' : 'font-size: 11pt;'}">${actFld}</td>`;
+          dataRowsHtml += `<td align="center" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: bold; border: 1px solid #777; padding: 1px; ${isForPrint ? 'width: 17px; font-size: 8.5pt;' : 'font-size: 11pt;'}">${actTr}</td>`;
+          dataRowsHtml += `<td align="center" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: bold; border: 1px solid #777; padding: 1px; ${isForPrint ? 'width: 17px; font-size: 8.5pt;' : 'font-size: 11pt;'}">${actFld}</td>`;
+        } else if (isNursing) {
+          dataRowsHtml += `<td align="center" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: bold; border: 1px solid #777; padding: 1px; ${isForPrint ? 'width: 17px; font-size: 8.5pt;' : 'font-size: 11pt;'}">${actTr}</td>`;
         }
         if (r.isFirstInCourse) {
-          dataRowsHtml += `<td rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "width: 65px; font-size: 8.5pt;" : "font-size: 11pt;"} padding: 4px 6px;">${notes || "--"}</td>`;
+          dataRowsHtml += `<td align="center" rowspan="${r.courseSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; ${isForPrint ? "width: 65px; font-size: 8.5pt;" : "font-size: 11pt;"} padding: 4px 6px;">${notes || "--"}</td>`;
         }
         dataRowsHtml += `</tr>\n`;
       });
@@ -2674,7 +2710,7 @@ ${namesRow}
     const totGroupsPr = isMedicine
       ? planRows.reduce((s, r) => s + (Number(r.groups_practical) || 0), 0)
       : buildRenderRows().filter(r => r.isFirstInCourse).reduce((s, r) => s + (Number(r.groups_practical) || 0), 0);
-    const totGroupsTr = isHealthTech
+    const totGroupsTr = (isHealthTech || isNursing)
       ? buildRenderRows().filter(r => r.isFirstInCourse).reduce((s, r) => s + (Number(r.groups_training) || 0), 0)
       : 0;
     const totGroupsFld = isHealthTech
@@ -2686,7 +2722,7 @@ ${namesRow}
     const totHoursPr = isMedicine
       ? planRows.reduce((s, r) => s + (Number(r.hours_actual_practical) || 0), 0)
       : buildRenderRows().reduce((s, r) => s + (Number(r.hours_actual_practical) || 0), 0);
-    const totHoursTr = isHealthTech
+    const totHoursTr = (isHealthTech || isNursing)
       ? buildRenderRows().reduce((s, r) => s + (Number(r.hours_actual_training) || 0), 0)
       : 0;
     const totHoursFld = isHealthTech
@@ -2694,60 +2730,81 @@ ${namesRow}
       : 0;
     const totProfessors = new Set(planRows.map(r => r.professor_id).filter(Boolean)).size;
 
-    const totalCols = isMedicine ? 15 : (isHealthTech ? 23 : (!isSingleProgram ? 16 : 15));
+    const totalCols = isMedicine ? 15 : (isHealthTech ? 23 : (isNursing ? (!isSingleProgram ? 20 : 19) : (!isSingleProgram ? 16 : 15)));
     const model1ColWidths = isMedicine
       ? [200, 40, 40, 50, 40, 40, 40, 40, 130, 180, 60, 130, 40, 40, 80]
       : (isHealthTech
         ? [160, 45, 22, 22, 22, 22, 35, 22, 22, 22, 22, 22, 22, 22, 22, 140, 50, 90, 22, 22, 22, 22, 60]
-        : (isSingleProgram
-          ? [220, 55, 35, 35, 50, 35, 35, 35, 35, 180, 55, 130, 40, 40, 65]
-          : [210, 55, 135, 40, 40, 55, 40, 40, 40, 40, 185, 60, 135, 43, 43, 80]));
+        : (isNursing
+          ? (!isSingleProgram
+            ? [210, 55, 135, 35, 35, 35, 50, 35, 35, 35, 35, 35, 35, 185, 60, 135, 35, 35, 35, 80]
+            : [220, 55, 35, 35, 35, 50, 35, 35, 35, 35, 35, 35, 180, 55, 130, 35, 35, 35, 65])
+          : (isSingleProgram
+            ? [220, 55, 35, 35, 50, 35, 35, 35, 35, 180, 55, 130, 40, 40, 65]
+            : [210, 55, 135, 40, 40, 55, 40, 40, 40, 40, 185, 60, 135, 43, 43, 80])));
     const signaturesHtml = renderSignaturesExcel(signatures, totalCols, model1ColWidths);
     const footerSummaryHtml = isForPrint ? "" : (
       isMedicine ? `
       <tr height="20" style="height: 15pt; font-weight: bold; mso-height-source: userset;">
-        <td colspan="3" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">إجمالي المواد: ${totCourses}</td>
-        <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totStudents)}</td>
-        <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totGroupsTh)}</td>
-        <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totGroupsPr)}</td>
-        <td colspan="2" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">-</td>
-        <td colspan="4" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">إجمالي أعضاء هيئة التدريس: ${totProfessors}</td>
-        <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">${fmt(totHoursTh)}</td>
-        <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">${fmt(totHoursPr)}</td>
-        <td bgcolor="#f0fdf4" style="border: 1px solid #777; text-align: center;">الإجمالي العام</td>
+        <td align="center" colspan="3" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">إجمالي المواد: ${totCourses}</td>
+        <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totStudents)}</td>
+        <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totGroupsTh)}</td>
+        <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totGroupsPr)}</td>
+        <td align="center" colspan="2" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">-</td>
+        <td align="center" colspan="4" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">إجمالي أعضاء هيئة التدريس: ${totProfessors}</td>
+        <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">${fmt(totHoursTh)}</td>
+        <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">${fmt(totHoursPr)}</td>
+        <td align="center" bgcolor="#f0fdf4" style="border: 1px solid #777; text-align: center;">الإجمالي العام</td>
       </tr>
       ` : (
         isHealthTech ? `
         <tr height="20" style="height: 15pt; font-weight: bold; mso-height-source: userset;">
-          <td colspan="2" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">إجمالي المواد: ${totCourses}</td>
-          <td colspan="4" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">-</td>
-          <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totStudents)}</td>
-          <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totGroupsTh)}</td>
-          <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totGroupsPr)}</td>
-          <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totGroupsTr)}</td>
-          <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totGroupsFld)}</td>
-          <td colspan="4" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">-</td>
-          <td colspan="3" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">إجمالي أعضاء هيئة التدريس: ${totProfessors}</td>
-          <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">${fmt(totHoursTh)}</td>
-          <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">${fmt(totHoursPr)}</td>
-          <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">${fmt(totHoursTr)}</td>
-          <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">${fmt(totHoursFld)}</td>
-          <td bgcolor="#f0fdf4" style="border: 1px solid #777; text-align: center;">الإجمالي العام</td>
+          <td align="center" colspan="2" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">إجمالي المواد: ${totCourses}</td>
+          <td align="center" colspan="4" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">-</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totStudents)}</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totGroupsTh)}</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totGroupsPr)}</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totGroupsTr)}</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totGroupsFld)}</td>
+          <td align="center" colspan="4" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">-</td>
+          <td align="center" colspan="3" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">إجمالي أعضاء هيئة التدريس: ${totProfessors}</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">${fmt(totHoursTh)}</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">${fmt(totHoursPr)}</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">${fmt(totHoursTr)}</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">${fmt(totHoursFld)}</td>
+          <td align="center" bgcolor="#f0fdf4" style="border: 1px solid #777; text-align: center;">الإجمالي العام</td>
+        </tr>
+        ` : (
+          isNursing ? `
+        <tr height="20" style="height: 15pt; font-weight: bold; mso-height-source: userset;">
+          <td align="center" colspan="${!isSingleProgram ? 3 : 2}" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">إجمالي المواد: ${totCourses}</td>
+          <td align="center" colspan="3" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">-</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totStudents)}</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totGroupsTh)}</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totGroupsPr)}</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totGroupsTr)}</td>
+          <td align="center" colspan="3" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">-</td>
+          <td align="center" colspan="3" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">إجمالي أعضاء هيئة التدريس: ${totProfessors}</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">${fmt(totHoursTh)}</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">${fmt(totHoursPr)}</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">${fmt(totHoursTr)}</td>
+          <td align="center" bgcolor="#f0fdf4" style="border: 1px solid #777; text-align: center;">الإجمالي العام</td>
         </tr>
         ` : `
         <tr height="20" style="height: 15pt; font-weight: bold; mso-height-source: userset;">
-          <td colspan="${!isSingleProgram ? 3 : 2}" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">إجمالي المواد: ${totCourses}</td>
-          <td colspan="2" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">-</td>
-          <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totStudents)}</td>
-          <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totGroupsTh)}</td>
-          <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totGroupsPr)}</td>
-          <td colspan="2" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">-</td>
-          <td colspan="3" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">إجمالي أعضاء هيئة التدريس: ${totProfessors}</td>
-          <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">${fmt(totHoursTh)}</td>
-          <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">${fmt(totHoursPr)}</td>
-          <td bgcolor="#f0fdf4" style="border: 1px solid #777; text-align: center;">الإجمالي العام</td>
+          <td align="center" colspan="${!isSingleProgram ? 3 : 2}" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">إجمالي المواد: ${totCourses}</td>
+          <td align="center" colspan="2" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">-</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totStudents)}</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totGroupsTh)}</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">${fmt(totGroupsPr)}</td>
+          <td align="center" colspan="2" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777;">-</td>
+          <td align="center" colspan="3" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">إجمالي أعضاء هيئة التدريس: ${totProfessors}</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">${fmt(totHoursTh)}</td>
+          <td align="center" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777;">${fmt(totHoursPr)}</td>
+          <td align="center" bgcolor="#f0fdf4" style="border: 1px solid #777; text-align: center;">الإجمالي العام</td>
         </tr>
         `
+        )
       )
     );
 
@@ -2780,29 +2837,29 @@ ${namesRow}
   <th rowspan="2" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 12pt; -webkit-print-color-adjust: exact; print-color-adjust: exact;"><font color="#ffffff">اسم المادة</font></th>
   <th rowspan="2" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11pt; -webkit-print-color-adjust: exact; print-color-adjust: exact;"><font color="#ffffff">الكود</font></th>
   ${(!isHealthTech && !isSingleProgram) ? `<th rowspan="2" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 12pt; -webkit-print-color-adjust: exact; print-color-adjust: exact;"><font color="#ffffff">البرنامج</font></th>` : ""}
-  <th colspan="${isHealthTech ? 4 : 2}" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 2px 1px;"><font color="#ffffff">اللائحة</font></th>
+  <th colspan="${isHealthTech ? 4 : (isNursing ? 3 : 2)}" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 2px 1px;"><font color="#ffffff">اللائحة</font></th>
   <th rowspan="2" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 2px 1px;"><font color="#ffffff">عدد الطلاب</font></th>
-  <th colspan="${isHealthTech ? 4 : 2}" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 2px 1px;"><font color="#ffffff">عدد المجموعات</font></th>
-  <th colspan="${isHealthTech ? 4 : 2}" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 2px 1px;"><font color="#ffffff">الساعات المطلوبة</font></th>
+  <th colspan="${isHealthTech ? 4 : (isNursing ? 3 : 2)}" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 2px 1px;"><font color="#ffffff">عدد المجموعات</font></th>
+  <th colspan="${isHealthTech ? 4 : (isNursing ? 3 : 2)}" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 2px 1px;"><font color="#ffffff">الساعات المطلوبة</font></th>
   <th rowspan="2" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 12pt; -webkit-print-color-adjust: exact; print-color-adjust: exact;"><font color="#ffffff">اسم عضو هيئة التدريس</font></th>
   <th rowspan="2" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11.5pt; -webkit-print-color-adjust: exact; print-color-adjust: exact;"><font color="#ffffff">الدرجة</font></th>
   <th rowspan="2" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11.5pt; -webkit-print-color-adjust: exact; print-color-adjust: exact;"><font color="#ffffff">جهة القدوم</font></th>
-  <th colspan="${isHealthTech ? 4 : 2}" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 2px 1px;"><font color="#ffffff">الساعات المنفذة</font></th>
+  <th colspan="${isHealthTech ? 4 : (isNursing ? 3 : 2)}" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 2px 1px;"><font color="#ffffff">الساعات المنفذة</font></th>
   <th rowspan="2" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11.5pt; -webkit-print-color-adjust: exact; print-color-adjust: exact;"><font color="#ffffff">ملاحظات</font></th>
 </tr>
-<tr class="header-row-sub" height="${isHealthTech && isForPrint ? '48' : '26'}" style="height: ${isHealthTech && isForPrint ? '48px' : '20pt'}; mso-height-source: userset;">
-  ${renderSubHeaderTh("نظري", isHealthTech, isForPrint)}
-  ${renderSubHeaderTh("عملي", isHealthTech, isForPrint)}
-  ${isHealthTech ? renderSubHeaderTh("توتوريال", isHealthTech, isForPrint) + renderSubHeaderTh("حقل", isHealthTech, isForPrint) : ""}
-  ${renderSubHeaderTh("نظري", isHealthTech, isForPrint)}
-  ${renderSubHeaderTh("عملي", isHealthTech, isForPrint)}
-  ${isHealthTech ? renderSubHeaderTh("توتوريال", isHealthTech, isForPrint) + renderSubHeaderTh("حقل", isHealthTech, isForPrint) : ""}
-  ${renderSubHeaderTh("نظري", isHealthTech, isForPrint)}
-  ${renderSubHeaderTh("عملي", isHealthTech, isForPrint)}
-  ${isHealthTech ? renderSubHeaderTh("توتوريال", isHealthTech, isForPrint) + renderSubHeaderTh("حقل", isHealthTech, isForPrint) : ""}
-  ${renderSubHeaderTh("نظري", isHealthTech, isForPrint)}
-  ${renderSubHeaderTh("عملي", isHealthTech, isForPrint)}
-  ${isHealthTech ? renderSubHeaderTh("توتوريال", isHealthTech, isForPrint) + renderSubHeaderTh("حقل", isHealthTech, isForPrint) : ""}
+<tr class="header-row-sub" height="${(isHealthTech || isNursing) && isForPrint ? '48' : '26'}" style="height: ${(isHealthTech || isNursing) && isForPrint ? '48px' : '20pt'}; mso-height-source: userset;">
+  ${renderSubHeaderTh("نظري", isHealthTech || isNursing, isForPrint)}
+  ${renderSubHeaderTh("عملي", isHealthTech || isNursing, isForPrint)}
+  ${isHealthTech ? renderSubHeaderTh("توتوريال", isHealthTech, isForPrint) + renderSubHeaderTh("حقل", isHealthTech, isForPrint) : (isNursing ? renderSubHeaderTh("معملي", isHealthTech || isNursing, isForPrint) : "")}
+  ${renderSubHeaderTh("نظري", isHealthTech || isNursing, isForPrint)}
+  ${renderSubHeaderTh("عملي", isHealthTech || isNursing, isForPrint)}
+  ${isHealthTech ? renderSubHeaderTh("توتوريال", isHealthTech, isForPrint) + renderSubHeaderTh("حقل", isHealthTech, isForPrint) : (isNursing ? renderSubHeaderTh("معملي", isHealthTech || isNursing, isForPrint) : "")}
+  ${renderSubHeaderTh("نظري", isHealthTech || isNursing, isForPrint)}
+  ${renderSubHeaderTh("عملي", isHealthTech || isNursing, isForPrint)}
+  ${isHealthTech ? renderSubHeaderTh("توتوريال", isHealthTech, isForPrint) + renderSubHeaderTh("حقل", isHealthTech, isForPrint) : (isNursing ? renderSubHeaderTh("معملي", isHealthTech || isNursing, isForPrint) : "")}
+  ${renderSubHeaderTh("نظري", isHealthTech || isNursing, isForPrint)}
+  ${renderSubHeaderTh(isHealthTech || isNursing ? "عملي" : "تمارين/عملي", isHealthTech || isNursing, isForPrint)}
+  ${isHealthTech ? renderSubHeaderTh("توتوريال", isHealthTech, isForPrint) + renderSubHeaderTh("حقل", isHealthTech, isForPrint) : (isNursing ? renderSubHeaderTh("معملي", isHealthTech || isNursing, isForPrint) : "")}
 </tr>
 `;
     if (isForPrint) {
@@ -2901,6 +2958,21 @@ ${isMedicine ? `
   <col style="width: 2.2%;"><col style="width: 2.2%;"><col style="width: 2.2%;"><col style="width: 2.2%;">
   <col style="width: 6%;">
 </colgroup>
+` : (isNursing ? `
+<colgroup>
+  <col style="width: 17%;">
+  <col style="width: 4.5%;">
+  ${!isSingleProgram ? '<col style="width: 10%;">' : ''}
+  <col style="width: 2.8%;"><col style="width: 2.8%;"><col style="width: 2.8%;">
+  <col style="width: 4%;">
+  <col style="width: 2.8%;"><col style="width: 2.8%;"><col style="width: 2.8%;">
+  <col style="width: 2.8%;"><col style="width: 2.8%;"><col style="width: 2.8%;">
+  <col style="width: 14%;">
+  <col style="width: 5%;">
+  <col style="width: 9%;">
+  <col style="width: 2.8%;"><col style="width: 2.8%;"><col style="width: 2.8%;">
+  <col style="width: 6%;">
+</colgroup>
 ` : (isSingleProgram ? `
 <colgroup>
   <col style="width: 22%;">
@@ -2930,7 +3002,7 @@ ${isMedicine ? `
   <col style="width: 3.5%;"><col style="width: 3.5%;">
   <col style="width: 6.5%;">
 </colgroup>
-`))}
+`)))}
 <thead>
 <tr style="border: none !important;">
 <th colspan="${totalCols}" style="border: none !important; background: transparent !important; color: inherit; padding: 10px 0 4px 0; font-weight: normal;">
@@ -2999,18 +3071,18 @@ ${dataRowsHtml}
 </x:ExcelWorkbook>
 </xml>
 <![endif]-->
-<style>body { font-family: 'Cairo', Arial, sans-serif; direction: rtl; text-align: right; } table { border-collapse: collapse; direction: rtl; width: 100%; table-layout: auto !important; } tr { mso-height-source: auto !important; height: auto !important; } th { border: 1px solid #1b5e20; } td { padding: 6px 10px; font-size: 11pt; vertical-align: middle !important; white-space: nowrap !important; height: auto !important; mso-height-source: auto !important; } .header-title, .header-title font, .header-title b { font-size: 13pt !important; } .signature-cell, .signature-cell font, .signature-cell b { font-size: 11pt !important; white-space: normal !important; text-align: center !important; } td.no-border, .no-border, .no-border td { border: none !important; border-style: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; white-space: nowrap !important; height: auto !important; }</style>
+<style>body { font-family: 'Cairo', Arial, sans-serif; direction: rtl; text-align: right; } table { border-collapse: collapse; direction: rtl; width: 100%; table-layout: auto !important; } tr { mso-height-source: auto !important; height: auto !important; } th { border: 1px solid #1b5e20; } td { padding: 6px 10px; font-size: 11pt; vertical-align: middle !important; white-space: nowrap !important; height: auto !important; mso-height-source: auto !important; } td[align="center"], th[align="center"] { text-align: center !important; } .header-title, .header-title font, .header-title b { font-size: 13pt !important; } .signature-cell, .signature-cell font, .signature-cell b { font-size: 11pt !important; white-space: normal !important; text-align: center !important; } td.no-border, .no-border, .no-border td { border: none !important; border-style: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; white-space: nowrap !important; height: auto !important; }</style>
 </head>
 <body>
 <table style="width: 100%; border-collapse: collapse;">
 <tr>
-  <td colspan="2" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #1b5e20; vertical-align: middle;"><font color="#1b5e20" size="4" style="font-size: 13pt;"><b>جامعة المنوفية الأهلية</b></font></td>
-  <td colspan="${totalCols - 3}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #1b5e20; vertical-align: middle;"><font color="#1b5e20" size="4" style="font-size: 13pt;"><b>${facName.startsWith("كلية") ? facName : `كلية ${facName}`}</b></font></td>
+  <td class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #1b5e20; vertical-align: middle;"><font color="#1b5e20" size="4" style="font-size: 13pt;"><b>جامعة المنوفية الأهلية</b></font></td>
+  <td colspan="${totalCols - 2}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #1b5e20; vertical-align: middle;"><font color="#1b5e20" size="4" style="font-size: 13pt;"><b>${facName.startsWith("كلية") ? facName : `كلية ${facName}`}</b></font></td>
   <td colspan="1" rowspan="2" class="no-border" align="center" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; vertical-align: middle; padding: 0;"><img src="${window.location.origin}${logo}" width="85" height="85" style="display: block; margin: 0 auto;" /></td>
 </tr>
 <tr>
-  <td colspan="2" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; vertical-align: middle;"><font size="4" style="font-size: 13pt;"><b>شئون التعليم والطلاب</b></font></td>
-  <td colspan="${totalCols - 3}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #222; vertical-align: middle;"><font size="4" style="font-size: 13pt;"><b>المستويات ( ${levelNames} )</b></font></td>
+  <td class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; vertical-align: middle;"><font size="4" style="font-size: 13pt;"><b>شئون التعليم والطلاب</b></font></td>
+  <td colspan="${totalCols - 2}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #222; vertical-align: middle;"><font size="4" style="font-size: 13pt;"><b>المستويات ( ${levelNames} )</b></font></td>
 </tr>
 <tr>
   <td colspan="${totalCols}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-size: 13pt !important; font-weight: bold; color: #333; vertical-align: middle; padding: 2px 0;"><font size="4" style="font-size: 13pt;"><b>${activeProgNamesList.length > 1 ? 'برامج' : 'برنامج'}: ${progNames}</b></font></td>
@@ -3018,6 +3090,8 @@ ${dataRowsHtml}
 <tr>
   <td colspan="${totalCols}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #1b5e20; padding: 3px 0;"><font color="#1b5e20" size="4" style="font-size: 13pt;"><b>توزيع الدروس على السادة أعضاء هيئة التدريس والهيئة المعاونة القائمين بالتدريس في ${selectedSemester} للعام الجامعي ${selectedYear} م &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; نموذج (1) تدريس ( نظام ساعات معتمدة )</b></font></td>
 </tr>
+</table>
+<table style="width: 100%; border-collapse: collapse;">
 ${tableHeadersHtml}
 ${dataRowsHtml}
 ${footerSummaryHtml}
@@ -3052,21 +3126,6 @@ ${signaturesHtml}
     logAction(`قام بتنزيل جدول المقررات (نموذج 1 - Excel) لكلية ${facName}`, activeFac?.id ? [activeFac.id] : null, selectedYear, selectedSemester);
   };
 
-  const logAction = async (actionText, facultyIds = null, academicYear = null, semester = null) => {
-    try {
-      await axios.post(`${API}/api/notifications/log`, {
-        action_text: actionText,
-        faculty_ids: facultyIds,
-        academic_year: academicYear,
-        semester: semester
-      }, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-    } catch (error) {
-      console.error("Error logging action", error);
-    }
-  };
-
   const handlePrintModel1 = () => {
     if (planRows.length === 0) {
       toast.error("لا توجد بيانات مقررات لطباعتها في الخطة.");
@@ -3091,6 +3150,7 @@ ${signaturesHtml}
   const generateModel2Html = (isForPrint = false) => {
     const facName = activeFac?.name || "الكلية";
     const isSingleProgram = programs.length <= 1;
+    const isNursing = Boolean(activeFac && activeFac.name && activeFac.name.includes("التمريض"));
     const progNames = programs.length > 0 ? programs.map(p => p.name).join(" - ") : "المستوى العام";
     const levelNames = Array.from(new Set(courses.map(c => formatLevelToWord(c.level)))).filter(l => l && l !== "--").join(" - ") || "العام";
 
@@ -3126,49 +3186,59 @@ ${signaturesHtml}
       dataRowsHtml += `<td bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; border: 1px solid #777; white-space: nowrap; padding: 2px 4px; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${r.code || "--"}</td>`;
 
       if (r.isFirstOfBlock) {
-        dataRowsHtml += `<td rowspan="${r.blockSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: normal; border: 1px solid #777; padding: 1px; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${fmt(r.hoursTheory)}</td>`;
-        dataRowsHtml += `<td rowspan="${r.blockSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: normal; border: 1px solid #777; padding: 1px; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${fmt(r.hoursPractical)}</td>`;
+        dataRowsHtml += `<td align="center" rowspan="${r.blockSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: normal; border: 1px solid #777; padding: 1px; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${fmt(r.hoursTheory)}</td>`;
+        dataRowsHtml += `<td align="center" rowspan="${r.blockSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: normal; border: 1px solid #777; padding: 1px; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${fmt(r.hoursPractical)}</td>`;
         if (isHealthTech) {
-          dataRowsHtml += `<td rowspan="${r.blockSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: normal; border: 1px solid #777; padding: 2px; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${fmt(r.hoursTraining)}</td>`;
-          dataRowsHtml += `<td rowspan="${r.blockSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: normal; border: 1px solid #777; padding: 2px; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${fmt(r.hoursField)}</td>`;
+          dataRowsHtml += `<td align="center" rowspan="${r.blockSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: normal; border: 1px solid #777; padding: 2px; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${fmt(r.hoursTraining)}</td>`;
+          dataRowsHtml += `<td align="center" rowspan="${r.blockSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: normal; border: 1px solid #777; padding: 2px; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${fmt(r.hoursField)}</td>`;
+        } else if (isNursing) {
+          dataRowsHtml += `<td align="center" rowspan="${r.blockSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; font-weight: normal; border: 1px solid #777; padding: 2px; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${fmt(r.hoursTraining)}</td>`;
         }
       }
 
       if (r.isFirstOfProf) {
-        dataRowsHtml += `<td rowspan="${r.profSpan}" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; font-weight: bold; color: #1e40af; vertical-align: middle; border: 1px solid #777; padding: 1px; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${fmt(r.totalTheory)}</td>`;
-        dataRowsHtml += `<td rowspan="${r.profSpan}" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; font-weight: bold; color: #1e40af; vertical-align: middle; border: 1px solid #777; padding: 1px; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${fmt(r.totalPractical)}</td>`;
+        dataRowsHtml += `<td align="center" rowspan="${r.profSpan}" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; font-weight: bold; color: #1e40af; vertical-align: middle; border: 1px solid #777; padding: 1px; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${fmt(r.totalTheory)}</td>`;
+        dataRowsHtml += `<td align="center" rowspan="${r.profSpan}" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; font-weight: bold; color: #1e40af; vertical-align: middle; border: 1px solid #777; padding: 1px; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${fmt(r.totalPractical)}</td>`;
         if (isHealthTech) {
-          dataRowsHtml += `<td rowspan="${r.profSpan}" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; font-weight: bold; color: #1e40af; vertical-align: middle; border: 1px solid #777; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${fmt(r.totalTraining)}</td>`;
-          dataRowsHtml += `<td rowspan="${r.profSpan}" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; font-weight: bold; color: #1e40af; vertical-align: middle; border: 1px solid #777; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${fmt(r.totalField)}</td>`;
+          dataRowsHtml += `<td align="center" rowspan="${r.profSpan}" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; font-weight: bold; color: #1e40af; vertical-align: middle; border: 1px solid #777; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${fmt(r.totalTraining)}</td>`;
+          dataRowsHtml += `<td align="center" rowspan="${r.profSpan}" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; font-weight: bold; color: #1e40af; vertical-align: middle; border: 1px solid #777; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${fmt(r.totalField)}</td>`;
+        } else if (isNursing) {
+          dataRowsHtml += `<td align="center" rowspan="${r.profSpan}" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; font-weight: bold; color: #1e40af; vertical-align: middle; border: 1px solid #777; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${fmt(r.totalTraining)}</td>`;
         }
       }
 
       if (r.isFirstOfBlock) {
-        dataRowsHtml += `<td rowspan="${r.blockSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${r.notes}</td>`;
+        dataRowsHtml += `<td align="center" rowspan="${r.blockSpan}" bgcolor="${rowBg}" style="background-color: ${rowBg}; text-align: center; vertical-align: middle; border: 1px solid #777; font-size: ${isForPrint ? '8.5pt' : '11pt'};">${r.notes}</td>`;
       }
       dataRowsHtml += `</tr>\n`;
     });
 
-    const totalCols = (isHealthTech ? 17 : 13) - (isSingleProgram ? 1 : 0);
+    const totalCols = (isHealthTech ? 17 : (isNursing ? 15 : 13)) - (isSingleProgram ? 1 : 0);
     const footerSummaryHtml = isForPrint ? "" : `
     <tr height="22" style="height: 16.5pt; font-weight: bold; mso-height-source: userset; font-size: 11pt;">
       <td colspan="4" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777; font-size: 11pt;">إجمالي أعضاء هيئة التدريس: ${new Set(planRows.map(r => r.professor_id).filter(Boolean)).size}</td>
       <td colspan="${isSingleProgram ? 3 : 4}" bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777; font-size: 11pt;">إجمالي المواد: ${new Set(planRows.map(r => r.course_id)).size}</td>
       <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777; font-size: 11pt;">${fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_theory) || 0), 0))}</td>
       <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777; font-size: 11pt;">${fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_practical) || 0), 0))}</td>
-      ${isHealthTech ? `<td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777; font-size: 11pt;">${fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_training) || 0), 0))}</td><td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777; font-size: 11pt;">${fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_field) || 0), 0))}</td>` : ""}
+      ${(isHealthTech || isNursing) ? `<td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777; font-size: 11pt;">${fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_training) || 0), 0))}</td>` : ""}
+      ${isHealthTech ? `<td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; border: 1px solid #777; font-size: 11pt;">${fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_field) || 0), 0))}</td>` : ""}
       <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777; font-size: 11pt;">${fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_theory) || 0), 0))}</td>
       <td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777; font-size: 11pt;">${fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_practical) || 0), 0))}</td>
-      ${isHealthTech ? `<td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777; font-size: 11pt;">${fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_training) || 0), 0))}</td><td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777; font-size: 11pt;">${fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_field) || 0), 0))}</td>` : ""}
+      ${(isHealthTech || isNursing) ? `<td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777; font-size: 11pt;">${fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_training) || 0), 0))}</td>` : ""}
+      ${isHealthTech ? `<td bgcolor="#f0fdf4" style="background-color: #f0fdf4; text-align: center; color: #1e40af; border: 1px solid #777; font-size: 11pt;">${fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_field) || 0), 0))}</td>` : ""}
       <td bgcolor="#f0fdf4" style="border: 1px solid #777; text-align: center; font-size: 11pt;">الإجمالي العام</td>
     </tr>
     `;
 
     const model2ColWidths = isHealthTech
       ? [35, 190, 60, 140, 200, 50, 140, 60, 40, 40, 40, 40, 40, 40, 40, 40, 80]
-      : (isSingleProgram
-        ? [35, 190, 60, 140, 200, 50, 60, 40, 40, 50, 50, 80]
-        : [35, 190, 60, 140, 200, 50, 140, 60, 40, 40, 50, 50, 80]);
+      : (isNursing
+        ? (isSingleProgram
+          ? [35, 190, 60, 140, 200, 50, 60, 40, 40, 40, 50, 50, 50, 80]
+          : [35, 190, 60, 140, 200, 50, 140, 60, 40, 40, 40, 50, 50, 50, 80])
+        : (isSingleProgram
+          ? [35, 190, 60, 140, 200, 50, 60, 40, 40, 50, 50, 80]
+          : [35, 190, 60, 140, 200, 50, 140, 60, 40, 40, 50, 50, 80]));
     const signaturesHtml = renderSignaturesExcel(signatures, totalCols, model2ColWidths);
     const tableHeadersHtml = `
     <tr class="header-row-main" height="34" style="height: 26pt; mso-height-source: userset;">
@@ -3180,17 +3250,17 @@ ${signaturesHtml}
       <th rowspan="2" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11pt; -webkit-print-color-adjust: exact; print-color-adjust: exact;"><font color="#ffffff">المستوى</font></th>
       ${!isSingleProgram ? `<th rowspan="2" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 12pt; -webkit-print-color-adjust: exact; print-color-adjust: exact;"><font color="#ffffff">البرنامج / القسم</font></th>` : ""}
       <th rowspan="2" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11pt; -webkit-print-color-adjust: exact; print-color-adjust: exact;"><font color="#ffffff">الكود</font></th>
-      <th colspan="${isHealthTech ? 4 : 2}" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11pt; padding: 2px 1px; -webkit-print-color-adjust: exact; print-color-adjust: exact;"><font color="#ffffff">ساعات التدريس</font></th>
-      <th colspan="${isHealthTech ? 4 : 2}" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11pt; padding: 2px 1px; -webkit-print-color-adjust: exact; print-color-adjust: exact;"><font color="#ffffff">إجمالي الساعات</font></th>
+      <th colspan="${isHealthTech ? 4 : (isNursing ? 3 : 2)}" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11pt; padding: 2px 1px; -webkit-print-color-adjust: exact; print-color-adjust: exact;"><font color="#ffffff">ساعات التدريس</font></th>
+      <th colspan="${isHealthTech ? 4 : (isNursing ? 3 : 2)}" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11pt; padding: 2px 1px; -webkit-print-color-adjust: exact; print-color-adjust: exact;"><font color="#ffffff">إجمالي الساعات</font></th>
       <th rowspan="2" bgcolor="#388e3c" style="background-color: #388e3c !important; color: #ffffff !important; font-weight: bold; text-align: center; vertical-align: middle; border: 1px solid #1b5e20; font-size: 11.5pt; -webkit-print-color-adjust: exact; print-color-adjust: exact;"><font color="#ffffff">ملاحظات</font></th>
     </tr>
-    <tr class="header-row-sub" height="${isHealthTech && isForPrint ? '48' : '26'}" style="height: ${isHealthTech && isForPrint ? '48px' : '20pt'}; mso-height-source: userset;">
-      ${renderSubHeaderTh("نظري", isHealthTech, isForPrint)}
-      ${renderSubHeaderTh("عملي", isHealthTech, isForPrint)}
-      ${isHealthTech ? renderSubHeaderTh("توتوريال", isHealthTech, isForPrint) + renderSubHeaderTh("حقل", isHealthTech, isForPrint) : ""}
-      ${renderSubHeaderTh("نظري", isHealthTech, isForPrint)}
-      ${renderSubHeaderTh("عملي", isHealthTech, isForPrint)}
-      ${isHealthTech ? renderSubHeaderTh("توتوريال", isHealthTech, isForPrint) + renderSubHeaderTh("حقل", isHealthTech, isForPrint) : ""}
+    <tr class="header-row-sub" height="${(isHealthTech || isNursing) && isForPrint ? '48' : '26'}" style="height: ${(isHealthTech || isNursing) && isForPrint ? '48px' : '20pt'}; mso-height-source: userset;">
+      ${renderSubHeaderTh("نظري", isHealthTech || isNursing, isForPrint)}
+      ${renderSubHeaderTh(isHealthTech || isNursing ? "عملي" : "تمارين/عملي", isHealthTech || isNursing, isForPrint)}
+      ${isHealthTech ? renderSubHeaderTh("توتوريال", isHealthTech, isForPrint) + renderSubHeaderTh("حقل", isHealthTech, isForPrint) : (isNursing ? renderSubHeaderTh("معملي", isHealthTech || isNursing, isForPrint) : "")}
+      ${renderSubHeaderTh("نظري", isHealthTech || isNursing, isForPrint)}
+      ${renderSubHeaderTh(isHealthTech || isNursing ? "عملي" : "تمارين/عملي", isHealthTech || isNursing, isForPrint)}
+      ${isHealthTech ? renderSubHeaderTh("توتوريال", isHealthTech, isForPrint) + renderSubHeaderTh("حقل", isHealthTech, isForPrint) : (isNursing ? renderSubHeaderTh("معملي", isHealthTech || isNursing, isForPrint) : "")}
     </tr>
     `;
 
@@ -3252,6 +3322,20 @@ ${signaturesHtml}
         <col style="width: 2.2%;"><col style="width: 2.2%;"><col style="width: 2.2%;"><col style="width: 2.2%;">
         <col style="width: 6%;">
       </colgroup>
+      ` : (isNursing ? `
+      <colgroup>
+        <col style="width: 2.5%;">
+        <col style="width: ${isSingleProgram ? "19%" : "15%"};">
+        <col style="width: 5%;">
+        <col style="width: ${isSingleProgram ? "13%" : "10%"};">
+        <col style="width: ${isSingleProgram ? "23%" : "17%"};">
+        <col style="width: 5%;">
+        ${!isSingleProgram ? `<col style="width: 12%;">` : ""}
+        <col style="width: 5%;">
+        <col style="width: 2.8%;"><col style="width: 2.8%;"><col style="width: 2.8%;">
+        <col style="width: 2.8%;"><col style="width: 2.8%;"><col style="width: 2.8%;">
+        <col style="width: 6%;">
+      </colgroup>
       ` : `
       <colgroup>
         <col style="width: 2.5%;">
@@ -3266,7 +3350,7 @@ ${signaturesHtml}
         <col style="width: 3.5%;"><col style="width: 3.5%;">
         <col style="width: 6.5%;">
       </colgroup>
-      `}
+      `)}
       <thead>
         <tr style="border: none !important;">
           <th colspan="${totalCols}" style="border: none !important; background: transparent !important; color: inherit; padding: 10px 0 4px 0; font-weight: normal;">
@@ -3338,17 +3422,19 @@ ${signaturesHtml}
 <body>
   <table style="width: 100%; border-collapse: collapse;">
     <tr>
-      <td colspan="2" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #1b5e20; vertical-align: middle;"><font color="#1b5e20" size="4" style="font-size: 13pt;"><b>جامعة المنوفية الأهلية</b></font></td>
-      <td colspan="${totalCols - 3}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #1b5e20; vertical-align: middle;"><font color="#1b5e20" size="4" style="font-size: 13pt;"><b>${facName.startsWith("كلية") ? facName : `كلية ${facName}`}</b></font></td>
+      <td class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #1b5e20; vertical-align: middle;"><font color="#1b5e20" size="4" style="font-size: 13pt;"><b>جامعة المنوفية الأهلية</b></font></td>
+      <td colspan="${totalCols - 2}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #1b5e20; vertical-align: middle;"><font color="#1b5e20" size="4" style="font-size: 13pt;"><b>${facName.startsWith("كلية") ? facName : `كلية ${facName}`}</b></font></td>
       <td colspan="1" rowspan="2" class="no-border" align="center" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; vertical-align: middle; padding: 0;"><img src="${window.location.origin}${logo}" width="65" height="65" style="display: block; margin: 0 auto;" /></td>
     </tr>
     <tr>
-      <td colspan="2" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; vertical-align: middle;"><font size="4" style="font-size: 13pt;"><b>شئون التعليم والطلاب</b></font></td>
-      <td colspan="${totalCols - 3}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #222; vertical-align: middle;"><font size="4" style="font-size: 13pt;"><b>${(isSingleProgram && progNames) ? `برنامج: ${progNames}` : ""}</b></font></td>
+      <td class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; vertical-align: middle;"><font size="4" style="font-size: 13pt;"><b>شئون التعليم والطلاب</b></font></td>
+      <td colspan="${totalCols - 2}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #222; vertical-align: middle;"><font size="4" style="font-size: 13pt;"><b>${(isSingleProgram && progNames) ? `برنامج: ${progNames}` : ""}</b></font></td>
     </tr>
     <tr>
       <td colspan="${totalCols}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #1b5e20; padding: 3px 0;"><font color="#1b5e20" size="4" style="font-size: 13pt;"><b>بيان بالسادة أعضاء هيئة التدريس والهيئة المعاونة القائمين بالتدريس في ${selectedSemester} للعام الجامعي ${selectedYear} م &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; نموذج (2) تدريس ( نظام ساعات معتمدة )</b></font></td>
     </tr>
+  </table>
+  <table style="width: 100%; border-collapse: collapse;">
     ${tableHeadersHtml}
     ${dataRowsHtml}
     ${footerSummaryHtml}
@@ -3369,7 +3455,7 @@ ${signaturesHtml}
     const facName = activeFac?.name || "الكلية";
     const excelContent = generateModel2Html(false);
 
-    const blob = new Blob([excelContent], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const blob = new Blob(["\ufeff" + excelContent], { type: "application/vnd.ms-excel;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -3419,6 +3505,7 @@ ${signaturesHtml}
     const facName = facObj?.name || "الكلية";
     const isHealthTech = Boolean(facName.includes("تكنولوجيا العلوم الصحية") || facName.includes("العلوم الصحية"));
     const isMedicine = Boolean(facName && (facName.includes("الطب والجراحة") || facName.includes("طب بشري") || facName.includes("كلية الطب")) && !facName.includes("البيطري") && !facName.includes("الأسنان") && !facName.includes("الاسنان") && !facName.includes("تكنولوجيا"));
+    const isNursing = Boolean(facName && facName.includes("التمريض"));
 
     setIsDownloadingTemplate(true);
     try {
@@ -3453,6 +3540,10 @@ ${signaturesHtml}
           { header: "عدد المجموعات توتوريال", key: "groups_training", width: 22 },
           { header: "عدد المجموعات حقل", key: "groups_field", width: 20 }
         );
+      } else if (isNursing) {
+        columns.push(
+          { header: "عدد مجموعات معملي", key: "groups_training", width: 20 }
+        );
       }
 
       // إضافة عمود القسم العلمي لكلية الطب والجراحة (حيث تتوزع المقررات على أقسام علمية وموديولات)
@@ -3473,33 +3564,13 @@ ${signaturesHtml}
           { header: "ساعات توتوريال للأستاذ", key: "hours_training", width: 24 },
           { header: "ساعات حقل للأستاذ", key: "hours_field", width: 22 }
         );
+      } else if (isNursing) {
+        columns.push(
+          { header: "ساعات معملي للأستاذ", key: "hours_training", width: 22 }
+        );
       }
 
       worksheet.columns = columns;
-
-      // ضبط تنسيق أعمدة الساعات لتستقبل أرقاماً صحيحة وعشرية بدون تقريب
-      const hoursColKeys = ['hours_theory', 'hours_practical'];
-      if (isHealthTech) {
-        hoursColKeys.push('hours_training', 'hours_field');
-      }
-
-      hoursColKeys.forEach(colKey => {
-        const col = worksheet.getColumn(colKey);
-        col.numFmt = '0.##';
-        for (let r = 2; r <= 500; r++) {
-          const cell = worksheet.getCell(`${col.letter}${r}`);
-          cell.numFmt = '0.##';
-          cell.dataValidation = {
-            type: 'decimal',
-            operator: 'greaterThanOrEqual',
-            formulae: [0],
-            allowBlank: true,
-            showErrorMessage: true,
-            errorTitle: 'قيمة غير صحيحة',
-            error: 'يرجى إدخال عدد ساعات صحيح أو عشري بدون تقريب (0 أو أكثر، مثل: 2 أو 1.5 أو 2.25)'
-          };
-        }
-      });
 
       // Style Header Row (Row 1)
       const headerRow = worksheet.getRow(1);
@@ -3529,106 +3600,30 @@ ${signaturesHtml}
         };
       });
 
-      // Sample Row Data
-      let sampleCourseCode = "BAS 003";
-      let sampleProgName = "الأمن السيبراني";
-      let sampleNatId = "29001011701234";
-      let sampleDeptName = "";
-      let sampleDeptName2 = "";
-
-      if (String(targetFacId) === String(selectedFaculty)) {
-        if (courses && courses.length > 0 && courses[0].code) sampleCourseCode = courses[0].code;
-        if (programs && programs.length > 0 && programs[0].name) sampleProgName = programs[0].name;
-      }
-      if (professors && professors.length > 0 && professors[0].national_id) {
-        sampleNatId = professors[0].national_id;
+      // ضبط تنسيق أعمدة الساعات والتحقق من صحة الإدخال للصفوف 2 إلى 500 بدون أي بيانات أمثلة مسبقة
+      const hoursColKeys = ['hours_theory', 'hours_practical'];
+      if (isHealthTech) {
+        hoursColKeys.push('hours_training', 'hours_field');
+      } else if (isNursing) {
+        hoursColKeys.push('hours_training');
       }
 
-      if (isMedicine) {
-        // العثور على مقرر طبي يحتوي على أقسام/موديولات لعرضها كمثال عملي
-        const medCourseWithMods = courses?.find(c => c.modules && c.modules.length > 0) || courses?.[0];
-        if (medCourseWithMods) {
-          sampleCourseCode = medCourseWithMods.code || sampleCourseCode;
-          if (medCourseWithMods.modules && medCourseWithMods.modules.length > 0) {
-            sampleDeptName = medCourseWithMods.modules[0]?.department_name || "التشريح وعلم الأجنة";
-            sampleDeptName2 = medCourseWithMods.modules[1]?.department_name || sampleDeptName;
-          } else {
-            sampleDeptName = medCourseWithMods.department_name || "التشريح وعلم الأجنة";
-            sampleDeptName2 = sampleDeptName;
-          }
-        } else {
-          sampleCourseCode = "MED 102";
-          sampleDeptName = "التشريح وعلم الأجنة";
-          sampleDeptName2 = "الفسيولوجيا الطبية";
+      hoursColKeys.forEach(colKey => {
+        const col = worksheet.getColumn(colKey);
+        col.numFmt = '0.##';
+        for (let r = 2; r <= 500; r++) {
+          const cell = worksheet.getCell(`${col.letter}${r}`);
+          cell.numFmt = '0.##';
+          cell.dataValidation = {
+            type: 'decimal',
+            operator: 'greaterThanOrEqual',
+            formulae: [0],
+            allowBlank: true,
+            showErrorMessage: true,
+            errorTitle: 'قيمة غير صحيحة',
+            error: 'يرجى إدخال عدد ساعات صحيح أو عشري بدون تقريب (0 أو أكثر، مثل: 2 أو 1.5 أو 2.25)'
+          };
         }
-      }
-
-      const sampleRowData = {
-        course_code: sampleCourseCode,
-        program_1: sampleProgName,
-        student_count: 120,
-        groups_theory: 1,
-        groups_practical: 2,
-        national_id: sampleNatId,
-        hours_theory: 2,
-        hours_practical: 4
-      };
-
-      if (!isMedicine) {
-        sampleRowData.program_2 = "";
-      }
-      if (isMedicine) {
-        sampleRowData.department_name = sampleDeptName;
-      }
-
-      if (isHealthTech) {
-        sampleRowData.groups_training = 1;
-        sampleRowData.groups_field = 1;
-        sampleRowData.hours_training = 2;
-        sampleRowData.hours_field = 2;
-      }
-
-      const row1 = worksheet.addRow(sampleRowData);
-      row1.height = 25;
-      row1.eachCell((cell) => {
-        cell.alignment = { vertical: "middle", horizontal: "center" };
-        cell.font = { name: "Cairo", size: 10 };
-      });
-
-      // Sample Row 2 (يوضح كيفية إضافة أستاذ آخر لنفس المقرر مع ترك بيانات المقرر فارغة لوراثتها تلقائياً)
-      let sampleNatId2 = "29405051809876";
-      if (professors && professors.length > 1 && professors[1].national_id) {
-        sampleNatId2 = professors[1].national_id;
-      }
-      const sampleRowData2 = {
-        course_code: "", // ترك فارغ لوراثة كود المقرر والبرنامج والطلاب تلقائياً
-        program_1: "",
-        student_count: "",
-        groups_theory: "",
-        groups_practical: "",
-        national_id: sampleNatId2,
-        hours_theory: 1.5,
-        hours_practical: 2.5
-      };
-
-      if (!isMedicine) {
-        sampleRowData2.program_2 = "";
-      }
-      if (isMedicine) {
-        sampleRowData2.department_name = sampleDeptName2;
-      }
-
-      if (isHealthTech) {
-        sampleRowData2.groups_training = "";
-        sampleRowData2.groups_field = "";
-        sampleRowData2.hours_training = 1.5;
-        sampleRowData2.hours_field = 2.5;
-      }
-      const row2 = worksheet.addRow(sampleRowData2);
-      row2.height = 25;
-      row2.eachCell((cell) => {
-        cell.alignment = { vertical: "middle", horizontal: "center" };
-        cell.font = { name: "Cairo", size: 10 };
       });
 
       const buffer = await workbook.xlsx.writeBuffer();
@@ -3670,6 +3665,7 @@ ${signaturesHtml}
       const facName = facObj?.name || "الكلية المختارة";
       const isHealthTech = Boolean(facName.includes("تكنولوجيا العلوم الصحية") || facName.includes("العلوم الصحية"));
       const isMedicine = Boolean(facName && (facName.includes("الطب والجراحة") || facName.includes("طب بشري") || facName.includes("كلية الطب")) && !facName.includes("البيطري") && !facName.includes("الأسنان") && !facName.includes("الاسنان") && !facName.includes("تكنولوجيا"));
+      const isNursing = Boolean(facName && facName.includes("التمريض"));
 
       const targetCourses = courses;
       const targetPrograms = programs;
@@ -3706,13 +3702,13 @@ ${signaturesHtml}
       const stdCountKey = findKey(["عدد الطلاب", "الطلاب", "student_count"]);
       const grThKey = findKey(["المجموعات نظري", "مجموعات نظري", "groups_theory"]);
       const grPrKey = findKey(["المجموعات عملي", "مجموعات عملي", "groups_practical"]);
-      const grTrKey = findKey(["المجموعات توتوريال", "مجموعات توتوريال", "groups_training"]);
+      const grTrKey = findKey(["المجموعات توتوريال", "مجموعات توتوريال", "المجموعات معملي", "مجموعات معملي", "معملي", "groups_training"]);
       const grFldKey = findKey(["المجموعات حقل", "مجموعات حقل", "groups_field"]);
       const deptKey = findKey(["القسم العلمي", "القسم", "اسم القسم", "department_name", "department"]);
       const natIdKey = findKey(["الرقم القومي للأستاذ", "الرقم القومي للاستاذ", "الرقم القومي", "الرقم القومى", "national_id"]);
       const thHoursKey = findKey(["ساعات نظري للأستاذ", "ساعات نظري للاستاذ", "ساعات نظري", "ساعات النظري", "نظري للأستاذ", "hours_theory"]);
       const prHoursKey = findKey(["ساعات عملي للأستاذ", "ساعات عملي للاستاذ", "ساعات عملي", "ساعات العملي", "عملي للأستاذ", "hours_practical"]);
-      const trHoursKey = findKey(["ساعات توتوريال للأستاذ", "ساعات توتوريال للاستاذ", "ساعات توتوريال", "توتوريال للأستاذ", "hours_training"]);
+      const trHoursKey = findKey(["ساعات توتوريال للأستاذ", "ساعات توتوريال للاستاذ", "ساعات توتوريال", "توتوريال للأستاذ", "ساعات معملي للأستاذ", "ساعات معملي للاستاذ", "ساعات معملي", "معملي للأستاذ", "hours_training"]);
       const fldHoursKey = findKey(["ساعات حقل للأستاذ", "ساعات حقل للاستاذ", "ساعات حقل", "حقل للأستاذ", "hours_field"]);
 
       if (!codeKey) {
@@ -3790,12 +3786,22 @@ ${signaturesHtml}
       };
 
       let lastValidCourseContext = null;
+      let consecutiveEmptyRows = 0;
 
-      rawRows.forEach((row, idx) => {
+      for (let idx = 0; idx < rawRows.length; idx++) {
+        const row = rawRows[idx];
         const rowNum = idx + 2;
 
         const values = Object.values(row).map(v => String(v || '').trim()).filter(Boolean);
-        if (values.length === 0) return;
+        if (values.length === 0) {
+          consecutiveEmptyRows++;
+          if (consecutiveEmptyRows >= 5) {
+            // توقف عند وجود 5 صفوف متتالية فارغة تماماً لمنع قراءة أي صفوف عشوائية أو نماذج قديمة في أسفل الملف
+            break;
+          }
+          continue;
+        }
+        consecutiveEmptyRows = 0;
 
         // 1. كود المقرر: إذا تم كتابته نتحقق منه، وإذا تُرك فارغاً نقوم بوراثة بيانات المقرر السابق تلقائياً (Forward-Fill)
         const rawCodeVal = row[codeKey] !== undefined ? String(row[codeKey]) : "";
@@ -3890,7 +3896,7 @@ ${signaturesHtml}
             ? (parseInt(parseSafeNumber(row[grPrKey])) || 0)
             : (lastValidCourseContext && courseObj && lastValidCourseContext.courseObj?.code === courseObj.code ? lastValidCourseContext.grPr : 0);
 
-          grTr = (isHealthTech && grTrKey && row[grTrKey] !== undefined && String(row[grTrKey]).trim() !== "")
+          grTr = ((isHealthTech || isNursing) && grTrKey && row[grTrKey] !== undefined && String(row[grTrKey]).trim() !== "")
             ? (parseInt(parseSafeNumber(row[grTrKey])) || 0)
             : (lastValidCourseContext && courseObj && lastValidCourseContext.courseObj?.code === courseObj.code ? lastValidCourseContext.grTr : 0);
 
@@ -3953,13 +3959,22 @@ ${signaturesHtml}
         }
 
         // 4. الرقم القومي للأستاذ - إلزامي
-        const rawNatIdVal = row[natIdKey] !== undefined ? String(row[natIdKey]).trim().replace(/\.0$/, '') : "";
-        if (!rawNatIdVal) {
+        let rawNatIdVal = row[natIdKey] !== undefined ? String(row[natIdKey]).trim().replace(/\.0$/, '') : "";
+        let cleanNatId = rawNatIdVal.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
+        if (cleanNatId.toLowerCase().includes('e')) {
+          const expNum = Number(cleanNatId);
+          if (!isNaN(expNum)) {
+            cleanNatId = expNum.toLocaleString('fullwide', { useGrouping: false });
+          }
+        }
+        cleanNatId = cleanNatId.replace(/[^0-9]/g, '');
+
+        if (!cleanNatId) {
           errors.push(`الصف ${rowNum}: الرقم القومي للأستاذ حقل إلزامي مطلوب.`);
         }
-        const profObj = rawNatIdVal ? professors.find(p => p.national_id && String(p.national_id).trim().replace(/\.0$/, '') === rawNatIdVal) : null;
-        if (rawNatIdVal && !profObj) {
-          errors.push(`الصف ${rowNum}: لم يتم العثور على عضو هيئة تدريس بالرقم القومي (${rawNatIdVal}) في قاعدة البيانات.`);
+        const profObj = cleanNatId ? professors.find(p => p.national_id && String(p.national_id).trim().replace(/\.0$/, '') === cleanNatId) : null;
+        if (cleanNatId && !profObj) {
+          errors.push(`الصف ${rowNum}: لم يتم العثور على عضو هيئة تدريس بالرقم القومي (${cleanNatId}) في قاعدة البيانات.`);
         }
 
         // 5. الساعات التدريسية نظري للأستاذ (اختياري، افتراضي 0، يقبل أرقام صحيحة وعشرية بدون تقريب)
@@ -3984,10 +3999,10 @@ ${signaturesHtml}
         }
 
         let trVal = 0;
-        if (isHealthTech && trHoursKey && row[trHoursKey] !== undefined) {
+        if ((isHealthTech || isNursing) && trHoursKey && row[trHoursKey] !== undefined) {
           const parsedTr = parseSafeNumber(row[trHoursKey]);
           if (parsedTr === null || parsedTr < 0) {
-            errors.push(`الصف ${rowNum}: ساعات التوتوريال للأستاذ يجب أن تكون قيمة رقمية صحيحة أو عشرية بدون تقريب (0 أو أكثر).`);
+            errors.push(`الصف ${rowNum}: ساعات ${isNursing ? "المعملي" : "التوتوريال"} للأستاذ يجب أن تكون قيمة رقمية صحيحة أو عشرية بدون تقريب (0 أو أكثر).`);
           } else {
             trVal = parsedTr;
           }
@@ -4052,7 +4067,7 @@ ${signaturesHtml}
             _key: Date.now() + Math.random()
           });
         }
-      });
+      }
 
       setImportErrors(errors);
       setImportPreviewData(parsedRows);
@@ -4085,6 +4100,15 @@ ${signaturesHtml}
     }
 
     setShowImportModal(false);
+
+    const facName = faculties.find(f => String(f.id) === String(selectedFaculty))?.name || "الكلية";
+    logAction(
+      `قام باستيراد الخطة الدراسية من شيت Excel (${importPreviewData.length} سجل) لكلية ${facName}`,
+      selectedFaculty ? [Number(selectedFaculty)] : null,
+      selectedYear,
+      selectedSemester
+    );
+
     if (importErrors.length > 0) {
       toast.success(`تم استيراد (${importPreviewData.length}) سجل بنجاح في جدول الخطة، وتم استبعاد (${importErrors.length}) سجل بها أخطاء! يرجى مراجعة الجدول ثم الضغط على "حفظ الخطة".`);
     } else {
@@ -4260,45 +4284,49 @@ ${signaturesHtml}
           ) : (
             <Card className="shadow-sm mb-3" style={{ border: "1px solid #ddd", borderRadius: "10px", overflow: "hidden" }}>
               <div style={{ overflowX: "auto" }}>
-                <Table responsive bordered className="m-0 text-center align-middle study-plan-custom-table" style={{ fontSize: "13.5px", minWidth: isHealthTech ? "1650px" : "1200px", borderColor: "#bbb" }}>
+                <Table responsive bordered className="m-0 text-center align-middle study-plan-custom-table" style={{ fontSize: "13.5px", minWidth: (isHealthTech || isNursing) ? "1650px" : "1200px", borderColor: "#bbb" }}>
                   <thead style={{ fontSize: "14.5px" }}>
                     <tr style={{ backgroundColor: "#1b5e20", color: "#fff", fontWeight: "bold" }}>
                       <th style={{ backgroundColor: "#1b5e20", color: "#fff", minWidth: "190px", width: "210px" }} rowSpan={2}>{isMedicine ? "المقرر / الحزمة" : "اسم المادة"}</th>
                       {!isMedicine && <th style={{ backgroundColor: "#1b5e20", color: "#fff", minWidth: "95px", width: "105px", whiteSpace: "nowrap" }} rowSpan={2}>الكود</th>}
                       {!isMedicine && hasMultiplePrograms && !isHealthTech && <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} rowSpan={2}>البرنامج</th>}
-                      <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} colSpan={isMedicine ? 3 : (isHealthTech ? 4 : 2)}>الساعات باللائحة</th>
+                      <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} colSpan={isMedicine ? 3 : (isHealthTech ? 4 : (isNursing ? 3 : 2))}>الساعات باللائحة</th>
                       <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} rowSpan={2}>عدد الطلاب</th>
-                      <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} colSpan={isMedicine ? 3 : (isHealthTech ? 4 : 2)}>عدد المجموعات</th>
-                      <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} colSpan={isMedicine ? 3 : (isHealthTech ? 4 : 2)}>الساعات المطلوبة</th>
+                      <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} colSpan={isMedicine ? 3 : (isHealthTech ? 4 : (isNursing ? 3 : 2))}>عدد المجموعات</th>
+                      <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} colSpan={isMedicine ? 3 : (isHealthTech ? 4 : (isNursing ? 3 : 2))}>الساعات المطلوبة</th>
                       {isMedicine && <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} rowSpan={2}>القسم العلمي</th>}
                       <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} rowSpan={2}>اسم عضو هيئة التدريس</th>
                       <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} rowSpan={2}>الدرجة</th>
                       <th style={{ backgroundColor: "#1b5e20", color: "#fff", minWidth: isHealthTech ? "180px" : "130px", width: isHealthTech ? "200px" : undefined }} rowSpan={2}>جهة القدوم</th>
-                      <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} colSpan={isHealthTech ? 4 : 2}>اجمالي الساعات المنفذة</th>
+                      <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} colSpan={isHealthTech ? 4 : (isNursing ? 3 : 2)}>اجمالي الساعات المنفذة</th>
                       <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} rowSpan={2}>ملاحظات</th>
                       {!isPlanLocked && <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} rowSpan={2}>إجراءات</th>}
                     </tr>
                     <tr style={{ backgroundColor: "#2e7d32", color: "#fff", fontWeight: "bold" }}>
                       <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>نظري</th>
                       <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>عملي</th>
+                      {isNursing && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>معملي</th>}
                       {isMedicine && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>أنشطة</th>}
                       {isHealthTech && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>توتوريال</th>}
                       {isHealthTech && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>حقل</th>}
 
                       <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>نظري</th>
                       <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>عملي</th>
+                      {isNursing && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>معملي</th>}
                       {isMedicine && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>أنشطة</th>}
                       {isHealthTech && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>توتوريال</th>}
                       {isHealthTech && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>حقل</th>}
 
                       <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>نظري</th>
                       <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>عملي</th>
+                      {isNursing && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>معملي</th>}
                       {isMedicine && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>أنشطة</th>}
                       {isHealthTech && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>توتوريال</th>}
                       {isHealthTech && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>حقل</th>}
 
                       <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>نظري</th>
-                      <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>{isHealthTech ? "عملي" : "تمارين / عملي"}</th>
+                      <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>{isHealthTech || isNursing ? "عملي" : "تمارين / عملي"}</th>
+                      {isNursing && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>معملي</th>}
                       {isHealthTech && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>توتوريال</th>}
                       {isHealthTech && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>حقل</th>}
                     </tr>
@@ -4306,7 +4334,7 @@ ${signaturesHtml}
                   <tbody>
                     {renderRows.length === 0 ? (
                       <tr>
-                        <td colSpan={isMedicine ? (isPlanLocked ? 18 : 19) : (isHealthTech ? (isPlanLocked ? 23 : 24) : (hasMultiplePrograms ? (isPlanLocked ? 16 : 17) : (isPlanLocked ? 15 : 16)))} className="text-center p-4 text-muted">
+                        <td colSpan={isMedicine ? (isPlanLocked ? 18 : 19) : (isHealthTech ? (isPlanLocked ? 23 : 24) : (isNursing ? (hasMultiplePrograms ? (isPlanLocked ? 20 : 21) : (isPlanLocked ? 19 : 20)) : (hasMultiplePrograms ? (isPlanLocked ? 16 : 17) : (isPlanLocked ? 15 : 16))))} className="text-center p-4 text-muted">
                           <FaInfoCircle className="m-1" />
                           لا توجد مقررات مضافة في هذه الخطة
                         </td>
@@ -4405,14 +4433,14 @@ ${signaturesHtml}
                                 {isMedicine ? (
                                   r.isFirstInModule && (
                                     <>
-                                      <td rowSpan={r.moduleSpan} className="align-middle fw-bold">{fmt(bylawTheory)}</td>
-                                      <td rowSpan={r.moduleSpan} className="align-middle fw-bold">{fmt(bylawPrac)}</td>
-                                      <td rowSpan={r.moduleSpan} className="align-middle fw-bold">{fmt(bylawAct)}</td>
+                                      <td rowSpan={r.moduleSpan} className="align-middle fw-bold text-center">{fmt(bylawTheory)}</td>
+                                      <td rowSpan={r.moduleSpan} className="align-middle fw-bold text-center">{fmt(bylawPrac)}</td>
+                                      <td rowSpan={r.moduleSpan} className="align-middle fw-bold text-center">{fmt(bylawAct)}</td>
                                     </>
                                   )
                                 ) : (
                                   <>
-                                    <td rowSpan={r.courseSpan} className="align-middle p-0" style={{ height: "1px" }}>
+                                    <td rowSpan={r.courseSpan} className="align-middle text-center p-0" style={{ height: "1px" }}>
                                       <div style={{ height: "100%", minHeight: "100%", width: "100%", display: "flex", flexDirection: "column" }}>
                                         <div style={cellHalfStyle}>{prim.bylawTheory ? fmt(prim.bylawTheory) : "--"}</div>
                                         {hasSec && block.secondaryList.map((sc, i) => (
@@ -4420,7 +4448,7 @@ ${signaturesHtml}
                                         ))}
                                       </div>
                                     </td>
-                                    <td rowSpan={r.courseSpan} className="align-middle p-0" style={{ height: "1px" }}>
+                                    <td rowSpan={r.courseSpan} className="align-middle text-center p-0" style={{ height: "1px" }}>
                                       <div style={{ height: "100%", minHeight: "100%", width: "100%", display: "flex", flexDirection: "column" }}>
                                         <div style={cellHalfStyle}>{prim.bylawPractical ? fmt(prim.bylawPractical) : "--"}</div>
                                         {hasSec && block.secondaryList.map((sc, i) => (
@@ -4428,8 +4456,8 @@ ${signaturesHtml}
                                         ))}
                                       </div>
                                     </td>
-                                    {isHealthTech && <td rowSpan={r.courseSpan} className="align-middle">{bylawTr}</td>}
-                                    {isHealthTech && <td rowSpan={r.courseSpan} className="align-middle">{bylawFld}</td>}
+                                    {(isHealthTech || isNursing) && <td rowSpan={r.courseSpan} className="align-middle text-center">{bylawTr}</td>}
+                                    {isHealthTech && <td rowSpan={r.courseSpan} className="align-middle text-center">{bylawFld}</td>}
                                   </>
                                 )}
 
@@ -4439,7 +4467,7 @@ ${signaturesHtml}
                                 </td>
 
                                 {/* 6. المجموعات */}
-                                <td rowSpan={r.courseSpan} className="align-middle p-0" style={{ height: "1px" }}>
+                                <td rowSpan={r.courseSpan} className="align-middle text-center p-0" style={{ height: "1px" }}>
                                   <div style={{ height: "100%", minHeight: "100%", width: "100%", display: "flex", flexDirection: "column" }}>
                                     <div style={cellHalfStyle}>{prim.groupsTheory ? prim.groupsTheory : "--"}</div>
                                     {hasSec && block.secondaryList.map((sc, i) => (
@@ -4447,7 +4475,7 @@ ${signaturesHtml}
                                     ))}
                                   </div>
                                 </td>
-                                <td rowSpan={r.courseSpan} className="align-middle p-0" style={{ height: "1px" }}>
+                                <td rowSpan={r.courseSpan} className="align-middle text-center p-0" style={{ height: "1px" }}>
                                   <div style={{ height: "100%", minHeight: "100%", width: "100%", display: "flex", flexDirection: "column" }}>
                                     <div style={cellHalfStyle}>{prim.groupsPractical ? prim.groupsPractical : "--"}</div>
                                     {hasSec && block.secondaryList.map((sc, i) => (
@@ -4455,22 +4483,22 @@ ${signaturesHtml}
                                     ))}
                                   </div>
                                 </td>
-                                {isMedicine && <td rowSpan={r.courseSpan} className="align-middle">{r.groups_activity ? r.groups_activity : "--"}</td>}
-                                {isHealthTech && <td rowSpan={r.courseSpan} className="align-middle">{r.groups_training ? r.groups_training : "--"}</td>}
-                                {isHealthTech && <td rowSpan={r.courseSpan} className="align-middle">{r.groups_field ? r.groups_field : "--"}</td>}
+                                {isMedicine && <td rowSpan={r.courseSpan} className="align-middle text-center">{r.groups_activity ? r.groups_activity : "--"}</td>}
+                                {(isHealthTech || isNursing) && <td rowSpan={r.courseSpan} className="align-middle text-center">{r.groups_training ? r.groups_training : "--"}</td>}
+                                {isHealthTech && <td rowSpan={r.courseSpan} className="align-middle text-center">{r.groups_field ? r.groups_field : "--"}</td>}
 
                                 {/* 7. الساعات المطلوبة */}
                                 {isMedicine ? (
                                   r.isFirstInModule && (
                                     <>
-                                      <td rowSpan={r.moduleSpan} className="fw-bold text-dark align-middle">{reqTh > 0 ? fmt(reqTh) : "--"}</td>
-                                      <td rowSpan={r.moduleSpan} className="fw-bold text-dark align-middle">{reqPr > 0 ? fmt(reqPr) : "--"}</td>
-                                      <td rowSpan={r.moduleSpan} className="fw-bold text-dark align-middle">{reqAct > 0 ? fmt(reqAct) : "--"}</td>
+                                      <td rowSpan={r.moduleSpan} className="fw-bold text-dark align-middle text-center">{reqTh > 0 ? fmt(reqTh) : "--"}</td>
+                                      <td rowSpan={r.moduleSpan} className="fw-bold text-dark align-middle text-center">{reqPr > 0 ? fmt(reqPr) : "--"}</td>
+                                      <td rowSpan={r.moduleSpan} className="fw-bold text-dark align-middle text-center">{reqAct > 0 ? fmt(reqAct) : "--"}</td>
                                     </>
                                   )
                                 ) : (
                                   <>
-                                    <td rowSpan={r.courseSpan} className="fw-bold text-dark align-middle p-0" style={{ height: "1px" }}>
+                                    <td rowSpan={r.courseSpan} className="fw-bold text-dark align-middle text-center p-0" style={{ height: "1px" }}>
                                       <div style={{ height: "100%", minHeight: "100%", width: "100%", display: "flex", flexDirection: "column" }}>
                                         <div style={cellHalfStyle}>{prim.reqTheory > 0 ? fmt(prim.reqTheory) : "--"}</div>
                                         {hasSec && block.secondaryList.map((sc, i) => (
@@ -4478,7 +4506,7 @@ ${signaturesHtml}
                                         ))}
                                       </div>
                                     </td>
-                                    <td rowSpan={r.courseSpan} className="fw-bold text-dark align-middle p-0" style={{ height: "1px" }}>
+                                    <td rowSpan={r.courseSpan} className="fw-bold text-dark align-middle text-center p-0" style={{ height: "1px" }}>
                                       <div style={{ height: "100%", minHeight: "100%", width: "100%", display: "flex", flexDirection: "column" }}>
                                         <div style={cellHalfStyle}>{prim.reqPractical > 0 ? fmt(prim.reqPractical) : "--"}</div>
                                         {hasSec && block.secondaryList.map((sc, i) => (
@@ -4486,25 +4514,25 @@ ${signaturesHtml}
                                         ))}
                                       </div>
                                     </td>
-                                    {isHealthTech && <td rowSpan={r.courseSpan} className="fw-bold text-dark align-middle">{reqTr > 0 ? fmt(reqTr) : "--"}</td>}
-                                    {isHealthTech && <td rowSpan={r.courseSpan} className="fw-bold text-dark align-middle">{reqFld > 0 ? fmt(reqFld) : "--"}</td>}
+                                    {(isHealthTech || isNursing) && <td rowSpan={r.courseSpan} className="fw-bold text-dark align-middle text-center">{reqTr > 0 ? fmt(reqTr) : "--"}</td>}
+                                    {isHealthTech && <td rowSpan={r.courseSpan} className="fw-bold text-dark align-middle text-center">{reqFld > 0 ? fmt(reqFld) : "--"}</td>}
                                   </>
                                 )}
                               </>
                             );
                           })()}
                           {isMedicine && r.isFirstInModule && (
-                            <td rowSpan={r.moduleSpan} className="fw-bold text-dark align-middle px-2">
+                            <td rowSpan={r.moduleSpan} className="fw-bold text-dark align-middle text-center px-2">
                               {r.department_name || activeModule.department_name || "--"}
                             </td>
                           )}
                           <td className="fw-bold text-end px-2" style={{ minWidth: "135px", maxWidth: "155px", lineHeight: "1.3" }}>{formatProfNameToTwoLinesReact(prof.id ? getFormattedProfName(prof) : (r.professor_name || "--"))}</td>
-                          <td className="fw-bold">{prof.job_title ? getJobTitleFull(prof.job_title) : (getJobTitleFull(r.prof_job_title) || "--")}</td>
-                          <td style={{ minWidth: isHealthTech ? "180px" : "130px", width: isHealthTech ? "200px" : undefined, padding: "4px 8px", lineHeight: "1.3" }}>{prof.original_workplace || r.prof_workplace || "--"}</td>
-                          <td className="fw-bold text-dark">{r.hours_actual_theory ? fmt(r.hours_actual_theory) : "--"}</td>
-                          <td className="fw-bold text-dark">{r.hours_actual_practical ? fmt(r.hours_actual_practical) : "--"}</td>
-                          {isHealthTech && <td className="fw-bold text-dark">{r.hours_actual_training ? fmt(r.hours_actual_training) : "--"}</td>}
-                          {isHealthTech && <td className="fw-bold text-dark">{r.hours_actual_field ? fmt(r.hours_actual_field) : "--"}</td>}
+                          <td className="fw-bold text-center align-middle">{prof.job_title ? getJobTitleFull(prof.job_title) : (getJobTitleFull(r.prof_job_title) || "--")}</td>
+                          <td className="text-center align-middle" style={{ minWidth: isHealthTech ? "180px" : "130px", width: isHealthTech ? "200px" : undefined, padding: "4px 8px", lineHeight: "1.3" }}>{prof.original_workplace || r.prof_workplace || "--"}</td>
+                          <td className="fw-bold text-dark text-center align-middle">{r.hours_actual_theory ? fmt(r.hours_actual_theory) : "--"}</td>
+                          <td className="fw-bold text-dark text-center align-middle">{r.hours_actual_practical ? fmt(r.hours_actual_practical) : "--"}</td>
+                          {(isHealthTech || isNursing) && <td className="fw-bold text-dark text-center align-middle">{r.hours_actual_training ? fmt(r.hours_actual_training) : "--"}</td>}
+                          {isHealthTech && <td className="fw-bold text-dark text-center align-middle">{r.hours_actual_field ? fmt(r.hours_actual_field) : "--"}</td>}
                           {r.isFirstInCourse && (
                             <td rowSpan={r.courseSpan} className="align-middle text-center px-2" style={{ minWidth: "80px", fontSize: "13px", fontWeight: "500" }}>
                               {r.course_notes || r.notes || "--"}
@@ -4532,14 +4560,14 @@ ${signaturesHtml}
                         <td colSpan={isMedicine ? 1 : ((hasMultiplePrograms && !isHealthTech) ? 3 : 2)} className="text-end px-3">
                           إجمالي المواد: <span className="text-success">{new Set(planRows.map(r => r.base_course_id || r.course_id)).size}</span>
                         </td>
-                        <td colSpan={isMedicine ? 3 : (isHealthTech ? 4 : 2)}>--</td>
+                        <td colSpan={isMedicine ? 3 : (isHealthTech ? 4 : (isNursing ? 3 : 2))}>--</td>
                         <td className="col-student-count align-middle fw-bold">
                           {renderRows.filter(r => r.isFirstInCourse).reduce((s, r) => s + (Number(r.student_count) || 0), 0)}
                         </td>
                         <td>{renderRows.filter(r => r.isFirstInCourse).reduce((s, r) => s + (Number(r.groups_theory) || 0), 0)}</td>
                         <td>{renderRows.filter(r => r.isFirstInCourse).reduce((s, r) => s + (Number(r.groups_practical) || 0), 0)}</td>
                         {isMedicine && <td>{renderRows.filter(r => r.isFirstInCourse).reduce((s, r) => s + (Number(r.groups_activity) || 0), 0)}</td>}
-                        {isHealthTech && <td>{renderRows.filter(r => r.isFirstInCourse).reduce((s, r) => s + (Number(r.groups_training) || 0), 0)}</td>}
+                        {(isHealthTech || isNursing) && <td>{renderRows.filter(r => r.isFirstInCourse).reduce((s, r) => s + (Number(r.groups_training) || 0), 0)}</td>}
                         {isHealthTech && <td>{renderRows.filter(r => r.isFirstInCourse).reduce((s, r) => s + (Number(r.groups_field) || 0), 0)}</td>}
 
                         <td>{fmt(renderRows.filter(r => r.isFirstInCourse).reduce((s, r) => {
@@ -4551,7 +4579,7 @@ ${signaturesHtml}
                           return s + ((Number(r.req_practical) > 0) ? Number(r.req_practical) : ((Number(c.practical_hours) || Number(r.practical_hours) || 0) * (Number(r.groups_practical) || 0)));
                         }, 0))}</td>
                         {isMedicine && <td>{fmt(renderRows.filter(r => r.isFirstInCourse).reduce((s, r) => s + (Number(r.req_training) || 0), 0))}</td>}
-                        {isHealthTech && <td>{fmt(renderRows.filter(r => r.isFirstInCourse).reduce((s, r) => {
+                        {(isHealthTech || isNursing) && <td>{fmt(renderRows.filter(r => r.isFirstInCourse).reduce((s, r) => {
                           const c = courses.find(x => String(x.id) === String(r.course_id)) || {};
                           return s + ((Number(r.req_training) > 0) ? Number(r.req_training) : ((Number(c.exercise_hours) || Number(r.exercise_hours) || 0) * (Number(r.groups_training) || 0)));
                         }, 0))}</td>}
@@ -4566,7 +4594,7 @@ ${signaturesHtml}
                         </td>
                         <td className="text-primary">{fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_theory) || 0), 0))}</td>
                         <td className="text-primary">{fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_practical) || 0), 0))}</td>
-                        {isHealthTech && <td className="text-primary">{fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_training) || 0), 0))}</td>}
+                        {(isHealthTech || isNursing) && <td className="text-primary">{fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_training) || 0), 0))}</td>}
                         {isHealthTech && <td className="text-primary">{fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_field) || 0), 0))}</td>}
 
                         <td colSpan={isPlanLocked ? 1 : 2} className="bg-light">الإجمالي العام</td>
@@ -4688,18 +4716,20 @@ ${signaturesHtml}
                     <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} rowSpan={2}>المستوى</th>
                     {hasMultiplePrograms && <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} rowSpan={2}>البرنامج / القسم</th>}
                     <th style={{ backgroundColor: "#1b5e20", color: "#fff", minWidth: "95px", width: "105px", whiteSpace: "nowrap" }} rowSpan={2}>الكود</th>
-                    <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} colSpan={isHealthTech ? 4 : 2}>ساعات التدريس</th>
-                    <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} colSpan={isHealthTech ? 4 : 2}>اجمالي ساعات التدريس</th>
+                    <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} colSpan={isHealthTech ? 4 : (isNursing ? 3 : 2)}>ساعات التدريس</th>
+                    <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} colSpan={isHealthTech ? 4 : (isNursing ? 3 : 2)}>اجمالي ساعات التدريس</th>
                     <th style={{ backgroundColor: "#1b5e20", color: "#fff" }} rowSpan={2}>ملاحظات</th>
                   </tr>
                   <tr style={{ backgroundColor: "#2e7d32", color: "#fff", fontWeight: "bold" }}>
                     <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>نظري</th>
-                    <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>{isHealthTech ? "عملي" : "تمارين/عملي"}</th>
+                    <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>{isHealthTech || isNursing ? "عملي" : "تمارين/عملي"}</th>
+                    {isNursing && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>معملي</th>}
                     {isHealthTech && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>توتوريال</th>}
                     {isHealthTech && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>حقل</th>}
 
                     <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>نظري</th>
-                    <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>{isHealthTech ? "عملي" : "تمارين/عملي"}</th>
+                    <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>{isHealthTech || isNursing ? "عملي" : "تمارين/عملي"}</th>
+                    {isNursing && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>معملي</th>}
                     {isHealthTech && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>توتوريال</th>}
                     {isHealthTech && <th style={{ backgroundColor: "#2e7d32", color: "#fff" }}>حقل</th>}
                   </tr>
@@ -4707,7 +4737,7 @@ ${signaturesHtml}
                 <tbody>
                   {profAggRows.length === 0 ? (
                     <tr>
-                      <td colSpan={isHealthTech ? (hasMultiplePrograms ? 17 : 16) : (hasMultiplePrograms ? 13 : 12)} className="text-center p-4 text-muted">
+                      <td colSpan={isHealthTech ? (hasMultiplePrograms ? 17 : 16) : (isNursing ? (hasMultiplePrograms ? 15 : 14) : (hasMultiplePrograms ? 13 : 12))} className="text-center p-4 text-muted">
                         لا توجد أساتذة مضافة أو مسندة في هذه الخطة
                       </td>
                     </tr>
@@ -4758,7 +4788,7 @@ ${signaturesHtml}
                           <>
                             <td rowSpan={r.blockSpan} className="fw-bold text-success">{fmt(r.hoursTheory)}</td>
                             <td rowSpan={r.blockSpan} className="fw-bold text-success">{fmt(r.hoursPractical)}</td>
-                            {isHealthTech && <td rowSpan={r.blockSpan} className="fw-bold text-success">{fmt(r.hoursTraining)}</td>}
+                            {(isHealthTech || isNursing) && <td rowSpan={r.blockSpan} className="fw-bold text-success">{fmt(r.hoursTraining)}</td>}
                             {isHealthTech && <td rowSpan={r.blockSpan} className="fw-bold text-success">{fmt(r.hoursField)}</td>}
                           </>
                         )}
@@ -4768,7 +4798,7 @@ ${signaturesHtml}
                           <>
                             <td rowSpan={r.profSpan} className="fw-bold text-primary">{fmt(r.totalTheory)}</td>
                             <td rowSpan={r.profSpan} className="fw-bold text-primary">{fmt(r.totalPractical)}</td>
-                            {isHealthTech && <td rowSpan={r.profSpan} className="fw-bold text-primary">{fmt(r.totalTraining)}</td>}
+                            {(isHealthTech || isNursing) && <td rowSpan={r.profSpan} className="fw-bold text-primary">{fmt(r.totalTraining)}</td>}
                             {isHealthTech && <td rowSpan={r.profSpan} className="fw-bold text-primary">{fmt(r.totalField)}</td>}
                           </>
                         )}
@@ -4792,12 +4822,12 @@ ${signaturesHtml}
                       </td>
                       <td className="text-success">{fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_theory) || 0), 0))}</td>
                       <td className="text-success">{fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_practical) || 0), 0))}</td>
-                      {isHealthTech && <td className="text-success">{fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_training) || 0), 0))}</td>}
+                      {(isHealthTech || isNursing) && <td className="text-success">{fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_training) || 0), 0))}</td>}
                       {isHealthTech && <td className="text-success">{fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_field) || 0), 0))}</td>}
 
                       <td className="text-primary">{fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_theory) || 0), 0))}</td>
                       <td className="text-primary">{fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_practical) || 0), 0))}</td>
-                      {isHealthTech && <td className="text-primary">{fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_training) || 0), 0))}</td>}
+                      {(isHealthTech || isNursing) && <td className="text-primary">{fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_training) || 0), 0))}</td>}
                       {isHealthTech && <td className="text-primary">{fmt(planRows.reduce((s, r) => s + (Number(r.hours_actual_field) || 0), 0))}</td>}
 
                       <td className="bg-light">الإجمالي العام</td>
@@ -4892,6 +4922,7 @@ ${signaturesHtml}
                 const activeFac = faculties.find(f => String(f.id) === String(selectedFaculty));
                 const isMedicineFac = Boolean(activeFac && (activeFac.name.includes("الطب والجراحة") || activeFac.name.includes("طب بشري") || activeFac.name.includes("كلية الطب")) && !activeFac.name.includes("البيطري") && !activeFac.name.includes("الأسنان") && !activeFac.name.includes("الاسنان") && !activeFac.name.includes("تكنولوجيا"));
                 const isHealthTechFac = Boolean(activeFac && (activeFac.name.includes("تكنولوجيا العلوم الصحية") || activeFac.name.includes("العلوم الصحية") || activeFac.name.includes("الصحية والتطبيقية")));
+                const isNursingFac = Boolean(activeFac && activeFac.name && (activeFac.name.includes("التمريض") || activeFac.name.includes("تمريض")));
 
                 // جلب البرامج الأخرى المسجل بها هذا المقرر (بخلاف البرنامج الأساسي)
                 const eqCourses = baseCourse.id ? getEquivalentCourses(baseCourse.id) : [];
@@ -5039,6 +5070,12 @@ ${signaturesHtml}
                         <span className="text-muted">ساعات عملي: </span>
                         <strong className="text-success">{baseCourse.practical_hours || 0}</strong>
                       </Col>
+                      {isNursingFac && (
+                        <Col xs={6} md={3}>
+                          <span className="text-muted">ساعات معملي: </span>
+                          <strong className="text-success">{baseCourse.exercise_hours || 0}</strong>
+                        </Col>
+                      )}
                       {isHealthTechFac && (
                         <>
                           <Col xs={6} md={3}>
@@ -5201,6 +5238,7 @@ ${signaturesHtml}
                 const activeFac = faculties.find(f => String(f.id) === String(selectedFaculty));
                 const isMedicineFac = Boolean(activeFac && (activeFac.name.includes("الطب والجراحة") || activeFac.name.includes("طب بشري") || activeFac.name.includes("كلية الطب")) && !activeFac.name.includes("البيطري") && !activeFac.name.includes("الأسنان") && !activeFac.name.includes("الاسنان") && !activeFac.name.includes("تكنولوجيا"));
                 const isHealthTechFac = Boolean(activeFac && (activeFac.name.includes("تكنولوجيا العلوم الصحية") || activeFac.name.includes("العلوم الصحية") || activeFac.name.includes("الصحية والتطبيقية")));
+                const isNursingFac = Boolean(activeFac && activeFac.name && (activeFac.name.includes("التمريض") || activeFac.name.includes("تمريض")));
 
                 const thHours = Number(selectedC.theory_hours) || 0;
                 const prHours = Number(selectedC.practical_hours) || 0;
@@ -5312,6 +5350,24 @@ ${signaturesHtml}
                           </Form.Group>
                         </Col>
 
+                        {isNursingFac && (
+                          <Col md xs={6}>
+                            <Form.Group>
+                              <Form.Label className="fw-bold small">عدد مجموعات معملي:</Form.Label>
+                              <Form.Control
+                                type="number"
+                                min="0"
+                                disabled={!formData.base_course_id || trHours === 0}
+                                value={formData.groups_training || 0}
+                                onChange={e => {
+                                  const val = Math.max(0, parseInt(e.target.value) || 0);
+                                  setFormData(prev => ({ ...prev, groups_training: val }));
+                                }}
+                              />
+                            </Form.Group>
+                          </Col>
+                        )}
+
                         {isHealthTechFac && (
                           <>
                             <Col md xs={6}>
@@ -5355,6 +5411,7 @@ ${signaturesHtml}
                       const secPrHours = Number(secC.practical_hours) || 0;
                       const secTrHours = Number(secC.exercise_hours) || 0;
                       const secFldHours = Number(secC.activity_hours) || 0;
+                      const secReqTr = (Number(secC.groups_training) || 0) * secTrHours;
 
                       return (
                         <div key={secIdx} className="p-2 px-3 rounded mb-3 border" style={{ backgroundColor: "#fefce8", borderColor: "#fde047" }}>
@@ -5403,6 +5460,27 @@ ${signaturesHtml}
                                 />
                               </Form.Group>
                             </Col>
+                            {isNursingFac && (
+                              <Col md xs={6}>
+                                <Form.Group>
+                                  <Form.Label className="fw-bold small">عدد مجموعات معملي:</Form.Label>
+                                  <Form.Control
+                                    type="number"
+                                    min="0"
+                                    disabled={secTrHours === 0}
+                                    value={secC.groups_training}
+                                    onChange={e => {
+                                      const val = Math.max(0, parseInt(e.target.value) || 0);
+                                      const next = [...multiPrograms];
+                                      if (next[secC.pRowIndex]) {
+                                        next[secC.pRowIndex].groups_training = val;
+                                        setMultiPrograms(next);
+                                      }
+                                    }}
+                                  />
+                                </Form.Group>
+                              </Col>
+                            )}
                             {isHealthTechFac && (
                               <>
                                 <Col md xs={6}>
@@ -5465,15 +5543,23 @@ ${signaturesHtml}
                           <div className="ms-3 d-flex flex-column gap-1" style={{ color: "#166534", fontSize: "12.5px" }}>
                             <div>
                               • <strong>{selectedC.name_ar || selectedC.name_en} ({selectedC.credit_hours || 0} ساعات):</strong> عدد الساعات المطلوبة نظري = {grTh} × {thHours} = <span className="text-primary">{fmt(theoryResult)} ساعة</span> _____ عملي = {grPr} × {prHours} = <span className="text-primary">{fmt(practicalResult)} ساعة</span>
+                              {isNursingFac && (
+                                <> _____ معملي = {grTr} × {trHours} = <span className="text-primary">{fmt(trainingResult)} ساعة</span></>
+                              )}
                             </div>
                             {secondaryDistinctCourses.map((secC, sIdx) => {
                               const secThHours = Number(secC.theory_hours) || 0;
                               const secPrHours = Number(secC.practical_hours) || 0;
+                              const secTrHours = Number(secC.exercise_hours) || 0;
                               const secReqTh = (Number(secC.groups_theory) || 0) * secThHours;
                               const secReqPr = (Number(secC.groups_practical) || 0) * secPrHours;
+                              const secReqTr = (Number(secC.groups_training) || 0) * secTrHours;
                               return (
                                 <div key={sIdx}>
                                   • <strong>{secC.name_ar || secC.name_en} ({secC.credit_hours || 0} ساعات):</strong> عدد الساعات المطلوبة نظري = {secC.groups_theory} × {secThHours} = <span className="text-primary">{fmt(secReqTh)} ساعة</span> _____ عملي = {secC.groups_practical} × {secPrHours} = <span className="text-primary">{fmt(secReqPr)} ساعة</span>
+                                  {isNursingFac && (
+                                    <> _____ معملي = {secC.groups_training} × {secTrHours} = <span className="text-primary">{fmt(secReqTr)} ساعة</span></>
+                                  )}
                                 </div>
                               );
                             })}
@@ -5483,6 +5569,9 @@ ${signaturesHtml}
                                 <span>الساعات المطلوبة نظري = <span className="badge bg-success fs-6">{fmt(totalCombinedReqTh)} ساعة</span></span>
                                 <span>|</span>
                                 <span>الساعات المطلوبة عملي = <span className="badge bg-success fs-6">{fmt(totalCombinedReqPr)} ساعة</span></span>
+                                {isNursingFac && totalCombinedReqTr > 0 && (
+                                  <span>| معملي = <span className="badge bg-success fs-6">{fmt(totalCombinedReqTr)} ساعة</span></span>
+                                )}
                                 {isHealthTechFac && (totalCombinedReqTr > 0 || totalCombinedReqFld > 0) && (
                                   <>
                                     {totalCombinedReqTr > 0 && <span>| توتوريال = <span className="badge bg-success fs-6">{fmt(totalCombinedReqTr)} ساعة</span></span>}
@@ -5778,6 +5867,24 @@ ${signaturesHtml}
                               }}
                             />
                           </Col>
+                          {isNursing && (
+                            <Col md={2} xs={6}>
+                              <Form.Label className="fw-bold small">ساعات معملي:</Form.Label>
+                              <Form.Control
+                                type="number"
+                                step="any"
+                                min="0"
+                                disabled={!formData.base_course_id || profTrainingHours === 0 || isTrainingLimitReached}
+                                value={isTrainingLimitReached ? 0 : pRow.hours_actual_training}
+                                onChange={e => {
+                                  const val = Number(e.target.value) || 0;
+                                  const next = [...multiProfessors];
+                                  next[idx].hours_actual_training = val;
+                                  setMultiProfessors(next);
+                                }}
+                              />
+                            </Col>
+                          )}
                           {isHealthTech && (
                             <Col md={2} xs={6}>
                               <Form.Label className="fw-bold small">ساعات تدريب:</Form.Label>
@@ -5814,7 +5921,7 @@ ${signaturesHtml}
                               />
                             </Col>
                           )}
-                          {!isHealthTech && (
+                          {!isHealthTech && !isNursing && (
                             <Col md={4} xs={12}>
                               <Form.Label className="fw-bold small">📝 ملحوظة تخص عضو هيئة التدريس:</Form.Label>
                               <Form.Control
@@ -5830,7 +5937,7 @@ ${signaturesHtml}
                               />
                             </Col>
                           )}
-                          {isHealthTech && (
+                          {(isHealthTech || isNursing) && (
                             <Col md={12} className="mt-2">
                               <Form.Label className="fw-bold small text-dark">📝 ملحوظة تخص عضو هيئة التدريس:</Form.Label>
                               <Form.Control
@@ -6361,14 +6468,14 @@ ${signaturesHtml}
 
                 const isAllMatch = isMedicine
                   ? true
-                  : (isTheoryMatch && isPracticalMatch && (isHealthTech ? (isTrainingMatch && isFieldMatch) : true));
+                  : (isTheoryMatch && isPracticalMatch && (isHealthTech ? (isTrainingMatch && isFieldMatch) : (isNursing ? isTrainingMatch : true)));
 
                 if (isMedicine) return null;
 
                 return (
                   <div className={`p-2 rounded mt-2 fw-bold text-center border ${isAllMatch ? "bg-success bg-opacity-10 text-success border-success" : "bg-warning bg-opacity-10 text-danger border-warning"}`} style={{ fontSize: "13px" }}>
                     {isAllMatch ? (
-                      <span>✓ مجموع الساعات المنفذة يطابق الساعات المطلوبة تماماً ({fmt(totalActualTheory)} نظري ، {fmt(totalActualPractical)} عملي {isHealthTech ? `، ${fmt(totalActualTraining)} تدريب ، ${fmt(totalActualField)} حقل` : ""}).</span>
+                      <span>✓ مجموع الساعات المنفذة يطابق الساعات المطلوبة تماماً ({fmt(totalActualTheory)} نظري ، {fmt(totalActualPractical)} عملي {isNursing ? `، ${fmt(totalActualTraining)} معملي` : (isHealthTech ? `، ${fmt(totalActualTraining)} تدريب ، ${fmt(totalActualField)} حقل` : "")}).</span>
                     ) : (
                       <div className="d-flex flex-column gap-1">
                         {!isTheoryMatch && (
@@ -6376,6 +6483,9 @@ ${signaturesHtml}
                         )}
                         {!isPracticalMatch && (
                           <span>⚠️ مجموع الساعات المنفذة عملي ({fmt(totalActualPractical)} ساعة) لا يساوي المطلوبة ({fmt(reqPractical)} ساعة) __ المتبقي: {fmt(Math.abs(reqPractical - totalActualPractical))} ساعة.</span>
+                        )}
+                        {isNursing && !isTrainingMatch && (
+                          <span>⚠️ مجموع الساعات المنفذة معملي ({fmt(totalActualTraining)} ساعة) لا يساوي المطلوبة ({fmt(reqTraining)} ساعة) __ المتبقي: {fmt(Math.abs(reqTraining - totalActualTraining))} ساعة.</span>
                         )}
                         {isHealthTech && !isTrainingMatch && (
                           <span>⚠️ مجموع الساعات المنفذة تدريب/توتوريال ({fmt(totalActualTraining)} ساعة) لا يساوي المطلوبة ({fmt(reqTraining)} ساعة) __ المتبقي: {fmt(Math.abs(reqTraining - totalActualTraining))} ساعة.</span>
@@ -6492,11 +6602,19 @@ ${signaturesHtml}
                       const selFac = faculties.find(f => String(f.id) === String(selectedFaculty));
                       const isHealth = selFac?.name?.includes("تكنولوجيا العلوم الصحية") || selFac?.name?.includes("العلوم الصحية");
                       const isMed = Boolean(selFac && (selFac.name.includes("الطب والجراحة") || selFac.name.includes("طب بشري") || selFac.name.includes("كلية الطب")) && !selFac.name.includes("البيطري") && !selFac.name.includes("الأسنان") && !selFac.name.includes("الاسنان") && !selFac.name.includes("تكنولوجيا"));
+                      const isNursingFaculty = Boolean(selFac?.name?.includes("التمريض") || selFac?.name?.includes("تمريض"));
 
                       if (isHealth) {
                         return (
                           <span className="text-primary fw-bold">
                             💡 ملاحظة خاصة: نموذج كلية تكنولوجيا العلوم الصحية يشمل تلقائياً أعمدة (مجموعات وساعات التوتوريال والحقل).
+                          </span>
+                        );
+                      }
+                      if (isNursingFaculty) {
+                        return (
+                          <span className="text-primary fw-bold">
+                            💡 ملاحظة خاصة: نموذج كلية التمريض يشمل تلقائياً أعمدة (مجموعات وساعات المعملي ).
                           </span>
                         );
                       }
@@ -6670,6 +6788,7 @@ ${signaturesHtml}
                     const selFacObj = faculties.find(f => String(f.id) === String(selectedFaculty));
                     const isHealthTechFaculty = selFacObj?.name?.includes("تكنولوجيا العلوم الصحية") || selFacObj?.name?.includes("العلوم الصحية");
                     const isMedicineFaculty = Boolean(selFacObj && (selFacObj.name.includes("الطب والجراحة") || selFacObj.name.includes("طب بشري") || selFacObj.name.includes("كلية الطب")) && !selFacObj.name.includes("البيطري") && !selFacObj.name.includes("الأسنان") && !selFacObj.name.includes("الاسنان") && !selFacObj.name.includes("تكنولوجيا"));
+                    const isNursingFaculty = Boolean(selFacObj?.name?.includes("التمريض") || selFacObj?.name?.includes("تمريض"));
 
                     return (
                       <Table bordered hover size="sm" className="align-middle text-center mb-0 small">
@@ -6681,7 +6800,7 @@ ${signaturesHtml}
                             <th style={{ verticalAlign: "middle" }}>البرنامج</th>
                             <th style={{ verticalAlign: "middle" }}>الطلاب</th>
                             <th style={{ verticalAlign: "middle" }}>
-                              {isHealthTechFaculty ? "مجموعات (ن/ع/ت/ح)" : "مجموعات (ن/ع)"}
+                              {isHealthTechFaculty ? "مجموعات (ن/ع/ت/ح)" : (isNursingFaculty ? "مجموعات (ن/ع/معملي)" : "مجموعات (ن/ع)")}
                             </th>
                             {isMedicineFaculty && (
                               <th style={{ verticalAlign: "middle" }}>القسم العلمي</th>
@@ -6690,7 +6809,7 @@ ${signaturesHtml}
                             <th style={{ verticalAlign: "middle" }}>الدرجة العلمية</th>
                             <th style={{ verticalAlign: "middle" }}>جهة القدوم</th>
                             <th style={{ verticalAlign: "middle" }}>
-                              {isHealthTechFaculty ? "ساعات (ن/ع/ت/ح)" : "ساعات (ن/ع)"}
+                              {isHealthTechFaculty ? "ساعات (ن/ع/ت/ح)" : (isNursingFaculty ? "ساعات (ن/ع/معملي)" : "ساعات (ن/ع)")}
                             </th>
                           </tr>
                         </thead>
@@ -6815,7 +6934,9 @@ ${signaturesHtml}
                                           >
                                             {isHealthTechFaculty
                                               ? `${group.groups_theory} / ${group.groups_practical} / ${group.groups_training || 0} / ${group.groups_field || 0}`
-                                              : `${group.groups_theory} / ${group.groups_practical}`}
+                                              : (isNursingFaculty
+                                                ? `${group.groups_theory} / ${group.groups_practical} / ${group.groups_training || 0}`
+                                                : `${group.groups_theory} / ${group.groups_practical}`)}
                                           </td>
                                         </>
                                       )}
@@ -6847,7 +6968,9 @@ ${signaturesHtml}
                                       <td className="fw-bold align-middle text-center" style={{ verticalAlign: "middle" }}>
                                         {isHealthTechFaculty
                                           ? `${row.hours_actual_theory} / ${row.hours_actual_practical} / ${row.hours_actual_training || 0} / ${row.hours_actual_field || 0}`
-                                          : `${row.hours_actual_theory} / ${row.hours_actual_practical}`}
+                                          : (isNursingFaculty
+                                            ? `${row.hours_actual_theory} / ${row.hours_actual_practical} / ${row.hours_actual_training || 0}`
+                                            : `${row.hours_actual_theory} / ${row.hours_actual_practical}`)}
                                       </td>
                                     </tr>
                                   );

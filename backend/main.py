@@ -562,6 +562,8 @@ def migrate_db_add_workload_fields():
                 ("max_practical_hours_per_course", "FLOAT DEFAULT 0.0"),
                 ("max_tutorial_hours_per_course", "FLOAT DEFAULT 0.0"),
                 ("max_field_hours_per_course", "FLOAT DEFAULT 0.0"),
+                ("faculty_roles", "VARCHAR DEFAULT 'أستاذ,أستاذ مساعد,مدرس'"),
+                ("assistant_roles", "VARCHAR DEFAULT 'مدرس مساعد,معيد'"),
             ]
             for col_name, col_type in new_cols:
                 if col_name not in cols:
@@ -3799,7 +3801,7 @@ def create_study_plan(plan: schemas.StudyPlanCreate, db: Session = Depends(get_d
             user_role_str = 'عضو هيئة تدريس'
         else:
             user_role_str = 'مسؤول كلية'
-        action_text = f"قام بتعديل الخطة الدراسية ({plan.semester} - العام الجامعي: {plan.academic_year})"
+        action_text = "قام بتعديل الخطة الدراسية"
         create_notification(db, plan.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=plan.academic_year, semester=plan.semester)
         db.commit()
 
@@ -3872,7 +3874,7 @@ def update_study_plan_status(
             raise HTTPException(status_code=403, detail="لا تملك صلاحية إنهاء الخطة (الصلاحية للمدير العام والمدير ومدير البرنامج الخاص بالكلية).")
         plan.is_finished = True
         plan.finished_by = user_full_name
-        action_text = f"قام بإنهاء الخطة الدراسية ل{faculty_name} - {plan.semester} - العام الجامعي {plan.academic_year}"
+        action_text = f"قام بإنهاء الخطة الدراسية ل{faculty_name}"
 
     elif status_data.action == "cancel_finish":
         if not is_finish_allowed:
@@ -3889,7 +3891,7 @@ def update_study_plan_status(
         plan.reviewed_2_by = None
         plan.is_approved = False
         plan.approved_by = None
-        action_text = f"تم الغاء إنهاء الخطة الدراسية ل{faculty_name} - {plan.semester} - العام الجامعي {plan.academic_year}"
+        action_text = f"تم الغاء إنهاء الخطة الدراسية ل{faculty_name}"
 
     elif status_data.action == "review1":
         if not current_user.perm_review_1 and current_user.role != models.UserRole.admin:
@@ -3897,7 +3899,7 @@ def update_study_plan_status(
         plan.is_finished = True
         plan.is_reviewed_1 = True
         plan.reviewed_1_by = user_full_name
-        action_text = f"قام بإجراء المراجعة الأولى للخطة الدراسية ل{faculty_name} - {plan.semester} - العام الجامعي {plan.academic_year}"
+        action_text = f"قام بإجراء المراجعة الأولى للخطة الدراسية ل{faculty_name}"
 
     elif status_data.action == "cancel_review1":
         if not current_user.perm_review_1 and current_user.role != models.UserRole.admin:
@@ -3910,7 +3912,7 @@ def update_study_plan_status(
         plan.reviewed_2_by = None
         plan.is_approved = False
         plan.approved_by = None
-        action_text = f"تم الغاء المراجعة الاولى للخطة الدراسية ل{faculty_name} - {plan.semester} - العام الجامعي {plan.academic_year}"
+        action_text = f"تم الغاء المراجعة الاولى للخطة الدراسية ل{faculty_name}"
 
     elif status_data.action == "review2":
         if not current_user.perm_review_2 and current_user.role != models.UserRole.admin:
@@ -3919,7 +3921,7 @@ def update_study_plan_status(
         plan.is_reviewed_1 = True
         plan.is_reviewed_2 = True
         plan.reviewed_2_by = user_full_name
-        action_text = f"قام بإجراء المراجعة الثانية للخطة الدراسية ل{faculty_name} - {plan.semester} - العام الجامعي {plan.academic_year}"
+        action_text = f"قام بإجراء المراجعة الثانية للخطة الدراسية ل{faculty_name}"
 
     elif status_data.action == "cancel_review2":
         if not current_user.perm_review_2 and current_user.role != models.UserRole.admin:
@@ -3932,7 +3934,7 @@ def update_study_plan_status(
         plan.reviewed_2_by = None
         plan.is_approved = False
         plan.approved_by = None
-        action_text = f"تم الغاء المراجعة الثانية للخطة الدراسية ل{faculty_name} - {plan.semester} - العام الجامعي {plan.academic_year}"
+        action_text = f"تم الغاء المراجعة الثانية للخطة الدراسية ل{faculty_name}"
 
     elif status_data.action == "approve":
         if not current_user.perm_approve_plan and current_user.role != models.UserRole.admin:
@@ -3959,7 +3961,7 @@ def update_study_plan_status(
         plan.is_reviewed_2 = True
         plan.is_approved = True
         plan.approved_by = user_full_name
-        action_text = f"تم اعتماد الخطة الدراسية ل{faculty_name} - {plan.semester} - العام الجامعي {plan.academic_year}"
+        action_text = f"تم اعتماد الخطة الدراسية ل{faculty_name}"
 
     elif status_data.action == "cancel_approve":
         if not current_user.perm_approve_plan and current_user.role != models.UserRole.admin and plan.approved_by != user_full_name:
@@ -3973,7 +3975,7 @@ def update_study_plan_status(
         plan.reviewed_1_by = None
         plan.is_finished = False # إلغاء الإنهاء لفتح الخطة بالكامل وإظهار جميع الأزرار وعمود الإجراءات مجدداً
         plan.finished_by = None
-        action_text = f"تم الغاء اعتماد الخطة الدراسية ل{faculty_name} - {plan.semester} - العام الجامعي {plan.academic_year}"
+        action_text = f"تم الغاء اعتماد الخطة الدراسية ل{faculty_name}"
     
     else:
         raise HTTPException(status_code=400, detail="إجراء غير معروف.")
@@ -4135,7 +4137,7 @@ def bulk_delete_study_plan(faculty_id: int, semester: str, academic_year: str, d
         
     user_role_str = get_user_role_display(current_user)
         
-    action_text = f"قام بمسح الخطة الدراسية بالكامل ({semester} - العام الجامعي: {academic_year})"
+    action_text = "قام بمسح الخطة الدراسية بالكامل"
     create_notification(db, faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=academic_year, semester=semester)
     db.commit()
     
@@ -4395,7 +4397,9 @@ def get_all_workload_limits(
             "max_tutorial_hours_per_course": l.max_tutorial_hours_per_course,
             "max_field_hours_per_course": l.max_field_hours_per_course,
             "faculty_formula": l.faculty_formula or "[ساعات النظري] + ([مجموع غير النظري] / 2) <= 6 * [أيام الانتداب]",
-            "assistant_formula": l.assistant_formula or "[مجموع غير النظري] <= 8 * [أيام الانتداب]"
+            "assistant_formula": l.assistant_formula or "[مجموع غير النظري] <= 8 * [أيام الانتداب]",
+            "faculty_roles": l.faculty_roles or "أستاذ,أستاذ مساعد,مدرس",
+            "assistant_roles": l.assistant_roles or "مدرس مساعد,معيد"
         }
         for l in limits
     ]
@@ -4435,7 +4439,9 @@ def get_workload_limits(
             "max_hours_per_day": 0.0,
             "min_hours_per_day": 0.0,
             "faculty_formula": "[ساعات النظري] + ([مجموع غير النظري] / 2) <= 6 * [أيام الانتداب]",
-            "assistant_formula": "[مجموع غير النظري] <= 8 * [أيام الانتداب]"
+            "assistant_formula": "[مجموع غير النظري] <= 8 * [أيام الانتداب]",
+            "faculty_roles": "أستاذ,أستاذ مساعد,مدرس",
+            "assistant_roles": "مدرس مساعد,معيد"
         }
     return {
         "id": limit.id,
@@ -4460,6 +4466,8 @@ def get_workload_limits(
         "min_hours_per_day": limit.min_hours_per_day,
         "faculty_formula": limit.faculty_formula or "[ساعات النظري] + ([مجموع غير النظري] / 2) <= 6 * [أيام الانتداب]",
         "assistant_formula": limit.assistant_formula or "[مجموع غير النظري] <= 8 * [أيام الانتداب]",
+        "faculty_roles": limit.faculty_roles or "أستاذ,أستاذ مساعد,مدرس",
+        "assistant_roles": limit.assistant_roles or "مدرس مساعد,معيد",
         "updated_at": limit.updated_at.isoformat() if limit.updated_at else None
     }
 
@@ -4508,6 +4516,8 @@ def save_workload_limits(
             limit.min_hours_per_day = data.min_hours_per_day or (data.min_theory_hours_per_day + data.min_practical_hours_per_day + data.min_tutorial_hours_per_day + data.min_field_hours_per_day)
             limit.faculty_formula = data.faculty_formula
             limit.assistant_formula = data.assistant_formula
+            limit.faculty_roles = data.faculty_roles or "أستاذ,أستاذ مساعد,مدرس"
+            limit.assistant_roles = data.assistant_roles or "مدرس مساعد,معيد"
             limit.updated_at = datetime.utcnow()
         else:
             limit = models.FacultyWorkloadLimit(
@@ -4531,7 +4541,9 @@ def save_workload_limits(
                 max_hours_per_day=data.max_hours_per_day or (data.max_theory_hours_per_day + data.max_practical_hours_per_day + data.max_tutorial_hours_per_day + data.max_field_hours_per_day),
                 min_hours_per_day=data.min_hours_per_day or (data.min_theory_hours_per_day + data.min_practical_hours_per_day + data.min_tutorial_hours_per_day + data.min_field_hours_per_day),
                 faculty_formula=data.faculty_formula,
-                assistant_formula=data.assistant_formula
+                assistant_formula=data.assistant_formula,
+                faculty_roles=data.faculty_roles or "أستاذ,أستاذ مساعد,مدرس",
+                assistant_roles=data.assistant_roles or "مدرس مساعد,معيد"
             )
             db.add(limit)
         saved_limits.append(limit)
@@ -4543,7 +4555,7 @@ def save_workload_limits(
     fac_names = [f.name for f in db.query(models.Faculty).filter(models.Faculty.id.in_(target_faculty_ids)).all()]
     fac_names_str = "، ".join(fac_names) if fac_names else "الكليات المحددة"
     user_role_str = get_user_role_display(current_user)
-    action_text = f"قام بتحديث حدود ومعادلات الأعباء التدريسية لكلية ({fac_names_str}) ({data.semester} - {data.academic_year})"
+    action_text = f"قام بتحديث حدود ومعادلات الأعباء التدريسية لكلية ({fac_names_str})"
     create_notification(db, target_faculty_ids[0], f"{current_user.username} ({user_role_str})", action_text, academic_year=data.academic_year, semester=data.semester)
     db.commit()
     
@@ -4885,7 +4897,7 @@ def save_workload_deduction(
     type_info = f" ({hour_type_str})" if hour_type_str else ""
     course_info = f" من مقرر ({data.course_name})" if data.course_name else ""
     reason_str = data.reason.strip() if (data.reason and data.reason.strip()) else "بدون ذكر سبب"
-    action_text = f"تم انقاص عدد الساعات بسبب {reason_str} للدكتور {prof_name} بمقدار {data.deducted_hours} ساعة{type_info}{course_info} في {weeks_str} ({data.semester} - {data.academic_year})"
+    action_text = f"تم انقاص عدد الساعات بسبب {reason_str} للدكتور {prof_name} بمقدار {data.deducted_hours} ساعة{type_info}{course_info} في {weeks_str}"
     create_notification(db, data.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=data.academic_year, semester=data.semester)
     db.commit()
     
@@ -4932,7 +4944,7 @@ def update_workload_deduction(
     type_info = f" ({ded.hour_type})" if ded.hour_type else ""
     course_info = f" من مقرر ({ded.course_name})" if ded.course_name else ""
     reason_str = ded.reason.strip() if (ded.reason and ded.reason.strip()) else "بدون ذكر سبب"
-    action_text = f"تم تعديل انقاص عدد الساعات بسبب {reason_str} للدكتور {prof_name} بمقدار {ded.deducted_hours} ساعة{type_info}{course_info} في {ded.week_name or 'أسبوع غير محدد'} ({ded.semester} - {ded.academic_year})"
+    action_text = f"تم تعديل انقاص عدد الساعات بسبب {reason_str} للدكتور {prof_name} بمقدار {ded.deducted_hours} ساعة{type_info}{course_info} في {ded.week_name or 'أسبوع غير محدد'}"
     create_notification(db, ded.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=ded.academic_year, semester=ded.semester)
     db.commit()
     
@@ -4968,7 +4980,7 @@ def delete_workload_deduction(
         
     prof_name = ded.professor.name_ar if ded.professor else ""
     user_role_str = get_user_role_display(current_user)
-    action_text = f"قام بإلغاء انقاص الساعات ({ded.deducted_hours} س) للدكتور {prof_name} ({ded.semester} - {ded.academic_year})"
+    action_text = f"قام بإلغاء انقاص الساعات ({ded.deducted_hours} س) للدكتور {prof_name}"
     create_notification(db, ded.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=ded.academic_year, semester=ded.semester)
     
     db.delete(ded)
@@ -5132,7 +5144,7 @@ def save_course_workload_weeks(
     fac = db.query(models.Faculty).filter(models.Faculty.id == data.faculty_id).first()
     fac_name = fac.name if fac else ""
     user_role_str = get_user_role_display(current_user)
-    action_text = f"قام بتحديد عدد أسابيع مقرر ({data.course_name}) بـ {data.weeks_count} أسبوع لكلية {fac_name} ({data.semester} - {data.academic_year})"
+    action_text = f"قام بتحديد عدد أسابيع مقرر ({data.course_name}) بـ {data.weeks_count} أسبوع لكلية {fac_name}"
     create_notification(db, data.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=data.academic_year, semester=data.semester)
     db.commit()
     
@@ -5168,7 +5180,7 @@ def delete_course_workload_weeks(
     db.commit()
     
     user_role_str = get_user_role_display(current_user)
-    action_text = f"قام بإلغاء تخصيص أسابيع مقرر ({c_name}) واستعادة العدد الافتراضي للفصل ({sem} - {ay})"
+    action_text = f"قام بإلغاء تخصيص أسابيع مقرر ({c_name}) واستعادة العدد الافتراضي للفصل"
     create_notification(db, fac_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=ay, semester=sem)
     db.commit()
     
@@ -5920,10 +5932,12 @@ def log_notification(data: schemas.NotificationCreate, db: Session = Depends(get
 
     # توثيق الحدث أيضاً في سجل العمليات (Audit Logs)
     try:
-        action_type = "EXPORT" if ("تصدير" in data.action_text or "تنزيل" in data.action_text) else (
-            "PRINT" if "طباعة" in data.action_text else (
-                "DELETE" if ("حذف" in data.action_text or "إلغاء" in data.action_text) else (
-                    "CREATE" if ("إضافة" in data.action_text or "تسجيل" in data.action_text) else "UPDATE"
+        action_type = "IMPORT" if ("استيراد" in data.action_text or "نسخ" in data.action_text) else (
+            "EXPORT" if ("تصدير" in data.action_text or "تنزيل" in data.action_text) else (
+                "PRINT" if "طباعة" in data.action_text else (
+                    "DELETE" if ("حذف" in data.action_text or "إلغاء" in data.action_text) else (
+                        "CREATE" if ("إضافة" in data.action_text or "تسجيل" in data.action_text) else "UPDATE"
+                    )
                 )
             )
         )
@@ -6049,7 +6063,7 @@ def restore_recycle_bin(action: schemas.RecycleBinAction, db: Session = Depends(
         elif item.type == "study_plan":
             obj = db.query(models.StudyPlan).filter(models.StudyPlan.id == item.id).first()
             if obj:
-                name = f"الخطة الدراسية {obj.semester} - {obj.academic_year}"
+                name = "الخطة الدراسية"
                 fids = [obj.faculty_id]
         elif item.type == "signature":
             obj = db.query(models.Signature).filter(models.Signature.id == item.id).first()
@@ -6105,7 +6119,7 @@ def hard_delete_recycle_bin(action: schemas.RecycleBinAction, db: Session = Depe
         elif item.type == "study_plan":
             obj = db.query(models.StudyPlan).filter(models.StudyPlan.id == item.id).first()
             if obj:
-                name = f"الخطة الدراسية {obj.semester} - {obj.academic_year}"
+                name = "الخطة الدراسية"
                 fids = [obj.faculty_id]
         elif item.type == "signature":
             obj = db.query(models.Signature).filter(models.Signature.id == item.id).first()

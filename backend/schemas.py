@@ -498,6 +498,8 @@ class FacultyWorkloadLimitBase(BaseModel):
     min_hours_per_semester: Optional[float] = 0.0
     faculty_formula: Optional[str] = None
     assistant_formula: Optional[str] = None
+    faculty_roles: Optional[str] = None
+    assistant_roles: Optional[str] = None
 
 class FacultyWorkloadLimitCreate(FacultyWorkloadLimitBase):
     pass

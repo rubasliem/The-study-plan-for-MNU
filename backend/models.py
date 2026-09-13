@@ -404,6 +404,8 @@ class FacultyWorkloadLimit(Base):
     # صيغ المعادلات الديناميكية لاحتساب الحد الأقصى لساعات اليوم والانتداب
     faculty_formula = Column(String, nullable=True) # معادلة أعضاء هيئة التدريس
     assistant_formula = Column(String, nullable=True) # معادلة الهيئة المعاونة
+    faculty_roles = Column(String, default="أستاذ,أستاذ مساعد,مدرس", nullable=True) # الرتب العلمية المشمولة بأعضاء هيئة التدريس ديناميكياً
+    assistant_roles = Column(String, default="مدرس مساعد,معيد", nullable=True) # الرتب والوظائف المشمولة بالهيئة المعاونة ديناميكياً
     
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

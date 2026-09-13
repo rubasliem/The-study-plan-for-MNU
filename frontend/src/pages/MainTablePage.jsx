@@ -295,7 +295,7 @@ const MainTablePage = () => {
     const [faculties, setFaculties] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    const [selectedYear, setSelectedYear] = useState("");
+    const [selectedYear, setSelectedYear] = useState(() => localStorage.getItem('mnu_default_academic_year') || "");
     const [academicYears, setAcademicYears] = useState([]);
     const [selectedFaculty, setSelectedFaculty] = useState("");
 
@@ -383,8 +383,11 @@ const MainTablePage = () => {
                 const loadedYears = yearsRes.data || [];
                 setAcademicYears(loadedYears);
                 if (loadedYears.length > 0) {
-                    setSelectedYear(loadedYears[0].name);
-                    setModalYear(loadedYears[0].name);
+                    const savedDefault = localStorage.getItem('mnu_default_academic_year');
+                    const matchedDefault = savedDefault && loadedYears.find(y => y.name === savedDefault);
+                    const initYear = matchedDefault ? savedDefault : loadedYears[0].name;
+                    setSelectedYear(initYear);
+                    setModalYear(initYear);
                 }
             } catch (err) {
                 console.error("Error fetching filter metadata", err);

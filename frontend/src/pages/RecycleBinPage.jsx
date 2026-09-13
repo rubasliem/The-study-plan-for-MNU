@@ -17,7 +17,7 @@ const RecycleBinPage = () => {
     const [faculties, setFaculties] = useState([]);
     const [selectedFaculty, setSelectedFaculty] = useState("");
     const [academicYears, setAcademicYears] = useState([]);
-    const [selectedAcademicYear, setSelectedAcademicYear] = useState("");
+    const [selectedAcademicYear, setSelectedAcademicYear] = useState(() => localStorage.getItem('mnu_default_academic_year') || "");
     const [selectedType, setSelectedType] = useState("");
 
     const canRestore = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'faculty_professor' || user?.perm_recycle_restore_btn;

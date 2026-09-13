@@ -9,7 +9,14 @@ import { saveAs } from 'file-saver';
 import logo from '../assets/logo.png';
 import toast from 'react-hot-toast';
 import { confirmAction } from '../utils/confirmAlert';
-import { evaluateWorkloadFormula, DEFAULT_FACULTY_FORMULA, DEFAULT_ASSISTANT_FORMULA } from '../utils/workloadFormula';
+import { 
+  evaluateWorkloadFormula, 
+  DEFAULT_FACULTY_FORMULA, 
+  DEFAULT_ASSISTANT_FORMULA,
+  matchesAcademicRole,
+  DEFAULT_FACULTY_ROLES,
+  DEFAULT_ASSISTANT_ROLES
+} from '../utils/workloadFormula';
 
 const API = "";
 
@@ -138,14 +145,23 @@ const WorkloadPage = ({ isReadOnly = false }) => {
   const [faculties, setFaculties] = useState([]);
   const [academicYears, setAcademicYears] = useState([]);
   const [selectedFaculty, setSelectedFaculty] = useState("");
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState("");
-  const [selectedSemester, setSelectedSemester] = useState("الفصل الدراسي الأول");
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(() => localStorage.getItem('mnu_default_academic_year') || '');
+  const [selectedSemester, setSelectedSemester] = useState(() => {
+    const saved = localStorage.getItem('mnu_default_semester');
+    // Normalize: map any stored value to the workload page format
+    if (!saved) return 'الفصل الدراسي الأول';
+    if (saved.includes('صيفي')) return 'الفصل الدراسي الصيفي';
+    if (saved.includes('ثاني')) return 'الفصل الدراسي الثاني';
+    return 'الفصل الدراسي الأول';
+  });
 
   // Faculty Limits State (Daily hours breakdown & load limits)
   const [limitsLoading, setLimitsLoading] = useState(false);
   const [limits, setLimits] = useState({
     faculty_formula: DEFAULT_FACULTY_FORMULA,
     assistant_formula: DEFAULT_ASSISTANT_FORMULA,
+    faculty_roles: DEFAULT_FACULTY_ROLES.join(','),
+    assistant_roles: DEFAULT_ASSISTANT_ROLES.join(','),
     max_faculty_hours_per_day: 6.0,
     max_assistant_hours_per_day: 8.0,
     min_theory_hours_per_day: '',
@@ -233,7 +249,9 @@ const WorkloadPage = ({ isReadOnly = false }) => {
         setAcademicYears(yList);
 
         if (yList.length > 0) {
-          setSelectedAcademicYear(yList[0].name);
+          const savedDefault = localStorage.getItem('mnu_default_academic_year');
+          const matchedDefault = savedDefault && yList.find(y => y.name === savedDefault);
+          setSelectedAcademicYear(matchedDefault ? savedDefault : yList[0].name);
         }
 
         // Set initial faculty
@@ -436,6 +454,8 @@ const WorkloadPage = ({ isReadOnly = false }) => {
         setLimits({
           faculty_formula: d.faculty_formula || DEFAULT_FACULTY_FORMULA,
           assistant_formula: d.assistant_formula || DEFAULT_ASSISTANT_FORMULA,
+          faculty_roles: d.faculty_roles || DEFAULT_FACULTY_ROLES.join(','),
+          assistant_roles: d.assistant_roles || DEFAULT_ASSISTANT_ROLES.join(','),
           max_faculty_hours_per_day: d.max_faculty_hours_per_day != null ? Number(d.max_faculty_hours_per_day) : 6.0,
           max_assistant_hours_per_day: d.max_assistant_hours_per_day != null ? Number(d.max_assistant_hours_per_day) : 8.0,
           min_theory_hours_per_day: d.min_theory_hours_per_day != null && d.min_theory_hours_per_day > 0 ? String(d.min_theory_hours_per_day) : '',
@@ -1571,9 +1591,23 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                     const totalNonTheory = totalPractical + totalExercise + totalActivity;
                     const totalHours = totalTheory + totalNonTheory;
 
-                    const formulaToUse = isTA
-                      ? (limits?.assistant_formula || DEFAULT_ASSISTANT_FORMULA)
-                      : (limits?.faculty_formula || DEFAULT_FACULTY_FORMULA);
+                    const allowedFacultyRoles = (limits?.faculty_roles ? limits.faculty_roles.split(',') : DEFAULT_FACULTY_ROLES).map(r => r.trim()).filter(Boolean);
+                    const allowedAssistantRoles = (limits?.assistant_roles ? limits.assistant_roles.split(',') : DEFAULT_ASSISTANT_ROLES).map(r => r.trim()).filter(Boolean);
+
+                    const isFacultyRole = matchesAcademicRole(profData.job_title, allowedFacultyRoles) ||
+                                          matchesAcademicRole(profData.mnu_job_title, allowedFacultyRoles);
+
+                    const isAssistantRole = matchesAcademicRole(profData.job_title, allowedAssistantRoles) ||
+                                            matchesAcademicRole(profData.mnu_job_title, allowedAssistantRoles);
+
+                    const isAssistantCalculated = !isFacultyRole && (isAssistantRole || isTA);
+
+                    const formulaToUse = isFacultyRole
+                      ? (limits?.faculty_formula || DEFAULT_FACULTY_FORMULA)
+                      : (isAssistantCalculated ? (limits?.assistant_formula || DEFAULT_ASSISTANT_FORMULA) : (limits?.faculty_formula || DEFAULT_FACULTY_FORMULA));
+
+                    const totalLab = totalExercise;
+                    const totalPracticalAndLab = totalPractical + totalLab;
 
                     const evalResult = evaluateWorkloadFormula(formulaToUse, {
                       totalTheory,
@@ -1581,9 +1615,11 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                       totalExercise,
                       totalActivity,
                       totalNonTheory,
+                      totalLab,
+                      totalPracticalAndLab,
                       workDays,
                       totalHours,
-                      isTA
+                      isTA: isAssistantCalculated
                     });
 
                     let calculatedLoad = evalResult.calculatedLoad;
@@ -1591,9 +1627,9 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                     let hasViolation = evalResult.hasViolation;
                     let violationMsg = "";
 
-                    if (isTA && totalTheory > 0) {
+                    if (isAssistantCalculated && totalTheory > 0) {
                       hasViolation = true;
-                      violationMsg = `تنبيه نظامي: المعيد والمدرس المساعد لا يمكنهم تدريس ساعات نظري (مسجل له ${totalTheory} س نظري).`;
+                      violationMsg = `تنبيه نظامي: الهيئة المعاونة (${allowedAssistantRoles.join('، ')}) لا يمكنهم تدريس ساعات نظري (مسجل له ${totalTheory} س نظري).`;
                     } else if (hasViolation) {
                       violationMsg = `تجاوز الحد الأقصى: العبء المحتسب (${calculatedLoad} ساعة) يتجاوز الحد الأقصى المسموح (${maxAllowed} ساعة) وفق معادلة الكلية المعتمدة.`;
                     }
@@ -1608,6 +1644,9 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                             </Badge>
                             <Badge bg="light" text="primary" className="border px-2 py-1">
                               انتداب {contractTypeText} ({workDays} {workDays === 1 ? "يوم" : workDays === 2 ? "يومان" : "أيام"})
+                            </Badge>
+                            <Badge bg={isFacultyRole ? "primary" : (isAssistantCalculated ? "info" : "secondary")} className="px-2 py-1">
+                              {isFacultyRole ? "معادلة هيئة التدريس" : (isAssistantCalculated ? "معادلة الهيئة المعاونة" : "المعادلة المعتمدة")}
                             </Badge>
                           </div>
                           <div>
@@ -1627,10 +1666,10 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                           <Col xs={6} md={3}>
                             <div className="p-2 rounded-3 bg-light border h-100">
                               <small className="text-muted d-block mb-1">ساعات النظري</small>
-                              <strong className={isTA && totalTheory > 0 ? "text-danger fs-6" : "text-dark fs-6"}>
+                              <strong className={isAssistantCalculated && totalTheory > 0 ? "text-danger fs-6" : "text-dark fs-6"}>
                                 {totalTheory} س
                               </strong>
-                              {isTA && totalTheory > 0 && <small className="text-danger d-block mt-1">غير مسموح</small>}
+                              {isAssistantCalculated && totalTheory > 0 && <small className="text-danger d-block mt-1">غير مسموح</small>}
                             </div>
                           </Col>
                           <Col xs={6} md={3}>

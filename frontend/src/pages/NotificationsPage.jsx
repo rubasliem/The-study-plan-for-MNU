@@ -9,6 +9,28 @@ import logo from '../assets/logo.png';
 import { confirmAction } from '../utils/confirmAlert';
 import toast from 'react-hot-toast';
 
+export const cleanActionText = (text) => {
+    if (!text) return '';
+    // استثناء لعمليات نسخ الخطة الدراسية للاحتفاظ بالعام الجامعي والفصل الدراسي المنقول منه
+    if (text.includes('بنسخ الخطة') || text.includes('نسخ الخطة')) {
+        return text.trim();
+    }
+    let cleaned = text;
+    // 1. Parenthesized combined: (الفصل الدراسي الأول - 2024/2025) or with العام الجامعي
+    cleaned = cleaned.replace(/\s*\(\s*(?:الفصل الدراسي\s+[^\s\)\-]+|الفصل الصيفي|الفصل\s+[^\s\)\-]+)\s*[\-–—]\s*(?:العام الجامعي\s*[:\-]?)?\s*\d{4}[/\-]\d{4}\s*\)/g, '');
+    // 2. Separated by dashes: - الفصل الدراسي الأول - العام الجامعي 2024/2025
+    cleaned = cleaned.replace(/\s*[\-–—]\s*(?:الفصل الدراسي\s+[^\s\-]+|الفصل الصيفي|الفصل\s+[^\s\-]+)\s*[\-–—]\s*(?:العام الجامعي\s*[:\-]?)?\s*\d{4}[/\-]\d{4}/g, '');
+    // 3. Direct: الفصل الدراسي الأول - 2026/2027
+    cleaned = cleaned.replace(/\s*(?:الفصل الدراسي\s+(?:الأول|الثاني|الثالث|الصيفي)|الفصل الصيفي)\s*[\-–—]\s*\d{4}[/\-]\d{4}/g, '');
+    // 4. Standalone parenthesized year or semester at end of text
+    cleaned = cleaned.replace(/\s*\(\s*\d{4}[/\-]\d{4}\s*\)\s*$/g, '');
+    cleaned = cleaned.replace(/\s*\(\s*(?:الفصل الدراسي\s+(?:الأول|الثاني|الثالث|الصيفي)|الفصل الصيفي)\s*\)\s*$/g, '');
+    // 5. Standalone dashed year or semester
+    cleaned = cleaned.replace(/\s*[\-–—]\s*(?:العام الجامعي\s*[:\-]?)?\s*\d{4}[/\-]\d{4}/g, '');
+    cleaned = cleaned.replace(/\s*[\-–—]\s*(?:الفصل الدراسي\s+(?:الأول|الثاني|الثالث|الصيفي)|الفصل الصيفي)/g, '');
+    return cleaned.trim();
+};
+
 const NotificationsPage = () => {
     const { user } = useContext(AuthContext);
     const [notifications, setNotifications] = useState([]);
@@ -16,8 +38,14 @@ const NotificationsPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedIds, setSelectedIds] = useState([]);
     const [faculties, setFaculties] = useState([]);
-    const [filterYear, setFilterYear] = useState('');
-    const [filterSemester, setFilterSemester] = useState('');
+    const [filterYear, setFilterYear] = useState(() => localStorage.getItem('mnu_default_academic_year') || '');
+    const [filterSemester, setFilterSemester] = useState(() => {
+        const saved = localStorage.getItem('mnu_default_semester');
+        if (!saved) return '';
+        if (saved.includes('صيفي')) return 'الفصل الدراسي الصيفي';
+        if (saved.includes('ثاني')) return 'الفصل الدراسي الثاني';
+        return 'الفصل الدراسي الأول';
+    });
     const [filterPage, setFilterPage] = useState('');
     const [academicYearsList, setAcademicYearsList] = useState([]);
 
@@ -240,7 +268,7 @@ const NotificationsPage = () => {
                 year: notif.academic_year || '—',
                 semester: notif.semester || '—',
                 by: byText,
-                event: notif.action_text || '',
+                event: cleanActionText(notif.action_text || ''),
                 datetime: dateStr
             });
 
@@ -305,21 +333,34 @@ const NotificationsPage = () => {
 
     const renderActionText = (text, actionBy) => {
         if (!text) return '';
+        text = cleanActionText(text);
         text = text.replace(/@gmail\.com/gi, '');
 
         let mainText = text;
         let role = '';
         
-        // البحث عن جزء " من " في نهاية النص لاستخراج الوظيفة وحذف الاسم
-        const authorMatch = text.match(/\s+من\s+(.+?)\s*\((.+?)\)$/);
-        if (authorMatch) {
-            mainText = text.substring(0, authorMatch.index);
-            role = authorMatch[1].trim();
+        if (mainText.includes('نسخ الخطة')) {
+            // معالجة صيغ النسخ السابقة لتكون موحدة وواضحة
+            mainText = mainText.replace(/من عام سابق\s*\(([^)]+)\)(?:\s*لكلية\s+[^\s]+(?:\s+[^\s]+)*)?/, (match, p1) => {
+                if (p1.includes(' - ')) {
+                    const [y, s] = p1.split(' - ');
+                    return `من ${s.trim()} العام الجامعي ${y.trim()}`;
+                }
+                return `من العام الجامعي ${p1.trim()}`;
+            });
+            mainText = mainText.replace(/\s+لكلية\s+(?:كلية\s+)?[^\s\(\)]+(?:\s+[^\s\(\)]+)*/g, '');
         } else {
-            const altMatch = text.match(/\s+من\s+(.+)$/);
-            if (altMatch) {
-                mainText = text.substring(0, altMatch.index);
-                role = altMatch[1].replace(/[()]/g, '').trim();
+            // البحث عن جزء " من " في نهاية النص لاستخراج الوظيفة وحذف الاسم
+            const authorMatch = text.match(/\s+من\s+([^\(\)]+?)\s*\((.+?)\)$/);
+            if (authorMatch) {
+                mainText = text.substring(0, authorMatch.index);
+                role = authorMatch[1].trim();
+            } else {
+                const altMatch = text.match(/\s+من\s+([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+|[أ-ي\s]{3,25}(?:\([^\)]+\))?)$/);
+                if (altMatch && !altMatch[1].startsWith('الفصل') && !altMatch[1].startsWith('عام') && !altMatch[1].startsWith('سلة')) {
+                    mainText = text.substring(0, altMatch.index);
+                    role = altMatch[1].replace(/[()]/g, '').trim();
+                }
             }
         }
 
@@ -369,7 +410,7 @@ const NotificationsPage = () => {
             mainText = mainText.replace(/\s*في صفحة تحديد الأعباء/g, '');
         }
 
-        const parts = mainText.split(/(مدير شؤون الطلاب|مدير عام|مسؤول كلية|مدير برنامج|حذف|مسح|تعديل|حفظ|إضافة مستخدم جديد|اضافة مستخدم جديد|إضافة|إضافه|الجدول الرئيسي الموحد|الجدول الرئيسي|تحديد الأعباء|نموذج 1|نموذج 2|طباعة|تنزيل|رؤية|استرجاع|تم انقاص|تم إنقاص|انقاص|إنقاص|استقطاع|انتقاص|تخصيص|تفعيل صلاحية|الغاء صلاحية|إلغاء صلاحية|الغاء المراجعة الاولى|إلغاء المراجعة الاولى|الغاء المراجعة الأولى|إلغاء المراجعة الأولى|الغاء المراجعة الثانية|إلغاء المراجعة الثانية|الغاء إنهاء الخطة|إلغاء إنهاء الخطة|الغاء اعتماد|إلغاء اعتماد|الغاء|إلغاء|المراجعة الأولى|المراجعة الثانية|إنهاء الخطة|إنهاء|اعتماد الخطة الدراسية|اعتماد)/g);
+        const parts = mainText.split(/(مدير شؤون الطلاب|مدير عام|مسؤول كلية|مدير برنامج|حذف|مسح|تعديل|حفظ|إضافة مستخدم جديد|اضافة مستخدم جديد|إضافة|إضافه|استيراد|نسخ|شيت Excel|الجدول الرئيسي الموحد|الجدول الرئيسي|تحديد الأعباء|نموذج 1|نموذج 2|طباعة|تنزيل|رؤية|استرجاع|تم انقاص|تم إنقاص|انقاص|إنقاص|استقطاع|انتقاص|تخصيص|تفعيل صلاحية|الغاء صلاحية|إلغاء صلاحية|الغاء المراجعة الاولى|إلغاء المراجعة الاولى|الغاء المراجعة الأولى|إلغاء المراجعة الأولى|الغاء المراجعة الثانية|إلغاء المراجعة الثانية|الغاء إنهاء الخطة|إلغاء إنهاء الخطة|الغاء اعتماد|إلغاء اعتماد|الغاء|إلغاء|المراجعة الأولى|المراجعة الثانية|إنهاء الخطة|إنهاء|اعتماد الخطة الدراسية|اعتماد)/g);
         
         return parts.map((part, index) => {
             if (['مدير شؤون الطلاب', 'مدير عام', 'مسؤول كلية', 'مدير برنامج'].includes(part)) {
@@ -391,8 +432,11 @@ const NotificationsPage = () => {
             if (part === 'تعديل' || part === 'حفظ') {
                 return <span key={index} className="fw-bold" style={{ color: '#cf8128ff' }}>{part}</span>;
             }
-            if (part === 'إضافة' || part === 'إضافه' || part === 'استرجاع') {
+            if (part === 'إضافة' || part === 'إضافه' || part === 'استرجاع' || part === 'استيراد') {
                 return <span key={index} className="text-success fw-bold">{part}</span>;
+            }
+            if (part === 'نسخ' || part === 'شيت Excel') {
+                return <span key={index} className="fw-bold" style={{ color: '#0284c7' }}>{part}</span>;
             }
             if (part === 'طباعة' || part === 'تنزيل' || part === 'رؤية' || part === 'المراجعة الأولى' || part === 'المراجعة الثانية' || part === 'إنهاء الخطة' || part === 'إنهاء') {
                 return <span key={index} className="text-primary fw-bold">{part}</span>;
@@ -743,7 +787,7 @@ const NotificationsPage = () => {
                                         )}
                                         <th className="col-faculty">الكلية</th>
                                         <th className="col-year text-center">العام الجامعي<br /> الفصل الدراسي</th>
-                                        <th className="col-by text-center">بواسطة</th>
+                                        <th className="col-by text-center" style={{ minWidth: '135px', whiteSpace: 'nowrap' }}>بواسطة</th>
                                         <th className="col-action">الحدث</th>
                                         <th className="col-date text-center">التاريخ والوقت</th>
                                         {canDelete && <th className="text-center d-print-none">إجراءات</th>}
@@ -780,7 +824,7 @@ const NotificationsPage = () => {
                                                     </div>
                                                 )}
                                             </td>
-                                            <td className="col-by text-center">
+                                            <td className="col-by text-center" style={{ whiteSpace: 'nowrap' }}>
                                                 {(() => {
                                                     let text = notif.action_by ? notif.action_by.replace(/@gmail\.com/gi, '') : '';
                                                     let username = text.trim();
@@ -870,19 +914,18 @@ const NotificationsPage = () => {
                                                     }
                                                     
                                                     return (
-                                                        <div className="text-center d-flex flex-column align-items-center justify-content-center" style={{ gap: '2px' }}>
-                                                            <span className="fw-bold text-dark" style={{ fontSize: '13.5px', lineHeight: '1.3' }}>
+                                                        <div className="text-center d-flex flex-column align-items-center justify-content-center" style={{ gap: '2px', whiteSpace: 'nowrap' }}>
+                                                            <span className="fw-bold text-dark text-nowrap" style={{ fontSize: '13.5px', lineHeight: '1.3', whiteSpace: 'nowrap' }}>
                                                                 {username}
                                                             </span>
                                                             {role && (
                                                                 <span 
-                                                                    className="fw-semibold" 
+                                                                    className="fw-semibold text-nowrap" 
                                                                     style={{ 
                                                                         fontSize: '12.5px', 
                                                                         color: '#2e7d32', 
                                                                         lineHeight: '1.35',
-                                                                        whiteSpace: 'normal',
-                                                                        wordBreak: 'break-word'
+                                                                        whiteSpace: 'nowrap'
                                                                     }}
                                                                 >
                                                                     {role}
