@@ -3,7 +3,7 @@ import axios from 'axios';
 import Select from 'react-select';
 import { AuthContext } from '../context/AuthContext';
 import { Container, Card, Table, Form, Spinner, Button, InputGroup, Modal, Row, Col, Badge, Dropdown } from 'react-bootstrap';
-import { FaShieldAlt, FaEyeSlash, FaEye, FaSearch, FaUser, FaTimes, FaUndo, FaListUl, FaCheckCircle, FaBalanceScale, FaSave, FaClock, FaRedo } from 'react-icons/fa';
+import { FaShieldAlt, FaEyeSlash, FaEye, FaSearch, FaUser, FaTimes, FaUndo, FaListUl, FaCheckCircle, FaBalanceScale, FaSave, FaClock, FaRedo, FaPlus, FaTrash } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { confirmAction } from '../utils/confirmAlert';
 import { 
@@ -50,14 +50,18 @@ const ControlPanelPage = () => {
     const [loading, setLoading] = useState(true);
     const [draggedYearIndex, setDraggedYearIndex] = useState(null);
 
-    // Workload Limits & Dynamic Formulas State for Control Panel
-    const [selectedLimitFaculties, setSelectedLimitFaculties] = useState([]);
+    // Workload Limits & Dynamic Rule Groups State for Control Panel
+    const [ruleGroups, setRuleGroups] = useState([
+        {
+            id: 'rule-1',
+            title: 'القاعدة 1',
+            faculties: [],
+            facultyFormula: DEFAULT_FACULTY_FORMULA,
+            assistantFormula: DEFAULT_ASSISTANT_FORMULA
+        }
+    ]);
     const [selectedLimitYear, setSelectedLimitYear] = useState("");
     const [selectedLimitSemester, setSelectedLimitSemester] = useState("الفصل الدراسي الأول");
-    const [facultyFormula, setFacultyFormula] = useState(DEFAULT_FACULTY_FORMULA);
-    const [assistantFormula, setAssistantFormula] = useState(DEFAULT_ASSISTANT_FORMULA);
-    const facultyInputRef = useRef(null);
-    const assistantInputRef = useRef(null);
     const [workloadLimitsLoading, setWorkloadLimitsLoading] = useState(false);
     const [workloadLimitsSaving, setWorkloadLimitsSaving] = useState(false);
     const [workloadLimits, setWorkloadLimits] = useState({
@@ -124,11 +128,22 @@ const ControlPanelPage = () => {
                 if (user?.role === 'faculty_professor' && user?.faculty_id) {
                     const myFac = facList.find(f => String(f.id) === String(user.faculty_id));
                     if (myFac) {
-                        setSelectedLimitFaculties([{ value: String(myFac.id), label: myFac.name }]);
+                        setRuleGroups([{
+                            id: 'rule-1',
+                            title: 'القاعدة 1',
+                            faculties: [{ value: String(myFac.id), label: myFac.name }],
+                            facultyFormula: DEFAULT_FACULTY_FORMULA,
+                            assistantFormula: DEFAULT_ASSISTANT_FORMULA
+                        }]);
                     }
                 } else {
-                    // Default select all faculties for convenience
-                    setSelectedLimitFaculties(facList.map(f => ({ value: String(f.id), label: f.name })));
+                    setRuleGroups([{
+                        id: 'rule-1',
+                        title: 'القاعدة 1 (الكليات العامة)',
+                        faculties: facList.map(f => ({ value: String(f.id), label: f.name })),
+                        facultyFormula: DEFAULT_FACULTY_FORMULA,
+                        assistantFormula: DEFAULT_ASSISTANT_FORMULA
+                    }]);
                 }
             }
             if (yrsList.length > 0) {
@@ -155,70 +170,166 @@ const ControlPanelPage = () => {
     }, [faculties, user]);
 
     const isLimitHealthTechFaculty = useMemo(() => {
-        if (!selectedLimitFaculties || selectedLimitFaculties.length === 0) return false;
-        return selectedLimitFaculties.some(f => {
-            const name = f.label || "";
-            return name.includes("العلوم الصحية") || name.includes("تكنولوجيا العلوم");
-        });
-    }, [selectedLimitFaculties]);
+        return ruleGroups.some(group => 
+            (group.faculties || []).some(f => {
+                const name = f.label || "";
+                return name.includes("العلوم الصحية") || name.includes("تكنولوجيا العلوم");
+            })
+        );
+    }, [ruleGroups]);
 
-    // Insert token into formula input at cursor position
-    const insertToken = (target, token) => {
-        const isAssistant = target === 'assistant';
-        const formula = isAssistant ? assistantFormula : facultyFormula;
-        const setFormula = isAssistant ? setAssistantFormula : setFacultyFormula;
-        const inputRef = isAssistant ? assistantInputRef : facultyInputRef;
+    // Add a new rule group for other faculties
+    const handleAddRuleGroup = () => {
+        const alreadySelectedIds = new Set(ruleGroups.flatMap(g => (g.faculties || []).map(f => String(f.value))));
+        const unselected = accessibleLimitFaculties
+            .filter(f => !alreadySelectedIds.has(String(f.id)))
+            .map(f => ({ value: String(f.id), label: f.name }));
 
-        if (inputRef.current) {
-            const input = inputRef.current;
-            const start = input.selectionStart != null ? input.selectionStart : formula.length;
-            const end = input.selectionEnd != null ? input.selectionEnd : formula.length;
-            const newFormula = formula.substring(0, start) + token + formula.substring(end);
-            setFormula(newFormula);
-            setTimeout(() => {
-                if (inputRef.current) {
-                    inputRef.current.focus();
-                    inputRef.current.setSelectionRange(start + token.length, start + token.length);
-                }
-            }, 50);
-        } else {
-            setFormula(prev => prev + token);
-        }
+        const newIndex = ruleGroups.length + 1;
+        const newGroup = {
+            id: `rule-${Date.now()}`,
+            title: `القاعدة ${newIndex}`,
+            faculties: unselected.length > 0 ? [unselected[0]] : [],
+            facultyFormula: DEFAULT_FACULTY_FORMULA,
+            assistantFormula: DEFAULT_ASSISTANT_FORMULA
+        };
+        setRuleGroups(prev => [...prev, newGroup]);
+        toast.success(`تمت إضافة قاعدة جديدة (القاعدة ${newIndex})`);
     };
 
-    // Fetch limits for Control Panel when faculty selection, year, or semester changes
+    // Remove a rule group
+    const handleRemoveRuleGroup = (groupId) => {
+        if (ruleGroups.length <= 1) {
+            toast.error("يجب الإبقاء على قاعدة واحدة على الأقل");
+            return;
+        }
+        setRuleGroups(prev => prev.filter(g => g.id !== groupId));
+        toast.success("تم حذف القاعدة بنجاح");
+    };
+
+    // Update fields in a specific rule group
+    const handleUpdateRuleGroup = (groupId, field, value) => {
+        setRuleGroups(prev => prev.map(g => g.id === groupId ? { ...g, [field]: value } : g));
+    };
+
+    // Insert token into formula input for a specific group at cursor position
+    const insertTokenInGroup = (groupId, target, token) => {
+        const inputId = `formula-${target}-${groupId}`;
+        const input = document.getElementById(inputId);
+        setRuleGroups(prev => prev.map(group => {
+            if (group.id !== groupId) return group;
+            const isAssistant = target === 'assistant';
+            const currentFormula = isAssistant ? group.assistantFormula : group.facultyFormula;
+            if (input) {
+                const start = input.selectionStart != null ? input.selectionStart : currentFormula.length;
+                const end = input.selectionEnd != null ? input.selectionEnd : currentFormula.length;
+                const newFormula = currentFormula.substring(0, start) + token + currentFormula.substring(end);
+                setTimeout(() => {
+                    input.focus();
+                    input.setSelectionRange(start + token.length, start + token.length);
+                }, 50);
+                return {
+                    ...group,
+                    [isAssistant ? 'assistantFormula' : 'facultyFormula']: newFormula
+                };
+            } else {
+                return {
+                    ...group,
+                    [isAssistant ? 'assistantFormula' : 'facultyFormula']: currentFormula + token
+                };
+            }
+        }));
+    };
+
+    // Fetch limits for Control Panel and organize into Rule Groups
     useEffect(() => {
-        if (!selectedLimitFaculties || selectedLimitFaculties.length === 0 || !selectedLimitYear || !selectedLimitSemester) return;
+        if (!selectedLimitYear || !selectedLimitSemester || accessibleLimitFaculties.length === 0) return;
         const fetchLimits = async () => {
             setWorkloadLimitsLoading(true);
             try {
-                const primaryFacultyId = selectedLimitFaculties[0].value;
-                const res = await axios.get(`${API}/api/workload/limits`, {
+                const res = await axios.get(`${API}/api/workload/limits/all`, {
                     params: {
-                        faculty_id: primaryFacultyId,
                         academic_year: selectedLimitYear,
                         semester: selectedLimitSemester
                     }
                 });
-                const d = res.data || {};
-                setFacultyFormula(d.faculty_formula || DEFAULT_FACULTY_FORMULA);
-                setAssistantFormula(d.assistant_formula || DEFAULT_ASSISTANT_FORMULA);
-                setWorkloadLimits({
-                    max_faculty_hours_per_day: d.max_faculty_hours_per_day != null ? Number(d.max_faculty_hours_per_day) : 6.0,
-                    max_assistant_hours_per_day: d.max_assistant_hours_per_day != null ? Number(d.max_assistant_hours_per_day) : 8.0,
-                    min_theory_hours_per_day: d.min_theory_hours_per_day != null && d.min_theory_hours_per_day > 0 ? String(d.min_theory_hours_per_day) : '',
-                    max_theory_hours_per_day: d.max_theory_hours_per_day != null && d.max_theory_hours_per_day > 0 ? String(d.max_theory_hours_per_day) : '',
-                    min_practical_hours_per_day: d.min_practical_hours_per_day != null && d.min_practical_hours_per_day > 0 ? String(d.min_practical_hours_per_day) : '',
-                    max_practical_hours_per_day: d.max_practical_hours_per_day != null && d.max_practical_hours_per_day > 0 ? String(d.max_practical_hours_per_day) : '',
-                    min_tutorial_hours_per_day: d.min_tutorial_hours_per_day != null && d.min_tutorial_hours_per_day > 0 ? String(d.min_tutorial_hours_per_day) : '',
-                    max_tutorial_hours_per_day: d.max_tutorial_hours_per_day != null && d.max_tutorial_hours_per_day > 0 ? String(d.max_tutorial_hours_per_day) : '',
-                    min_field_hours_per_day: d.min_field_hours_per_day != null && d.min_field_hours_per_day > 0 ? String(d.min_field_hours_per_day) : '',
-                    max_field_hours_per_day: d.max_field_hours_per_day != null && d.max_field_hours_per_day > 0 ? String(d.max_field_hours_per_day) : '',
-                    max_theory_hours_per_course: d.max_theory_hours_per_course != null && d.max_theory_hours_per_course > 0 ? String(d.max_theory_hours_per_course) : '',
-                    max_practical_hours_per_course: d.max_practical_hours_per_course != null && d.max_practical_hours_per_course > 0 ? String(d.max_practical_hours_per_course) : '',
-                    max_tutorial_hours_per_course: d.max_tutorial_hours_per_course != null && d.max_tutorial_hours_per_course > 0 ? String(d.max_tutorial_hours_per_course) : '',
-                    max_field_hours_per_course: d.max_field_hours_per_course != null && d.max_field_hours_per_course > 0 ? String(d.max_field_hours_per_course) : ''
-                });
+                const allLimits = res.data || [];
+
+                if (allLimits.length > 0) {
+                    const formulaMap = new Map();
+                    for (const item of allLimits) {
+                        const facForm = (item.faculty_formula || DEFAULT_FACULTY_FORMULA).trim();
+                        const assForm = (item.assistant_formula || DEFAULT_ASSISTANT_FORMULA).trim();
+                        const key = `${facForm}___SEPARATOR___${assForm}`;
+                        if (!formulaMap.has(key)) {
+                            formulaMap.set(key, {
+                                facultyFormula: facForm,
+                                assistantFormula: assForm,
+                                facultyIds: []
+                            });
+                        }
+                        formulaMap.get(key).facultyIds.push(item.faculty_id);
+                    }
+
+                    const loadedGroups = [];
+                    let gIndex = 1;
+                    const assignedFacultyIds = new Set();
+
+                    formulaMap.forEach((data) => {
+                        const matched = accessibleLimitFaculties
+                            .filter(f => data.facultyIds.includes(f.id))
+                            .map(f => ({ value: String(f.id), label: f.name }));
+                        if (matched.length > 0) {
+                            matched.forEach(m => assignedFacultyIds.add(Number(m.value)));
+                            loadedGroups.push({
+                                id: `rule-${gIndex}`,
+                                title: `القاعدة ${gIndex}`,
+                                faculties: matched,
+                                facultyFormula: data.facultyFormula,
+                                assistantFormula: data.assistantFormula
+                            });
+                            gIndex++;
+                        }
+                    });
+
+                    // Add any remaining accessible faculties that are not yet saved
+                    const unassigned = accessibleLimitFaculties
+                        .filter(f => !assignedFacultyIds.has(f.id))
+                        .map(f => ({ value: String(f.id), label: f.name }));
+
+                    if (unassigned.length > 0) {
+                        if (loadedGroups.length === 0) {
+                            loadedGroups.push({
+                                id: 'rule-1',
+                                title: 'القاعدة 1',
+                                faculties: unassigned,
+                                facultyFormula: DEFAULT_FACULTY_FORMULA,
+                                assistantFormula: DEFAULT_ASSISTANT_FORMULA
+                            });
+                        } else {
+                            loadedGroups.push({
+                                id: `rule-${loadedGroups.length + 1}`,
+                                title: `القاعدة ${loadedGroups.length + 1}`,
+                                faculties: unassigned,
+                                facultyFormula: DEFAULT_FACULTY_FORMULA,
+                                assistantFormula: DEFAULT_ASSISTANT_FORMULA
+                            });
+                        }
+                    }
+
+                    if (loadedGroups.length > 0) {
+                        setRuleGroups(loadedGroups);
+                    }
+                } else {
+                    // Default single group with all faculties
+                    setRuleGroups([{
+                        id: 'rule-1',
+                        title: 'القاعدة 1 (الكليات العامة)',
+                        faculties: accessibleLimitFaculties.map(f => ({ value: String(f.id), label: f.name })),
+                        facultyFormula: DEFAULT_FACULTY_FORMULA,
+                        assistantFormula: DEFAULT_ASSISTANT_FORMULA
+                    }]);
+                }
             } catch (err) {
                 console.error("Error fetching workload limits", err);
             } finally {
@@ -226,43 +337,57 @@ const ControlPanelPage = () => {
             }
         };
         fetchLimits();
-    }, [selectedLimitFaculties, selectedLimitYear, selectedLimitSemester]);
+    }, [selectedLimitYear, selectedLimitSemester, accessibleLimitFaculties]);
 
     const handleSaveWorkloadLimits = async (e) => {
         e?.preventDefault();
-        if (!selectedLimitFaculties || selectedLimitFaculties.length === 0) {
-            toast.error("يرجى اختيار كلية واحدة على الأقل لتطبيق الحدود والمعادلات عليها");
+        if (!ruleGroups || ruleGroups.length === 0) {
+            toast.error("لا توجد قواعد لحفظها");
             return;
         }
+
+        // Verify that each rule group has at least one faculty selected
+        for (let i = 0; i < ruleGroups.length; i++) {
+            const g = ruleGroups[i];
+            if (!g.faculties || g.faculties.length === 0) {
+                toast.error(`يرجى تحديد كلية واحدة على الأقل في ${g.title || `القاعدة ${i + 1}`} أو حذفها إذا لم تكن بحاجة إليها`);
+                return;
+            }
+        }
+
         setWorkloadLimitsSaving(true);
         try {
-            const facultyIds = selectedLimitFaculties.map(f => parseInt(f.value));
-            await axios.post(`${API}/api/workload/limits`, {
-                faculty_id: facultyIds[0],
-                faculty_ids: facultyIds,
-                academic_year: selectedLimitYear,
-                semester: selectedLimitSemester,
-                faculty_formula: facultyFormula || DEFAULT_FACULTY_FORMULA,
-                assistant_formula: assistantFormula || DEFAULT_ASSISTANT_FORMULA,
-                max_faculty_hours_per_day: 6.0,
-                max_assistant_hours_per_day: 8.0,
-                min_theory_hours_per_day: parseFloat(workloadLimits.min_theory_hours_per_day) || 0.0,
-                max_theory_hours_per_day: parseFloat(workloadLimits.max_theory_hours_per_day) || 0.0,
-                min_practical_hours_per_day: parseFloat(workloadLimits.min_practical_hours_per_day) || 0.0,
-                max_practical_hours_per_day: parseFloat(workloadLimits.max_practical_hours_per_day) || 0.0,
-                min_tutorial_hours_per_day: isLimitHealthTechFaculty ? (parseFloat(workloadLimits.min_tutorial_hours_per_day) || 0.0) : 0.0,
-                max_tutorial_hours_per_day: isLimitHealthTechFaculty ? (parseFloat(workloadLimits.max_tutorial_hours_per_day) || 0.0) : 0.0,
-                min_field_hours_per_day: isLimitHealthTechFaculty ? (parseFloat(workloadLimits.min_field_hours_per_day) || 0.0) : 0.0,
-                max_field_hours_per_day: isLimitHealthTechFaculty ? (parseFloat(workloadLimits.max_field_hours_per_day) || 0.0) : 0.0,
-                max_theory_hours_per_course: parseFloat(workloadLimits.max_theory_hours_per_course) || 0.0,
-                max_practical_hours_per_course: parseFloat(workloadLimits.max_practical_hours_per_course) || 0.0,
-                max_tutorial_hours_per_course: isLimitHealthTechFaculty ? (parseFloat(workloadLimits.max_tutorial_hours_per_course) || 0.0) : 0.0,
-                max_field_hours_per_course: isLimitHealthTechFaculty ? (parseFloat(workloadLimits.max_field_hours_per_course) || 0.0) : 0.0
-            });
-            toast.success(`تم حفظ وتحديث معادلات وحدود الساعات لعدد (${facultyIds.length}) كلية بنجاح`);
+            let totalSavedFaculties = 0;
+            for (const group of ruleGroups) {
+                const facultyIds = group.faculties.map(f => parseInt(f.value));
+                totalSavedFaculties += facultyIds.length;
+                await axios.post(`${API}/api/workload/limits`, {
+                    faculty_id: facultyIds[0],
+                    faculty_ids: facultyIds,
+                    academic_year: selectedLimitYear,
+                    semester: selectedLimitSemester,
+                    faculty_formula: group.facultyFormula || DEFAULT_FACULTY_FORMULA,
+                    assistant_formula: group.assistantFormula || DEFAULT_ASSISTANT_FORMULA,
+                    max_faculty_hours_per_day: 6.0,
+                    max_assistant_hours_per_day: 8.0,
+                    min_theory_hours_per_day: parseFloat(workloadLimits.min_theory_hours_per_day) || 0.0,
+                    max_theory_hours_per_day: parseFloat(workloadLimits.max_theory_hours_per_day) || 0.0,
+                    min_practical_hours_per_day: parseFloat(workloadLimits.min_practical_hours_per_day) || 0.0,
+                    max_practical_hours_per_day: parseFloat(workloadLimits.max_practical_hours_per_day) || 0.0,
+                    min_tutorial_hours_per_day: isLimitHealthTechFaculty ? (parseFloat(workloadLimits.min_tutorial_hours_per_day) || 0.0) : 0.0,
+                    max_tutorial_hours_per_day: isLimitHealthTechFaculty ? (parseFloat(workloadLimits.max_tutorial_hours_per_day) || 0.0) : 0.0,
+                    min_field_hours_per_day: isLimitHealthTechFaculty ? (parseFloat(workloadLimits.min_field_hours_per_day) || 0.0) : 0.0,
+                    max_field_hours_per_day: isLimitHealthTechFaculty ? (parseFloat(workloadLimits.max_field_hours_per_day) || 0.0) : 0.0,
+                    max_theory_hours_per_course: parseFloat(workloadLimits.max_theory_hours_per_course) || 0.0,
+                    max_practical_hours_per_course: parseFloat(workloadLimits.max_practical_hours_per_course) || 0.0,
+                    max_tutorial_hours_per_course: isLimitHealthTechFaculty ? (parseFloat(workloadLimits.max_tutorial_hours_per_course) || 0.0) : 0.0,
+                    max_field_hours_per_course: isLimitHealthTechFaculty ? (parseFloat(workloadLimits.max_field_hours_per_course) || 0.0) : 0.0
+                });
+            }
+            toast.success(`تم حفظ وتثبيت كافة القواعد (${ruleGroups.length}) لعدد (${totalSavedFaculties}) كلية بنجاح`);
         } catch (err) {
             console.error("Error saving workload limits", err);
-            toast.error(err.response?.data?.detail || "حدث خطأ أثناء حفظ الحدود والمعادلات");
+            toast.error(err.response?.data?.detail || "حدث خطأ أثناء حفظ القواعد والمعادلات");
         } finally {
             setWorkloadLimitsSaving(false);
         }
@@ -1267,284 +1392,384 @@ const ControlPanelPage = () => {
                         </div>
                     ) : (
                         <Form onSubmit={handleSaveWorkloadLimits}>
-                            {/* القسم الرئيسي 1: اختيار الكليات المتعدد والمعادلات الديناميكية */}
-                            <div className="p-3 rounded-4 mb-4 border" style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}>
-                                <div className="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom" style={{ borderColor: '#dcfce7' }}>
-                                    <span style={{ fontSize: '1.25rem' }}>⚡</span>
-                                    <h5 className="fw-bold text-success mb-0">
-                                        الحدود اليومية العامة (معاملات حساب الحد الأقصى للانتداب)
-                                    </h5>
-                                </div>
-
-                                {/* قائمة الكليات متعددة الاختيار */}
-                                <div className="p-3 rounded-3 bg-white border mb-3 shadow-sm">
-                                    <div className="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
-                                        <div className="d-flex align-items-center gap-2">
-                                            <span className="fw-bold text-dark fs-6">🏛️ الكليات المطبق عليها المعادلة والضوابط:</span>
-                                            <Badge bg="success" className="px-2 py-1">
-                                                تم اختيار {selectedLimitFaculties.length} من أصل {accessibleLimitFaculties.length} كلية
-                                            </Badge>
+                            {/* القسم الرئيسي 1: قواعد ومعادلات احتساب الأعباء لعدة مجموعات من الكليات */}
+                            <div className="mb-4">
+                                <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3 p-3 rounded-4 bg-white border shadow-xs">
+                                    <div>
+                                        <div className="d-flex align-items-center gap-2 text-success">
+                                            <span style={{ fontSize: '1.3rem' }}>⚡</span>
+                                            <h5 className="fw-bold text-success mb-0">
+                                                قواعد ومعادلات احتساب الحد الأقصى للانتداب (حسب الكليات)
+                                            </h5>
                                         </div>
-                                        <div className="d-flex gap-2">
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="outline-success"
-                                                className="fw-bold px-2 py-1"
-                                                onClick={() => setSelectedLimitFaculties(accessibleLimitFaculties.map(f => ({ value: String(f.id), label: f.name })))}
-                                            >
-                                                ✓ تحديد جميع الكليات
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="outline-secondary"
-                                                className="px-2 py-1"
-                                                onClick={() => setSelectedLimitFaculties([])}
-                                            >
-                                                ✕ إلغاء التحديد
-                                            </Button>
-                                        </div>
+                                        <small className="text-muted">
+                                            يمكنك ضبط معادلة عامة لمعظم الكليات، وإضافة قواعد مخصصة لكليات أخرى 
+                                        </small>
                                     </div>
-                                    <Select
-                                        isMulti
-                                        options={accessibleLimitFaculties.map(f => ({ value: String(f.id), label: f.name }))}
-                                        value={selectedLimitFaculties}
-                                        onChange={(opts) => setSelectedLimitFaculties(opts || [])}
-                                        placeholder="-- اختر كلية واحدة أو كليات متعددة أو اضغط تحديد جميع الكليات --"
-                                        closeMenuOnSelect={false}
-                                        styles={customSelectStyles}
-                                        isSearchable
-                                    />
-                                    <small className="text-muted d-block mt-2" style={{ fontSize: '0.82rem' }}>
-                                        💡 يمكنك تحديد كلية واحدة أو مجموعة كليات أو كافة الكليات معاً لتطبيق وتعميم نفس المعادلات والضوابط عليها دفعة واحدة.
-                                    </small>
+                                    <Button
+                                        type="button"
+                                        variant="success"
+                                        size="sm"
+                                        className="d-flex align-items-center gap-2 fw-bold px-3 py-2 shadow-sm rounded-pill"
+                                        onClick={handleAddRuleGroup}
+                                    >
+                                        <FaPlus /> <span>إضافة قاعدة ومعادلة جديدة لكليات أخرى</span>
+                                    </Button>
                                 </div>
 
-                                {/* حقول المعادلات الديناميكية وزر الساعات */}
-                                <Row className="g-3">
-                                    {/* 1. أعضاء هيئة التدريس */}
-                                    <Col md={6}>
-                                        <div className="p-3 rounded-3 bg-white border h-100 shadow-sm d-flex flex-column justify-content-between">
-                                            <div>
-                                                <div className="d-flex align-items-center justify-content-between mb-2">
-                                                    <span className="fw-bold text-dark fs-6">👨‍🏫 أعضاء هيئة التدريس</span>
-                                                    <Badge bg="primary" className="px-2 py-1">أستاذ / أ.مساعد / مدرس</Badge>
+                                {/* بطاقات القواعد المختلفة */}
+                                {ruleGroups.map((group, gIdx) => {
+                                    const isHealthTechInGroup = (group.faculties || []).some(f => (f.label || "").includes("العلوم الصحية") || (f.label || "").includes("تكنولوجيا العلوم"));
+                                    const isNursingInGroup = (group.faculties || []).some(f => (f.label || "").includes("التمريض"));
+
+                                    return (
+                                        <div
+                                            key={group.id}
+                                            className="p-3 p-md-4 rounded-4 mb-4 border shadow-sm"
+                                            style={{
+                                                backgroundColor: gIdx === 0 ? '#f0fdf4' : (gIdx % 2 === 1 ? '#f8fafc' : '#fefce8'),
+                                                borderColor: gIdx === 0 ? '#86efac' : (gIdx % 2 === 1 ? '#cbd5e1' : '#fde047'),
+                                                borderWidth: '2px'
+                                            }}
+                                        >
+                                            {/* رأس بطاقة القاعدة */}
+                                            <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 pb-3 border-bottom" style={{ borderColor: 'rgba(0,0,0,0.08)' }}>
+                                                <div className="d-flex align-items-center gap-2">
+                                                    <span className="badge rounded-circle p-2 fs-6 bg-success text-white shadow-xs" style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        {gIdx + 1}
+                                                    </span>
+                                                    <div>
+                                                        <div className="d-flex align-items-center gap-2 flex-wrap">
+                                                            <h5 className="fw-bold mb-0 text-dark">
+                                                                {group.title || `القاعدة ${gIdx + 1}`}
+                                                            </h5>
+                                                            {isHealthTechInGroup && (
+                                                                <Badge bg="info" className="px-2 py-1">🔬 تكنولوجيا العلوم الصحية</Badge>
+                                                            )}
+                                                            {isNursingInGroup && (
+                                                                <Badge bg="primary" className="px-2 py-1">🩺 التمريض</Badge>
+                                                            )}
+                                                        </div>
+                                                        <small className="text-muted" style={{ fontSize: '0.82rem' }}>
+                                                            قاعدة ومعادلات احتساب مخصصة لمجموعة الكليات المحددة أدناه
+                                                        </small>
+                                                    </div>
                                                 </div>
-                                                <p className="text-muted small mb-2" style={{ fontSize: '0.82rem' }}>
-                                                    المعادلة: أي وظيفة ما عدا المعيد والمدرس المساعد
-                                                </p>
 
-                                                {/* شريط الأدوات: زر الساعات والعمليات السريعة */}
-                                                <div className="p-2 rounded-2 mb-2 border" style={{ backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }}>
-                                                    <div className="d-flex flex-wrap align-items-center justify-content-between gap-1 mb-2">
-                                                        <Dropdown>
-                                                            <Dropdown.Toggle
-                                                                variant="primary"
-                                                                size="sm"
-                                                                className="d-flex align-items-center gap-1 rounded-2 fw-bold shadow-sm"
-                                                                style={{ fontSize: '0.82rem' }}
-                                                            >
-                                                                <FaClock />
-                                                                <span>⏱️ زر الساعات (إدراج متغير) ▾</span>
-                                                            </Dropdown.Toggle>
-                                                            <Dropdown.Menu className="shadow-lg border-0 p-2" style={{ maxHeight: '350px', overflowY: 'auto', minWidth: '280px', zIndex: 1050 }}>
-                                                                <Dropdown.Header className="fw-bold text-primary border-bottom pb-1 mb-1">
-                                                                    اضغط على المتغير لإدراجه داخل المعادلة:
-                                                                </Dropdown.Header>
-                                                                {HOUR_VARIABLES.map(v => (
-                                                                    <Dropdown.Item
-                                                                        key={v.token}
-                                                                        onClick={() => insertToken('faculty', v.token)}
-                                                                        className="py-2 px-2 rounded-2 d-flex align-items-center justify-content-between text-end"
-                                                                        style={{ fontSize: '0.86rem' }}
-                                                                    >
-                                                                        <div>
-                                                                            <div className="fw-bold text-dark">{v.icon} {v.label}</div>
-                                                                            <small className="text-muted" style={{ fontSize: '0.75rem' }}>{v.desc}</small>
-                                                                        </div>
-                                                                        <Badge bg="light" text="dark" className="border ms-2 font-monospace">
-                                                                            {v.token}
-                                                                        </Badge>
-                                                                    </Dropdown.Item>
-                                                                ))}
-                                                            </Dropdown.Menu>
-                                                        </Dropdown>
+                                                <div className="d-flex align-items-center gap-2">
+                                                    {ruleGroups.length > 1 && (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline-danger"
+                                                            size="sm"
+                                                            className="d-flex align-items-center gap-1 px-3 py-1 rounded-pill fw-bold shadow-xs"
+                                                            onClick={() => handleRemoveRuleGroup(group.id)}
+                                                            title="حذف هذه القاعدة"
+                                                        >
+                                                            <FaTrash size={12} /> <span>حذف هذه القاعدة</span>
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
 
+                                            {/* اختيار الكليات التابعة لهذه القاعدة */}
+                                            <div className="p-3 rounded-3 bg-white border mb-3 shadow-xs">
+                                                <div className="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+                                                    <div className="d-flex align-items-center gap-2">
+                                                        <span className="fw-bold text-dark fs-6">🏛️ الكليات المطبق عليها هذه القاعدة:</span>
+                                                        <Badge bg={group.faculties?.length > 0 ? "success" : "danger"} className="px-2 py-1">
+                                                            تم اختيار {group.faculties?.length || 0} كلية
+                                                        </Badge>
+                                                    </div>
+                                                    <div className="d-flex gap-2">
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline-success"
+                                                            className="fw-bold px-2 py-1"
+                                                            style={{ fontSize: '0.8rem' }}
+                                                            onClick={() => {
+                                                                const otherAssigned = new Set(
+                                                                    ruleGroups
+                                                                        .filter(og => og.id !== group.id)
+                                                                        .flatMap(og => (og.faculties || []).map(f => String(f.value)))
+                                                                );
+                                                                const available = accessibleLimitFaculties
+                                                                    .filter(f => !otherAssigned.has(String(f.id)))
+                                                                    .map(f => ({ value: String(f.id), label: f.name }));
+                                                                handleUpdateRuleGroup(group.id, 'faculties', available);
+                                                            }}
+                                                        >
+                                                            ✓ تحديد الكليات المتبقية
+                                                        </Button>
                                                         <Button
                                                             type="button"
                                                             size="sm"
                                                             variant="outline-secondary"
-                                                            className="d-flex align-items-center gap-1 rounded-2 py-1 px-2"
-                                                            style={{ fontSize: '0.78rem' }}
-                                                            onClick={() => setFacultyFormula(DEFAULT_FACULTY_FORMULA)}
-                                                            title="استعادة المعادلة الافتراضية"
+                                                            className="px-2 py-1"
+                                                            style={{ fontSize: '0.8rem' }}
+                                                            onClick={() => handleUpdateRuleGroup(group.id, 'faculties', [])}
                                                         >
-                                                            <FaUndo /> <span>استعادة الافتراضي</span>
+                                                            ✕ إلغاء التحديد
                                                         </Button>
                                                     </div>
-
-                                                    {/* أزرار العمليات الرياضية السريعة */}
-                                                    <div className="d-flex flex-wrap align-items-center gap-1">
-                                                        <small className="text-muted fw-bold me-1" style={{ fontSize: '0.75rem' }}>عمليات سريعة:</small>
-                                                        {MATH_OPERATORS.map(op => (
-                                                            <Button
-                                                                key={op.label}
-                                                                type="button"
-                                                                size="sm"
-                                                                variant="light"
-                                                                className="border fw-bold px-2 py-0 font-monospace text-primary shadow-xs"
-                                                                style={{ fontSize: '0.82rem', minWidth: '28px', height: '26px' }}
-                                                                onClick={() => insertToken('faculty', op.token)}
-                                                                title={`إدراج ${op.label}`}
-                                                            >
-                                                                {op.label}
-                                                            </Button>
-                                                        ))}
-                                                    </div>
                                                 </div>
-
-                                                {/* حقل المعادلة الديناميكي */}
-                                                <Form.Group>
-                                                    <Form.Label className="small text-muted fw-bold mb-1">
-                                                        صيغة المعادلة الرياضية المعتمدة:
-                                                    </Form.Label>
-                                                    <Form.Control
-                                                        as="textarea"
-                                                        rows={2}
-                                                        ref={facultyInputRef}
-                                                        value={facultyFormula}
-                                                        onChange={(e) => setFacultyFormula(e.target.value)}
-                                                        className="font-monospace fw-bold fs-6 p-2 rounded-3 border-2"
-                                                        dir="ltr"
-                                                        style={{
-                                                            textAlign: 'left',
-                                                            borderColor: '#3b82f6',
-                                                            backgroundColor: '#ffffff',
-                                                            color: '#1e3a8a',
-                                                            letterSpacing: '0.3px'
-                                                        }}
-                                                        placeholder={DEFAULT_FACULTY_FORMULA}
-                                                    />
-                                                </Form.Group>
+                                                <Select
+                                                    isMulti
+                                                    options={accessibleLimitFaculties.map(f => ({ value: String(f.id), label: f.name }))}
+                                                    value={group.faculties || []}
+                                                    onChange={(opts) => handleUpdateRuleGroup(group.id, 'faculties', opts || [])}
+                                                    placeholder="-- اضغط لاختيار الكليات التي تنطبق عليها هذه القاعدة --"
+                                                    closeMenuOnSelect={false}
+                                                    styles={customSelectStyles}
+                                                    isSearchable
+                                                />
+                                                <small className="text-muted d-block mt-2" style={{ fontSize: '0.82rem' }}>
+                                                    💡 يمكنك اختيار كلية واحدة محددة (مثل: كلية تكنولوجيا العلوم الصحية أو كلية التمريض) أو مجموعة كليات لتنطبق عليها المعادلات المحددة أدناه.
+                                                </small>
                                             </div>
-                                            <small className="text-muted d-block mt-2 pt-2 border-top" style={{ fontSize: '0.78rem' }}>
-                                                ℹ️ اكتب المعادلة مع رمز المقارنة (<code>&lt;=</code>). الطرف الأيسر هو العبء المحتسب، والطرف الأيمن هو الحد الأقصى المسموح.
-                                            </small>
-                                        </div>
-                                    </Col>
 
-                                    {/* 2. الهيئة المعاونة */}
-                                    <Col md={6}>
-                                        <div className="p-3 rounded-3 bg-white border h-100 shadow-sm d-flex flex-column justify-content-between">
-                                            <div>
-                                                <div className="d-flex align-items-center justify-content-between mb-2">
-                                                    <span className="fw-bold text-dark fs-6">🧑‍🔬 الهيئة المعاونة</span>
-                                                    <Badge bg="success" className="px-2 py-1">معيد / مدرس مساعد فقط</Badge>
-                                                </div>
-                                                <p className="text-muted small mb-2" style={{ fontSize: '0.82rem' }}>
-                                                    المعادلة: معيد ومدرس مساعد فقط (عملي وتوتوريال وحقل)
-                                                </p>
+                                            {/* حقول المعادلات الديناميكية وزر الساعات لهذه القاعدة */}
+                                            <Row className="g-3">
+                                                {/* أعضاء هيئة التدريس */}
+                                                <Col md={6}>
+                                                    <div className="p-3 rounded-3 bg-white border h-100 shadow-xs d-flex flex-column justify-content-between">
+                                                        <div>
+                                                            <div className="d-flex align-items-center justify-content-between mb-2">
+                                                                <span className="fw-bold text-dark fs-6">👨‍🏫 أعضاء هيئة التدريس</span>
+                                                                <Badge bg="primary" className="px-2 py-1">أستاذ / أ.مساعد / مدرس</Badge>
+                                                            </div>
+                                                            <p className="text-muted small mb-2" style={{ fontSize: '0.82rem' }}>
+                                                                المعادلة: أي وظيفة ما عدا المعيد والمدرس المساعد
+                                                            </p>
 
-                                                {/* شريط الأدوات: زر الساعات والعمليات السريعة */}
-                                                <div className="p-2 rounded-2 mb-2 border" style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}>
-                                                    <div className="d-flex flex-wrap align-items-center justify-content-between gap-1 mb-2">
-                                                        <Dropdown>
-                                                            <Dropdown.Toggle
-                                                                variant="success"
-                                                                size="sm"
-                                                                className="d-flex align-items-center gap-1 rounded-2 fw-bold shadow-sm"
-                                                                style={{ fontSize: '0.82rem' }}
-                                                            >
-                                                                <FaClock />
-                                                                <span>⏱️ زر الساعات (إدراج متغير) ▾</span>
-                                                            </Dropdown.Toggle>
-                                                            <Dropdown.Menu className="shadow-lg border-0 p-2" style={{ maxHeight: '350px', overflowY: 'auto', minWidth: '280px', zIndex: 1050 }}>
-                                                                <Dropdown.Header className="fw-bold text-success border-bottom pb-1 mb-1">
-                                                                    اضغط على المتغير لإدراجه داخل المعادلة:
-                                                                </Dropdown.Header>
-                                                                {HOUR_VARIABLES.map(v => (
-                                                                    <Dropdown.Item
-                                                                        key={v.token}
-                                                                        onClick={() => insertToken('assistant', v.token)}
-                                                                        className="py-2 px-2 rounded-2 d-flex align-items-center justify-content-between text-end"
-                                                                        style={{ fontSize: '0.86rem' }}
+                                                            {/* شريط الأدوات: زر الساعات والعمليات السريعة */}
+                                                            <div className="p-2 rounded-2 mb-2 border" style={{ backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }}>
+                                                                <div className="d-flex flex-wrap align-items-center justify-content-between gap-1 mb-2">
+                                                                    <Dropdown>
+                                                                        <Dropdown.Toggle
+                                                                            variant="primary"
+                                                                            size="sm"
+                                                                            className="d-flex align-items-center gap-1 rounded-2 fw-bold shadow-sm"
+                                                                            style={{ fontSize: '0.82rem' }}
+                                                                        >
+                                                                            <FaClock />
+                                                                            <span>⏱️ زر الساعات (إدراج متغير) ▾</span>
+                                                                        </Dropdown.Toggle>
+                                                                        <Dropdown.Menu className="shadow-lg border-0 p-2" style={{ maxHeight: '350px', overflowY: 'auto', minWidth: '280px', zIndex: 1050 }}>
+                                                                            <Dropdown.Header className="fw-bold text-primary border-bottom pb-1 mb-1">
+                                                                                اضغط على المتغير لإدراجه داخل المعادلة:
+                                                                            </Dropdown.Header>
+                                                                            {HOUR_VARIABLES.map(v => (
+                                                                                <Dropdown.Item
+                                                                                    key={v.token}
+                                                                                    onClick={() => insertTokenInGroup(group.id, 'faculty', v.token)}
+                                                                                    className="py-2 px-2 rounded-2 d-flex align-items-center justify-content-between text-end"
+                                                                                    style={{ fontSize: '0.86rem' }}
+                                                                                >
+                                                                                    <div>
+                                                                                        <div className="fw-bold text-dark">{v.icon} {v.label}</div>
+                                                                                        <small className="text-muted" style={{ fontSize: '0.75rem' }}>{v.desc}</small>
+                                                                                    </div>
+                                                                                    <Badge bg="light" text="dark" className="border ms-2 font-monospace">
+                                                                                        {v.token}
+                                                                                    </Badge>
+                                                                                </Dropdown.Item>
+                                                                            ))}
+                                                                        </Dropdown.Menu>
+                                                                    </Dropdown>
+
+                                                                    <Button
+                                                                        type="button"
+                                                                        size="sm"
+                                                                        variant="outline-secondary"
+                                                                        className="d-flex align-items-center gap-1 rounded-2 py-1 px-2"
+                                                                        style={{ fontSize: '0.78rem' }}
+                                                                        onClick={() => handleUpdateRuleGroup(group.id, 'facultyFormula', DEFAULT_FACULTY_FORMULA)}
+                                                                        title="استعادة المعادلة الافتراضية"
                                                                     >
-                                                                        <div>
-                                                                            <div className="fw-bold text-dark">{v.icon} {v.label}</div>
-                                                                            <small className="text-muted" style={{ fontSize: '0.75rem' }}>{v.desc}</small>
-                                                                        </div>
-                                                                        <Badge bg="light" text="dark" className="border ms-2 font-monospace">
-                                                                            {v.token}
-                                                                        </Badge>
-                                                                    </Dropdown.Item>
-                                                                ))}
-                                                            </Dropdown.Menu>
-                                                        </Dropdown>
+                                                                        <FaUndo /> <span>استعادة الافتراضي</span>
+                                                                    </Button>
+                                                                </div>
 
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            variant="outline-secondary"
-                                                            className="d-flex align-items-center gap-1 rounded-2 py-1 px-2"
-                                                            style={{ fontSize: '0.78rem' }}
-                                                            onClick={() => setAssistantFormula(DEFAULT_ASSISTANT_FORMULA)}
-                                                            title="استعادة المعادلة الافتراضية"
-                                                        >
-                                                            <FaUndo /> <span>استعادة الافتراضي</span>
-                                                        </Button>
+                                                                {/* أزرار العمليات الرياضية السريعة */}
+                                                                <div className="d-flex flex-wrap align-items-center gap-1">
+                                                                    <small className="text-muted fw-bold me-1" style={{ fontSize: '0.75rem' }}>عمليات سريعة:</small>
+                                                                    {MATH_OPERATORS.map(op => (
+                                                                        <Button
+                                                                            key={op.label}
+                                                                            type="button"
+                                                                            size="sm"
+                                                                            variant="light"
+                                                                            className="border fw-bold px-2 py-0 font-monospace text-primary shadow-xs"
+                                                                            style={{ fontSize: '0.82rem', minWidth: '28px', height: '26px' }}
+                                                                            onClick={() => insertTokenInGroup(group.id, 'faculty', op.token)}
+                                                                            title={`إدراج ${op.label}`}
+                                                                        >
+                                                                            {op.label}
+                                                                        </Button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* حقل المعادلة الديناميكي */}
+                                                            <Form.Group>
+                                                                <Form.Label className="small text-muted fw-bold mb-1">
+                                                                    صيغة المعادلة الرياضية المعتمدة:
+                                                                </Form.Label>
+                                                                <Form.Control
+                                                                    as="textarea"
+                                                                    rows={2}
+                                                                    id={`formula-faculty-${group.id}`}
+                                                                    value={group.facultyFormula || ''}
+                                                                    onChange={(e) => handleUpdateRuleGroup(group.id, 'facultyFormula', e.target.value)}
+                                                                    className="font-monospace fw-bold fs-6 p-2 rounded-3 border-2"
+                                                                    dir="ltr"
+                                                                    style={{
+                                                                        textAlign: 'left',
+                                                                        borderColor: '#3b82f6',
+                                                                        backgroundColor: '#ffffff',
+                                                                        color: '#1e3a8a',
+                                                                        letterSpacing: '0.3px'
+                                                                    }}
+                                                                    placeholder={DEFAULT_FACULTY_FORMULA}
+                                                                />
+                                                            </Form.Group>
+                                                        </div>
+                                                        <small className="text-muted d-block mt-2 pt-2 border-top" style={{ fontSize: '0.78rem' }}>
+                                                            ℹ️ اكتب المعادلة مع رمز المقارنة (<code>&lt;=</code>). الطرف الأيسر هو العبء المحتسب، والطرف الأيمن هو الحد الأقصى المسموح.
+                                                        </small>
                                                     </div>
+                                                </Col>
 
-                                                    {/* أزرار العمليات الرياضية السريعة */}
-                                                    <div className="d-flex flex-wrap align-items-center gap-1">
-                                                        <small className="text-muted fw-bold me-1" style={{ fontSize: '0.75rem' }}>عمليات سريعة:</small>
-                                                        {MATH_OPERATORS.map(op => (
-                                                            <Button
-                                                                key={op.label}
-                                                                type="button"
-                                                                size="sm"
-                                                                variant="light"
-                                                                className="border fw-bold px-2 py-0 font-monospace text-success shadow-xs"
-                                                                style={{ fontSize: '0.82rem', minWidth: '28px', height: '26px' }}
-                                                                onClick={() => insertToken('assistant', op.token)}
-                                                                title={`إدراج ${op.label}`}
-                                                            >
-                                                                {op.label}
-                                                            </Button>
-                                                        ))}
+                                                {/* الهيئة المعاونة */}
+                                                <Col md={6}>
+                                                    <div className="p-3 rounded-3 bg-white border h-100 shadow-xs d-flex flex-column justify-content-between">
+                                                        <div>
+                                                            <div className="d-flex align-items-center justify-content-between mb-2">
+                                                                <span className="fw-bold text-dark fs-6">🧑‍🔬 الهيئة المعاونة</span>
+                                                                <Badge bg="success" className="px-2 py-1">معيد / مدرس مساعد فقط</Badge>
+                                                            </div>
+                                                            <p className="text-muted small mb-2" style={{ fontSize: '0.82rem' }}>
+                                                                المعادلة: معيد ومدرس مساعد فقط (عملي وتوتوريال وحقل)
+                                                            </p>
+
+                                                            {/* شريط الأدوات: زر الساعات والعمليات السريعة */}
+                                                            <div className="p-2 rounded-2 mb-2 border" style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                                                                <div className="d-flex flex-wrap align-items-center justify-content-between gap-1 mb-2">
+                                                                    <Dropdown>
+                                                                        <Dropdown.Toggle
+                                                                            variant="success"
+                                                                            size="sm"
+                                                                            className="d-flex align-items-center gap-1 rounded-2 fw-bold shadow-sm"
+                                                                            style={{ fontSize: '0.82rem' }}
+                                                                        >
+                                                                            <FaClock />
+                                                                            <span>⏱️ زر الساعات (إدراج متغير) ▾</span>
+                                                                        </Dropdown.Toggle>
+                                                                        <Dropdown.Menu className="shadow-lg border-0 p-2" style={{ maxHeight: '350px', overflowY: 'auto', minWidth: '280px', zIndex: 1050 }}>
+                                                                            <Dropdown.Header className="fw-bold text-success border-bottom pb-1 mb-1">
+                                                                                اضغط على المتغير لإدراجه داخل المعادلة:
+                                                                            </Dropdown.Header>
+                                                                            {HOUR_VARIABLES.map(v => (
+                                                                                <Dropdown.Item
+                                                                                    key={v.token}
+                                                                                    onClick={() => insertTokenInGroup(group.id, 'assistant', v.token)}
+                                                                                    className="py-2 px-2 rounded-2 d-flex align-items-center justify-content-between text-end"
+                                                                                    style={{ fontSize: '0.86rem' }}
+                                                                                >
+                                                                                    <div>
+                                                                                        <div className="fw-bold text-dark">{v.icon} {v.label}</div>
+                                                                                        <small className="text-muted" style={{ fontSize: '0.75rem' }}>{v.desc}</small>
+                                                                                    </div>
+                                                                                    <Badge bg="light" text="dark" className="border ms-2 font-monospace">
+                                                                                        {v.token}
+                                                                                    </Badge>
+                                                                                </Dropdown.Item>
+                                                                            ))}
+                                                                        </Dropdown.Menu>
+                                                                    </Dropdown>
+
+                                                                    <Button
+                                                                        type="button"
+                                                                        size="sm"
+                                                                        variant="outline-secondary"
+                                                                        className="d-flex align-items-center gap-1 rounded-2 py-1 px-2"
+                                                                        style={{ fontSize: '0.78rem' }}
+                                                                        onClick={() => handleUpdateRuleGroup(group.id, 'assistantFormula', DEFAULT_ASSISTANT_FORMULA)}
+                                                                        title="استعادة المعادلة الافتراضية"
+                                                                    >
+                                                                        <FaUndo /> <span>استعادة الافتراضي</span>
+                                                                    </Button>
+                                                                </div>
+
+                                                                {/* أزرار العمليات الرياضية السريعة */}
+                                                                <div className="d-flex flex-wrap align-items-center gap-1">
+                                                                    <small className="text-muted fw-bold me-1" style={{ fontSize: '0.75rem' }}>عمليات سريعة:</small>
+                                                                    {MATH_OPERATORS.map(op => (
+                                                                        <Button
+                                                                            key={op.label}
+                                                                            type="button"
+                                                                            size="sm"
+                                                                            variant="light"
+                                                                            className="border fw-bold px-2 py-0 font-monospace text-success shadow-xs"
+                                                                            style={{ fontSize: '0.82rem', minWidth: '28px', height: '26px' }}
+                                                                            onClick={() => insertTokenInGroup(group.id, 'assistant', op.token)}
+                                                                            title={`إدراج ${op.label}`}
+                                                                        >
+                                                                            {op.label}
+                                                                        </Button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* حقل المعادلة الديناميكي */}
+                                                            <Form.Group>
+                                                                <Form.Label className="small text-muted fw-bold mb-1">
+                                                                    صيغة المعادلة الرياضية المعتمدة:
+                                                                </Form.Label>
+                                                                <Form.Control
+                                                                    as="textarea"
+                                                                    rows={2}
+                                                                    id={`formula-assistant-${group.id}`}
+                                                                    value={group.assistantFormula || ''}
+                                                                    onChange={(e) => handleUpdateRuleGroup(group.id, 'assistantFormula', e.target.value)}
+                                                                    className="font-monospace fw-bold fs-6 p-2 rounded-3 border-2"
+                                                                    dir="ltr"
+                                                                    style={{
+                                                                        textAlign: 'left',
+                                                                        borderColor: '#10b981',
+                                                                        backgroundColor: '#ffffff',
+                                                                        color: '#065f46',
+                                                                        letterSpacing: '0.3px'
+                                                                    }}
+                                                                    placeholder={DEFAULT_ASSISTANT_FORMULA}
+                                                                />
+                                                            </Form.Group>
+                                                        </div>
+                                                        <small className="text-muted d-block mt-2 pt-2 border-top" style={{ fontSize: '0.78rem' }}>
+                                                            ℹ️ يطبق على المعيد والمدرس المساعد فقط (للساعات غير النظرية). لا يمكنهم إعطاء نظري.
+                                                        </small>
                                                     </div>
-                                                </div>
-
-                                                {/* حقل المعادلة الديناميكي */}
-                                                <Form.Group>
-                                                    <Form.Label className="small text-muted fw-bold mb-1">
-                                                        صيغة المعادلة الرياضية المعتمدة:
-                                                    </Form.Label>
-                                                    <Form.Control
-                                                        as="textarea"
-                                                        rows={2}
-                                                        ref={assistantInputRef}
-                                                        value={assistantFormula}
-                                                        onChange={(e) => setAssistantFormula(e.target.value)}
-                                                        className="font-monospace fw-bold fs-6 p-2 rounded-3 border-2"
-                                                        dir="ltr"
-                                                        style={{
-                                                            textAlign: 'left',
-                                                            borderColor: '#10b981',
-                                                            backgroundColor: '#ffffff',
-                                                            color: '#065f46',
-                                                            letterSpacing: '0.3px'
-                                                        }}
-                                                        placeholder={DEFAULT_ASSISTANT_FORMULA}
-                                                    />
-                                                </Form.Group>
-                                            </div>
-                                            <small className="text-muted d-block mt-2 pt-2 border-top" style={{ fontSize: '0.78rem' }}>
-                                                ℹ️ يطبق على المعيد والمدرس المساعد فقط (للساعات غير النظرية). لا يمكنهم إعطاء نظري.
-                                            </small>
+                                                </Col>
+                                            </Row>
                                         </div>
-                                    </Col>
-                                </Row>
+                                    );
+                                })}
+
+                                {/* زر إضافة قاعدة جديدة مخصصة */}
+                                <div className="text-center my-3">
+                                    <Button
+                                        type="button"
+                                        variant="outline-success"
+                                        className="w-100 py-3 rounded-4 fw-bold shadow-xs border-2 d-flex align-items-center justify-content-center gap-2"
+                                        style={{ borderStyle: 'dashed', backgroundColor: '#f0fdf4', fontSize: '1rem' }}
+                                        onClick={handleAddRuleGroup}
+                                    >
+                                        <FaPlus />
+                                        <span>➕ إضافة قاعدة ومعادلة جديدة لكليات أخرى (مثل: كلية تكنولوجيا العلوم الصحية / كلية التمريض)</span>
+                                    </Button>
+                                </div>
                             </div>
 
                             {/* القسم 2: تفصيل الحدود حسب نوع الساعات اليومية */}
@@ -1648,25 +1873,44 @@ const ControlPanelPage = () => {
                             <div className="p-3 rounded-4 mb-4 border" style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0' }}>
                                 <div className="fw-bold text-dark mb-2 d-flex align-items-center gap-2" style={{ fontSize: '0.95rem' }}>
                                     <FaBalanceScale className="text-success" /> 
-                                    <span>ملخص ضوابط ومعادلات احتساب الأعباء والانتداب المعتمدة:</span>
+                                    <span>ملخص ضوابط ومعادلات احتساب الأعباء المعتمدة ({ruleGroups.length} قاعدة):</span>
                                 </div>
-                                <div className="d-flex flex-column gap-2" style={{ fontSize: '0.88rem', lineHeight: 1.6 }}>
-                                    <div className="p-3 rounded-3 bg-white border">
-                                        <div className="fw-bold text-primary mb-1">
-                                            👨‍🏫 معادلة أعضاء هيئة التدريس المعتمدة:
+                                <div className="d-flex flex-column gap-3" style={{ fontSize: '0.88rem', lineHeight: 1.6 }}>
+                                    {ruleGroups.map((group, idx) => (
+                                        <div key={group.id} className="p-3 rounded-3 bg-white border">
+                                            <div className="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                                                <span className="fw-bold text-dark">
+                                                    📌 {group.title || `القاعدة ${idx + 1}`} ({group.faculties?.length || 0} كلية):
+                                                </span>
+                                                <div className="d-flex flex-wrap gap-1">
+                                                    {(group.faculties || []).slice(0, 5).map(f => (
+                                                        <Badge key={f.value} bg="light" text="dark" className="border">
+                                                            {f.label}
+                                                        </Badge>
+                                                    ))}
+                                                    {(group.faculties || []).length > 5 && (
+                                                        <Badge bg="secondary">
+                                                            +{(group.faculties || []).length - 5} كليات أخرى
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <Row className="g-2">
+                                                <Col md={6}>
+                                                    <div className="small fw-bold text-primary mb-1">👨‍🏫 أعضاء هيئة التدريس:</div>
+                                                    <div className="font-monospace text-primary p-2 bg-light rounded-2 border fw-bold" dir="ltr" style={{ textAlign: 'left', fontSize: '0.82rem' }}>
+                                                        {group.facultyFormula || DEFAULT_FACULTY_FORMULA}
+                                                    </div>
+                                                </Col>
+                                                <Col md={6}>
+                                                    <div className="small fw-bold text-success mb-1">🧑‍🔬 الهيئة المعاونة:</div>
+                                                    <div className="font-monospace text-success p-2 bg-light rounded-2 border fw-bold" dir="ltr" style={{ textAlign: 'left', fontSize: '0.82rem' }}>
+                                                        {group.assistantFormula || DEFAULT_ASSISTANT_FORMULA}
+                                                    </div>
+                                                </Col>
+                                            </Row>
                                         </div>
-                                        <div className="font-monospace text-primary p-2 bg-light rounded-2 border fw-bold" dir="ltr" style={{ textAlign: 'left' }}>
-                                            {facultyFormula || DEFAULT_FACULTY_FORMULA}
-                                        </div>
-                                    </div>
-                                    <div className="p-3 rounded-3 bg-white border">
-                                        <div className="fw-bold text-success mb-1">
-                                            🧑‍🔬 معادلة الهيئة المعاونة المعتمدة:
-                                        </div>
-                                        <div className="font-monospace text-success p-2 bg-light rounded-2 border fw-bold" dir="ltr" style={{ textAlign: 'left' }}>
-                                            {assistantFormula || DEFAULT_ASSISTANT_FORMULA}
-                                        </div>
-                                    </div>
+                                    ))}
                                     <div className="p-2 rounded-3 bg-white border text-muted small">
                                         📅 <strong>أيام الانتداب:</strong> انتداب كلي = 5 أيام | انتداب جزئي = 1 أو 2 أو 3 أيام (تُسحب تلقائياً من بيانات الأستاذ).
                                     </div>
@@ -1681,7 +1925,7 @@ const ControlPanelPage = () => {
                                     disabled={workloadLimitsSaving}
                                 >
                                     {workloadLimitsSaving ? <Spinner size="sm" /> : <FaSave />}
-                                    <span>حفظ وتثبيت حدود ساعات الكلية</span>
+                                    <span>حفظ وتثبيت كافة القواعد لجميع الكليات</span>
                                 </Button>
                             </div>
                         </Form>

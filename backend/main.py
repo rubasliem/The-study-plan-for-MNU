@@ -4363,6 +4363,43 @@ def delete_signature(signature_id: int, db: Session = Depends(get_db), current_u
 # 11.1 مسارات تحديد الأعباء (Workload APIs)
 # ==========================================
 
+@app.get("/api/workload/limits/all")
+def get_all_workload_limits(
+    academic_year: str,
+    semester: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    limits = db.query(models.FacultyWorkloadLimit).filter(
+        models.FacultyWorkloadLimit.academic_year == academic_year,
+        models.FacultyWorkloadLimit.semester == semester
+    ).all()
+    return [
+        {
+            "id": l.id,
+            "faculty_id": l.faculty_id,
+            "academic_year": l.academic_year,
+            "semester": l.semester,
+            "max_faculty_hours_per_day": l.max_faculty_hours_per_day,
+            "max_assistant_hours_per_day": l.max_assistant_hours_per_day,
+            "min_theory_hours_per_day": l.min_theory_hours_per_day,
+            "max_theory_hours_per_day": l.max_theory_hours_per_day,
+            "min_practical_hours_per_day": l.min_practical_hours_per_day,
+            "max_practical_hours_per_day": l.max_practical_hours_per_day,
+            "min_tutorial_hours_per_day": l.min_tutorial_hours_per_day,
+            "max_tutorial_hours_per_day": l.max_tutorial_hours_per_day,
+            "min_field_hours_per_day": l.min_field_hours_per_day,
+            "max_field_hours_per_day": l.max_field_hours_per_day,
+            "max_theory_hours_per_course": l.max_theory_hours_per_course,
+            "max_practical_hours_per_course": l.max_practical_hours_per_course,
+            "max_tutorial_hours_per_course": l.max_tutorial_hours_per_course,
+            "max_field_hours_per_course": l.max_field_hours_per_course,
+            "faculty_formula": l.faculty_formula or "[ساعات النظري] + ([مجموع غير النظري] / 2) <= 6 * [أيام الانتداب]",
+            "assistant_formula": l.assistant_formula or "[مجموع غير النظري] <= 8 * [أيام الانتداب]"
+        }
+        for l in limits
+    ]
+
 @app.get("/api/workload/limits")
 def get_workload_limits(
     faculty_id: int,
