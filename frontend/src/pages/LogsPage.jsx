@@ -338,16 +338,16 @@ const LogsPage = () => {
             }
 
             // Title
-            worksheet.mergeCells('B2:F3');
+            worksheet.mergeCells('B2:G3');
             const titleCell = worksheet.getCell('B2');
             titleCell.value = 'جامعة المنوفية الأهلية - سجل العمليات والأنشطة (Audit Logs)';
             titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FF2E7D32' } };
             titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
             // Subtitle with date
-            worksheet.mergeCells('B4:F4');
+            worksheet.mergeCells('B4:G4');
             const subCell = worksheet.getCell('B4');
-            subCell.value = `تاريخ استخراج التقرير: ${formatDate(new Date())} | إجمالي السجلات: ${exportItems.length}`;
+            subCell.value = `منظومة إدارة وتوزيع الخطط والأعباء الدراسية - تاريخ استخراج التقرير: ${formatDate(new Date())} | إجمالي السجلات: ${exportItems.length}`;
             subCell.font = { name: 'Arial', size: 11, italic: true, color: { argb: 'FF555555' } };
             subCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
@@ -371,17 +371,17 @@ const LogsPage = () => {
             headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
             headerRow.height = 32;
 
-            headerRow.eachCell((cell) => {
+            headerRow.eachCell({ includeEmpty: true }, (cell) => {
                 cell.fill = {
                     type: 'pattern',
                     pattern: 'solid',
                     fgColor: { argb: 'FF2E7D32' }
                 };
                 cell.border = {
-                    top: { style: 'thin' },
-                    left: { style: 'thin' },
-                    bottom: { style: 'thin' },
-                    right: { style: 'thin' }
+                    top: { style: 'thin', color: { argb: 'FF000000' } },
+                    left: { style: 'thin', color: { argb: 'FF000000' } },
+                    bottom: { style: 'thin', color: { argb: 'FF000000' } },
+                    right: { style: 'thin', color: { argb: 'FF000000' } }
                 };
             });
 
@@ -405,13 +405,13 @@ const LogsPage = () => {
                     status: logItem.status === 'success' ? 'ناجح' : (logItem.status === 'failed' ? 'فشل' : logItem.status)
                 });
 
-                row.eachCell((cell, colNumber) => {
+                row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
                     cell.alignment = { vertical: 'middle', horizontal: colNumber === 7 ? 'right' : 'center', wrapText: true };
                     cell.border = {
-                        top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-                        left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-                        bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-                        right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+                        top: { style: 'thin', color: { argb: 'FF000000' } },
+                        left: { style: 'thin', color: { argb: 'FF000000' } },
+                        bottom: { style: 'thin', color: { argb: 'FF000000' } },
+                        right: { style: 'thin', color: { argb: 'FF000000' } }
                     };
                     if (logItem.status === 'failed') {
                         cell.fill = {
