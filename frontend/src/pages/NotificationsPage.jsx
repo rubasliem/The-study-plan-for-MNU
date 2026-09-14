@@ -204,9 +204,9 @@ const NotificationsPage = () => {
         }
 
         // Add Title
-        worksheet.mergeCells('B2:E3');
+        worksheet.mergeCells('B2:F3');
         const titleCell = worksheet.getCell('B2');
-        titleCell.value = 'سجل الإشعارات - جامعة المنوفية الأهلية';
+        titleCell.value = 'سجل الإشعارات - منظومة إدارة وتوزيع الخطط والأعباء الدراسية - جامعة المنوفية الأهلية';
         titleCell.font = { name: 'Arial', size: 16, bold: true };
         titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
