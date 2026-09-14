@@ -474,7 +474,7 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
             <div className="logo-text">
               <h1 className="logo-title" style={{ fontSize: '18px', fontWeight: 'bold', margin: '5px 0 2px 0', color: '#2e7d32' }}>جامعة المنوفية الأهلية</h1>
               <div className="logo-subtitle" style={{ fontSize: '12.5px', fontWeight: '600', color: '#4a5568', lineHeight: '1.4', marginTop: '4px' }}>
-                منظومة إدارة وتوزيع الخطط والأعباء الدراسية
+               إدارة وتوزيع الخطط والأعباء الدراسية
               </div>
             </div>
           </div>
