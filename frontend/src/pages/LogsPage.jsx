@@ -253,7 +253,7 @@ const LogsPage = () => {
         return <span className={`badge bg-${item.color}-subtle text-${item.color} border px-2 py-1`} style={{ fontSize: '0.82rem' }}>{item.label}</span>;
     };
 
-    const formatDate = (dateInput) => {
+    const formatDate = (dateInput, multiLine = false) => {
         if (!dateInput) return '—';
         try {
             const d = (dateInput instanceof Date) 
@@ -272,6 +272,15 @@ const LogsPage = () => {
             const formattedHours = String(hours).padStart(2, '0');
             const minutes = String(d.getMinutes()).padStart(2, '0');
             const seconds = String(d.getSeconds()).padStart(2, '0');
+            
+            if (multiLine) {
+                return (
+                    <>
+                        <div className="fw-bold" style={{ color: '#2e7d32' }}>{formattedHours}:{minutes}:{seconds} {ampm}</div>
+                        <div className="text-muted" style={{ fontSize: '0.8rem' }}>{day}/{month}/{year}</div>
+                    </>
+                );
+            }
             
             return `${day}/${month}/${year} - ${formattedHours}:${minutes}:${seconds} ${ampm}`;
         } catch {
@@ -431,7 +440,7 @@ const LogsPage = () => {
             <style>{`
                 @page {
                     size: A4 landscape;
-                    margin: 8mm 6mm;
+                    margin: 10mm;
                 }
                 @media print {
                     html, body {
@@ -443,7 +452,7 @@ const LogsPage = () => {
                         print-color-adjust: exact !important;
                         font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif !important;
                     }
-                    .no-print, .d-print-none, .sidebar, aside, nav {
+                    .no-print, .d-print-none, .sidebar, aside, nav, .navbar, header, .topbar {
                         display: none !important;
                     }
                     main {
@@ -461,60 +470,47 @@ const LogsPage = () => {
                     .card {
                         border: none !important;
                         box-shadow: none !important;
-                        padding: 0 !important;
+                        border-radius: 0 !important;
                         margin: 0 !important;
-                        background: transparent !important;
+                        padding: 0 !important;
                     }
                     .card-body {
                         padding: 0 !important;
                     }
-                    .table-responsive {
-                        overflow: visible !important;
-                        overflow-x: visible !important;
-                        display: block !important;
-                        width: 100% !important;
-                    }
                     .logs-custom-table {
                         width: 100% !important;
-                        max-width: 100% !important;
-                        table-layout: fixed !important;
                         border-collapse: collapse !important;
-                        margin: 0 !important;
-                        font-size: 8.5pt !important;
-                    }
-                    .logs-custom-table th,
-                    .logs-custom-table td {
-                        border: 1px solid #777777 !important;
-                        padding: 5px 4px !important;
-                        line-height: 1.3 !important;
-                        word-break: break-word !important;
-                        overflow-wrap: anywhere !important;
+                        margin-bottom: 0 !important;
+                        font-size: 9pt !important;
                     }
                     .logs-custom-table thead th {
                         background-color: #2e7d32 !important;
                         color: #ffffff !important;
+                        border: 1px solid #1b5e20 !important;
                         font-weight: bold !important;
-                        font-size: 9pt !important;
+                        font-size: 10pt !important;
                         text-align: center !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
+                    }
+                    .logs-custom-table tbody td {
+                        border: 1px solid #777777 !important;
+                        color: #000000 !important;
+                        font-size: 9pt !important;
+                        padding: 6px !important;
+                        background-color: #ffffff !important;
                     }
                     .logs-custom-table tbody tr:nth-child(even) td {
                         background-color: #f8faf8 !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
-                    .logs-custom-table tbody tr.row-failed td {
-                        background-color: #fdf2f2 !important;
-                        -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
-                    }
                     .logs-custom-table tbody tr {
                         page-break-inside: avoid !important;
                     }
-                    .badge {
+                    .logs-custom-table .badge {
                         border: 1px solid #bbb !important;
-                        font-size: 8pt !important;
+                        font-size: 7.5pt !important;
                         padding: 2px 4px !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
@@ -587,56 +583,6 @@ const LogsPage = () => {
                             مسح شامل
                         </Button>
                     )}
-                </div>
-            </div>
-
-            {/* Official Print Header */}
-            <div className="d-none d-print-block mb-3">
-                <div className="d-flex justify-content-between align-items-center pb-2 border-bottom border-2 border-success">
-                    {/* Right side in RTL: University Info with Logo */}
-                    <div className="d-flex align-items-center gap-3">
-                        <img src={logo} alt="MNU Logo" style={{ height: '70px', width: 'auto', objectFit: 'contain' }} />
-                        <div className="text-end">
-                            <h4 className="fw-bold mb-0" style={{ color: '#2e7d32', fontSize: '1.25rem' }}>جامعة المنوفية الأهلية</h4>
-                            <div className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>إدارة تكنولوجيا المعلومات والنظم</div>
-                            <div className="text-muted" style={{ fontSize: '0.8rem' }}>منظومة إدارة وتوزيع الخطط الدراسية</div>
-                        </div>
-                    </div>
-
-                    {/* Center: Title */}
-                    <div className="text-center">
-                        <div className="px-4 py-2 rounded-3 border border-2 border-success bg-light d-inline-block">
-                            <h4 className="fw-bold mb-0 text-success" style={{ fontSize: '1.2rem' }}>تقرير سجل العمليات والأنشطة (Audit Logs)</h4>
-                        </div>
-                    </div>
-
-                    {/* Left side in RTL: Report Metadata */}
-                    <div className="text-start" style={{ fontSize: '0.82rem', lineHeight: '1.5' }}>
-                        <div>
-                            <strong>تاريخ الطباعة: </strong>
-                            <span dir="ltr" style={{ display: 'inline-block', direction: 'ltr', fontFamily: 'Consolas, Monaco, "Segoe UI", sans-serif', fontWeight: 600 }}>
-                                {formatDate(new Date())}
-                            </span>
-                        </div>
-                        <div>
-                            <strong>إجمالي السجلات: </strong>
-                            <span dir="ltr" style={{ display: 'inline-block', direction: 'ltr', fontWeight: 600 }}>
-                                {totalItems.toLocaleString('en-US')}
-                            </span> حركة
-                        </div>
-                        {facultyId && (
-                            <div><strong>الكلية:</strong> {faculties.find(f => String(f.id) === String(facultyId))?.name}</div>
-                        )}
-                        {actionType && (
-                            <div><strong>نوع الحركة:</strong> {actionType}</div>
-                        )}
-                        {entityType && (
-                            <div><strong>القسم:</strong> {entityType}</div>
-                        )}
-                        {fromDate && toDate && (
-                            <div><strong>الفترة:</strong> من {fromDate} إلى {toDate}</div>
-                        )}
-                    </div>
                 </div>
             </div>
 
@@ -842,8 +788,68 @@ const LogsPage = () => {
                         </div>
                     ) : (
                         <div className="table-responsive">
+                            {/* Official Print Header */}
+                            <div className="d-none d-print-block mb-4" dir="rtl">
+                                <div className="d-flex justify-content-between align-items-center pb-2 border-bottom border-2 border-success">
+                                    {/* Right side in RTL: University Info with Logo */}
+                                    <div className="d-flex align-items-center gap-3">
+                                        <img src={logo} alt="MNU Logo" style={{ height: '70px', width: 'auto', objectFit: 'contain' }} />
+                                        <div className="text-end">
+                                            <h4 className="fw-bold mb-0" style={{ color: '#2e7d32', fontSize: '1.25rem' }}>جامعة المنوفية الأهلية</h4>
+                                            <div className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>إدارة شؤون التعليم والطلاب</div>
+                                            <div className="text-muted" style={{ fontSize: '0.8rem' }}>منظومة إدارة وتوزيع الخطط والأعباء الدراسية</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Center: Title */}
+                                    <div className="text-center">
+                                        <div className="px-4 py-2 rounded-3 border border-2 border-success bg-light d-inline-block">
+                                            <h4 className="fw-bold mb-0 text-success" style={{ fontSize: '1.2rem' }}>تقرير سجل العمليات والأنشطة (Audit Logs)</h4>
+                                        </div>
+                                    </div>
+
+                                    {/* Left side in RTL: Report Metadata */}
+                                    <div className="text-start" style={{ fontSize: '0.82rem', lineHeight: '1.5' }}>
+                                        <div>
+                                            <strong>تاريخ الطباعة: </strong>
+                                            <span dir="ltr" style={{ display: 'inline-block', direction: 'ltr', fontFamily: 'Consolas, Monaco, "Segoe UI", sans-serif', fontWeight: 600 }}>
+                                                {new Date().toLocaleString('ar-EG', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <strong>إجمالي السجلات: </strong>
+                                            <span dir="ltr" style={{ display: 'inline-block', direction: 'ltr', fontWeight: 600 }}>
+                                                {totalItems.toLocaleString('en-US')}
+                                            </span> حركة
+                                        </div>
+                                        {facultyId && (
+                                            <div><strong>الكلية:</strong> {faculties.find(f => String(f.id) === String(facultyId))?.name || facultyId}</div>
+                                        )}
+                                        {actionType && (
+                                            <div><strong>نوع العملية:</strong> {actionType}</div>
+                                        )}
+                                        {entityType && (
+                                            <div><strong>القسم:</strong> {entityType}</div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <Table responsive hover className="align-middle mb-0 text-center logs-custom-table" style={{ fontSize: '0.92rem' }}>
-                                <thead className="bg-light text-dark fw-bold border-bottom">
+                                <colgroup>
+                                    {isAdmin && <col style={{ width: '35px' }} className="d-print-none" />}
+                                    <col style={{ width: '4%' }} />
+                                    <col style={{ width: '9%' }} />
+                                    <col style={{ width: '9%' }} />
+                                    <col style={{ width: '10%' }} />
+                                    <col style={{ width: '9%' }} />
+                                    <col style={{ width: '35%' }} />
+                                    <col style={{ width: '10%' }} />
+                                    <col style={{ width: '9%' }} />
+                                    <col style={{ width: '5%' }} />
+                                    <col style={{ width: '90px' }} className="d-print-none" />
+                                </colgroup>
+                                <thead className="table-light">
                                     <tr>
                                         {isAdmin && (
                                             <th style={{ width: '35px' }} className="d-print-none">
@@ -855,13 +861,13 @@ const LogsPage = () => {
                                             </th>
                                         )}
                                         <th style={{ width: '4%' }}>#</th>
-                                        <th style={{ width: '13%' }}>الوقت والتاريخ</th>
-                                        <th style={{ width: '12%' }}>المستخدم</th>
+                                        <th style={{ width: '9%' }}>الوقت والتاريخ</th>
+                                        <th style={{ width: '9%' }}>المستخدم</th>
                                         <th style={{ width: '10%' }}>نوع العملية</th>
-                                        <th style={{ width: '10%' }}>القسم</th>
-                                        <th className="text-end" style={{ width: '27%' }}>تفاصيل البيان</th>
-                                        <th style={{ width: '11%' }}>الكلية</th>
-                                        <th style={{ width: '8%' }}>عنوان IP</th>
+                                        <th style={{ width: '9%' }}>القسم</th>
+                                        <th className="text-end" style={{ width: '35%' }}>تفاصيل البيان</th>
+                                        <th style={{ width: '10%' }}>الكلية</th>
+                                        <th style={{ width: '9%' }}>عنوان IP</th>
                                         <th style={{ width: '5%' }}>الحالة</th>
                                         <th style={{ width: '90px' }} className="d-print-none">إجراءات</th>
                                     </tr>
@@ -882,10 +888,10 @@ const LogsPage = () => {
                                                     </td>
                                                 )}
                                                 <td className="text-muted">{(page - 1) * limit + index + 1}</td>
-                                                <td className="text-nowrap" style={{ fontSize: '0.85rem' }}>
-                                                    <span dir="ltr" style={{ display: 'inline-block', direction: 'ltr', fontFamily: 'Consolas, Monaco, "Segoe UI", sans-serif' }}>
-                                                        {formatDate(item.created_at)}
-                                                    </span>
+                                                <td className="text-nowrap text-center" style={{ fontSize: '0.85rem', verticalAlign: 'middle' }}>
+                                                    <div dir="ltr" style={{ display: 'inline-block', direction: 'ltr', fontFamily: 'Consolas, Monaco, "Segoe UI", sans-serif', textAlign: 'center' }}>
+                                                        {formatDate(item.created_at, true)}
+                                                    </div>
                                                 </td>
                                                 <td>
                                                     <div className="d-flex align-items-center justify-content-center gap-2">

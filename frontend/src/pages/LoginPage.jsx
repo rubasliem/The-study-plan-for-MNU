@@ -162,8 +162,8 @@ const LoginPage = () => {
                     <h3 className="fw-bold mb-2" style={{ color: '#2e7d32', fontSize: '2rem', marginTop: '-4px' }}>
                         تسجيل الدخول
                     </h3>
-                    <p className="text-muted  mt-1 mb-4" style={{ fontSize: '0.85rem', fontWeight: '500' }}>
-                        المنصة الإلكترونية المتكاملة لإدارة الخطط الدراسية <br /> مقررات وأعضاء هيئة التدريس - جامعة المنوفية الأهلية
+                    <p className="text-muted  mt-1 mb-4" style={{ fontSize: '0.rem', fontWeight: '500' }}>
+                        منظومة إدارة وتوزيع الخطط والأعباء الدراسية <br /> جامعة المنوفية الأهلية
                     </p>
 
                     {error && (

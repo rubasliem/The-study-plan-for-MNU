@@ -643,8 +643,8 @@ const NotificationsPage = () => {
                                 <img src={logo} alt="MNU Logo" style={{ height: '70px', width: 'auto', objectFit: 'contain' }} />
                                 <div className="text-end">
                                     <h4 className="fw-bold mb-0" style={{ color: '#2e7d32', fontSize: '1.25rem' }}>جامعة المنوفية الأهلية</h4>
-                                    <div className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>إدارة تكنولوجيا المعلومات والنظم</div>
-                                    <div className="text-muted" style={{ fontSize: '0.8rem' }}>منظومة إدارة وتوزيع الخطط الدراسية</div>
+                                    <div className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>إدارة شؤون التعليم والطلاب</div>
+                                    <div className="text-muted" style={{ fontSize: '0.8rem' }}>منظومة إدارة وتوزيع الخطط والأعباء الدراسية</div>
                                 </div>
                             </div>
 
@@ -790,7 +790,7 @@ const NotificationsPage = () => {
                                         <th className="col-by text-center" style={{ minWidth: '135px', whiteSpace: 'nowrap' }}>بواسطة</th>
                                         <th className="col-action">الحدث</th>
                                         <th className="col-date text-center">التاريخ والوقت</th>
-                                        {canDelete && <th className="text-center d-print-none">إجراءات</th>}
+                                        {canDelete && <th className="text-center d-print-none">إجراء</th>}
                                     </tr>
                                 </thead>
                                 <tbody>

@@ -1494,41 +1494,34 @@ const ProfessorsPage = () => {
 
         <body>
 
+          <!-- Header: shown only once, not inside thead -->
+          <div style="display: flex; align-items: center; justify-content: flex-start; border-bottom: 2px solid #2e7d32; padding-bottom: 12px; margin-bottom: 10px; background: white;">
+
+            <img 
+
+              src="${window.location.origin}${logo}" 
+
+              alt="جامعة المنوفية الأهلية" 
+
+              style="width: 75px; height: 75px; margin-left: 25px;" 
+
+            />
+
+            <div style="flex: 1; text-align: right;">
+
+              <h2 style="margin: 0; font-size: 16px; direction: rtl; color: black;">${documentTitle}</h2>
+
+              ${filterSubTitle ? `<h2 style="margin: 5px 0 0 0; font-size: 14px; direction: rtl; color: #d32f2f;">${filterSubTitle}</h2>` : ''}
+
+              <h3 style="margin: 4px 60px 0 0; font-size: 13px; font-weight: normal; color: #555;">جامعة المنوفية الأهلية</h3>
+
+            </div>
+
+          </div>
+
           <table>
 
             <thead>
-
-              <tr style="border: none;">
-
-                <th colspan="${showJobTitleCol ? 17 : 16}" style="border: none; background: white !important; color: black !important; padding-bottom: 15px;">
-
-                  <div style="display: flex; align-items: center; justify-content: flex-start;">
-
-                    <img 
-
-                      src="${window.location.origin}${logo}" 
-
-                      alt="جامعة المنوفية الأهلية" 
-
-                      style="width: 75px; height: 75px; margin-left: 25px;" 
-
-                    />
-
-                    <div style="flex: 1; text-align: right;">
-
-                      <h2 style="margin: 0; font-size: 16px; direction: rtl; color: black;">${documentTitle}</h2>
-
-                      ${filterSubTitle ? `<h2 style="margin: 5px 0 0 0; font-size: 14px; direction: rtl; color: #d32f2f;">${filterSubTitle}</h2>` : ''}
-
-                      <h3 style="margin: 4px 60px 0 0; font-size: 13px; font-weight: normal; color: #555;">جامعة المنوفية الأهلية</h3>
-
-                    </div>
-
-                  </div>
-
-                </th>
-
-              </tr>
 
               <tr>
 
@@ -1575,6 +1568,7 @@ const ProfessorsPage = () => {
             <tbody>
 
               ${selectedProfs.map((p, index) => {
+
 
       const formatLvl = (l) => {
 
@@ -1835,21 +1829,12 @@ const ProfessorsPage = () => {
 
             </tbody>
 
-            <tfoot>
-
-              <tr style="border: none;">
-
-                <td colspan="${showJobTitleCol ? 17 : 16}" style="border: none; padding-top: 30px;">
-
-                  ${renderProfSignaturesHTML(fids)}
-
-                </td>
-
-              </tr>
-
-            </tfoot>
-
           </table>
+
+          <!-- Signatures: shown only at end of last page, not in tfoot -->
+          <div style="margin-top: 30px; page-break-inside: avoid;">
+            ${renderProfSignaturesHTML(fids)}
+          </div>
 
           <script>
 
@@ -1860,6 +1845,7 @@ const ProfessorsPage = () => {
               if (img) {
 
                 if (img.complete) {
+
 
                   window.print();
 
@@ -2110,8 +2096,7 @@ const ProfessorsPage = () => {
     const pagesHtml = [];
 
 
-
-    const profsData = selectedProfs.map((p, index) => {
+        const profsData = selectedProfs.map((p, index) => {
 
       const formatLvl = (l) => {
 
@@ -2377,41 +2362,41 @@ const ProfessorsPage = () => {
 
         <thead>
 
-          <tr style="background-color: #2e7d32; color: white;">
+          <tr style="background-color: transparent; color: white;">
 
-            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: #2e7d32; width: 25px;">م</th>
+            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: transparent; width: 25px;">م</th>
 
-            <th style="border: 1px solid #777; padding: 6px 2px; text-align: right; font-size: 11px; font-weight: bold; color: white; background-color: #2e7d32; min-width: 100px;">اسم عضو هيئة التدريس</th>
+            <th style="border: 1px solid #777; padding: 6px 2px; text-align: right; font-size: 11px; font-weight: bold; color: white; background-color: transparent; min-width: 100px;">اسم عضو هيئة التدريس</th>
 
-            ${showJobTitleCol ? `<th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: #2e7d32; width: 50px;">الدرجة العلمية</th>` : ''}
+            ${showJobTitleCol ? `<th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: transparent; width: 50px;">الدرجة العلمية</th>` : ''}
 
-            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: #2e7d32;">طبيعة العمل بجامعة المنوفية الأهلية</th>
+            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: transparent;">طبيعة العمل بجامعة المنوفية الأهلية</th>
 
-            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: #2e7d32;">نوع التعاقد والأيام</th>
+            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: transparent;">نوع التعاقد والأيام</th>
 
-            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: #2e7d32;">جهة القدوم</th>
+            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: transparent;">جهة القدوم</th>
 
-            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: #2e7d32; width: 75px;">رقم الهاتف</th>
+            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: transparent; width: 75px;">رقم الهاتف</th>
 
-            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: #2e7d32;">الإيميل</th>
+            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: transparent;">الإيميل</th>
 
-            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: #2e7d32;">الكلية</th>
+            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: transparent;">الكلية</th>
 
-            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: #2e7d32;">اسم البرنامج</th>
+            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: transparent;">اسم البرنامج</th>
 
-            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: #2e7d32;">المقررات المكلف بها</th>
+            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: transparent;">المقررات المكلف بها</th>
 
-            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: #2e7d32; width: 50px;">ساعات التدريس<br/>كل اسبوع</th>
+            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: transparent; width: 50px;">ساعات التدريس<br/>كل اسبوع</th>
 
-            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: #2e7d32; width: 55px;">إجمالي الساعات<br/>في الترم للمقرر</th>
+            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: transparent; width: 55px;">إجمالي الساعات<br/>في الترم للمقرر</th>
 
-            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: #2e7d32; width: 55px;">المستوى</th>
+            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: transparent; width: 55px;">المستوى</th>
 
-            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: #2e7d32; width: 45px;">الفصل الدراسي</th>
+            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: transparent; width: 45px;">الفصل الدراسي</th>
 
-            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: #2e7d32; width: 55px; white-space: nowrap;">العام الجامعي</th>
+            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: transparent; width: 55px; white-space: nowrap;">العام الجامعي</th>
 
-            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: #2e7d32; width: 65px;">إجمالي ساعات تدريسه<br/>في العام الجامعي</th>
+            <th style="border: 1px solid #777; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: bold; color: white; background-color: transparent; width: 65px;">إجمالي ساعات تدريسه<br/>في العام الجامعي</th>
 
           </tr>
 
@@ -2595,13 +2580,13 @@ const ProfessorsPage = () => {
           <style>
             @page {
               size: portrait;
-              margin: 10mm 10mm 15mm 10mm;
+              margin: 5mm 10mm 5mm 10mm;
             }
             body { 
               font-family: 'Cairo', sans-serif; 
               direction: rtl; 
               text-align: right; 
-              padding: 10px 10px 35px 10px; 
+              padding: 5px 10px 10px 10px; 
               margin: 0;
               width: 100%;
               color: #333; 
@@ -2632,24 +2617,21 @@ const ProfessorsPage = () => {
           </style>
         </head>
         <body>
-          <table style="width: 100%; border: none;">
-            <thead style="display: table-header-group;">
-              <tr style="border: none;">
-                <th style="border: none; padding-bottom: 15px; background: white !important;">
-                  <div class="header" style="border-bottom: none; margin-bottom: 0;">
-                    <div class="header-text">
-                      <h2>بيانات عضو هيئة التدريس</h2>
-                      <h3>جامعة المنوفية الأهلية</h3>
-                    </div>
-                    <img src="${window.location.origin}${logo}" alt="لوجو الجامعة" style="margin-left: 35px;" />
-                  </div>
-                  <div style="border-bottom: 2px solid #2e7d32; width: 100%; margin-top: 5px;"></div>
-                </th>
-              </tr>
-            </thead>
-            <tbody style="border: none;">
-              <tr style="border: none;">
-                <td style="border: none; padding: 0;">
+          <table style="width: 100%; border: none; margin-bottom: 20px; border-bottom: 2px solid #2e7d32;">
+            <tr style="border: none;">
+              <td style="text-align: right; border: none; padding-bottom: 15px;">
+                <div style="border: none; padding: 10px 20px; display: inline-block; border-radius: 6px; text-align: center; background-color: transparent;">
+                  <h1 style="font-size: 22px; color: #1b5e20; margin: 0; font-weight: bold;">بيانات عضو هيئة التدريس</h1>
+                  <h2 style="font-size: 16px; color: #333; margin: 5px 0 0 0;">جامعة المنوفية الأهلية</h2>
+                  <h2 style="font-size: 13px; color: #333; margin: 5px 0 0 0;">منظومة إدارة وتوزيع الخطط والأعباء الدراسية</h2>
+                </div>
+              </td>
+              <td style="text-align: left; width: 100px; border: none; padding-bottom: 15px;">
+                <img src="${window.location.origin}${logo}" alt="لوجو الجامعة" style="width: 85px; height: 85px; object-fit: contain; margin-left: 35px;" />
+              </td>
+            </tr>
+          </table>
+          <div style="padding: 0;">
           
           <div class="section-title">البيانات الشخصية والمهنية</div>
           <div class="info-grid">
@@ -2694,7 +2676,7 @@ const ProfessorsPage = () => {
           <div class="section-title">أسابيع حضور عضو هيئة التدريس لكل عام جامعي</div>
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11pt; text-align: center; border: 1px solid #1b5e20;">
             <thead>
-              <tr style="background-color: #2e7d32; color: #ffffff;">
+              <tr style="background-color: transparent; color: #ffffff;">
                 <th style="border: 1px solid #1b5e20; padding: 8px 8px; font-weight: bold; background-color: #2e7d32 !important; color: #ffffff !important;">العام الجامعي</th>
                 <th style="border: 1px solid #1b5e20; padding: 8px 8px; font-weight: bold; background-color: #2e7d32 !important; color: #ffffff !important;">الفصل الدراسي الأول</th>
                 <th style="border: 1px solid #1b5e20; padding: 8px 8px; font-weight: bold; background-color: #2e7d32 !important; color: #ffffff !important;">الفصل الدراسي الثاني</th>
@@ -2709,10 +2691,10 @@ const ProfessorsPage = () => {
                 const sum = getProfDisplayTermWeeks('summer_weeks', 'med_summer_weeks', 7, 7, ay, yData, formData.faculties).text;
                 return `
                   <tr>
-                    <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: bold; color: #222; font-size: 10pt; background-color: #ffffff;">${ay.name}</td>
-                    <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: normal; color: #222; font-size: 10pt; background-color: #ffffff;">${sem1}</td>
-                    <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: normal; color: #222; font-size: 10pt; background-color: #ffffff;">${sem2}</td>
-                    <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: normal; color: #222; font-size: 10pt; background-color: #ffffff;">${sum}</td>
+                    <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: bold; color: #222; font-size: 10pt; background-color: transparent;">${ay.name}</td>
+                    <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: normal; color: #222; font-size: 10pt; background-color: transparent;">${sem1}</td>
+                    <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: normal; color: #222; font-size: 10pt; background-color: transparent;">${sem2}</td>
+                    <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: normal; color: #222; font-size: 10pt; background-color: transparent;">${sum}</td>
                   </tr>
                 `;
               }).join('')}
@@ -2891,7 +2873,7 @@ const ProfessorsPage = () => {
 
                 html += `
 
-                  <tr style="background-color: #fff3cd; color: #856404; font-size: 9pt;">
+                  <tr style="background-color: transparent; color: #856404; font-size: 9pt;">
 
                     <td colspan="5" style="text-align: center; font-weight: bold;">⚠️ إجمالي الساعات المنتقصة لهذا العام الجامعي: ${yearDeductions.map(d => {
 
@@ -2917,7 +2899,7 @@ const ProfessorsPage = () => {
 
               html += `
 
-                  <tr style="background-color: #e9ecef; font-weight: bold;">
+                  <tr style="background-color: transparent; font-weight: bold;">
 
                     <td colspan="5" style="text-align: center; color: #2e7d32;">إجمالي ساعات التدريس لهذا العام الجامعي ${totalYearDeductions > 0 ? '(الصافي بعد الانتقاص)' : ''}</td>
 
@@ -2941,7 +2923,7 @@ const ProfessorsPage = () => {
 
             html += `
 
-              <div style="margin-top: 15px; padding: 12px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; overflow: hidden;">
+              <div style="margin-top: 15px; padding: 12px; background-color: transparent; border: 1px solid #c3e6cb; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; overflow: hidden;">
 
                 <span style="font-size: 15px; font-weight: bold; color: #155724; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">إجمالي ساعات تدريس عضو هيئة التدريس في جامعة المنوفية الأهلية عبر السنين</span>
 
@@ -2961,23 +2943,9 @@ const ProfessorsPage = () => {
 
               </tr>
 
-            </tbody>
-
-            <tfoot style="display: table-footer-group;">
-
-              <tr style="border: none;">
-
-                <td style="border: none; padding-top: 30px;">
-
-                  ${renderProfSignaturesHTML(fids)}
-
-                </td>
-
-              </tr>
-
-            </tfoot>
-
-          </table>
+            <div style="margin-top: 30px; page-break-inside: avoid;">
+${renderProfSignaturesHTML(fids)}
+</div>
 
 
 
@@ -3081,19 +3049,26 @@ const ProfessorsPage = () => {
         table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 35px; border: 1px solid #777; table-layout: auto; }
         th, td { border: 1px solid #777; padding: 8px 6px; text-align: center; font-size: 12px; line-height: 1.3; }
         th { 
-          background-color: #2e7d32; 
+          background-color: transparent; 
           color: white; 
           font-weight: bold; 
           text-align: center;
         }
       </style>
-      <div class="header">
-        <div class="header-text">
-          <h2>بيانات عضو هيئة التدريس</h2>
-          <h3>جامعة المنوفية الأهلية</h3>
-        </div>
-        <img src="${window.location.origin}${logo}" alt="جامعة المنوفية الأهلية" style="margin-left: 35px;" />
-      </div>
+      <table style="width: 100%; border: none; margin-bottom: 20px; border-bottom: 2px solid #2e7d32;">
+      <tr style="border: none;">
+        <td style="text-align: right; border: none; padding-bottom: 15px;">
+          <div style="border: none; padding: 10px 20px; display: inline-block; border-radius: 6px; text-align: center; background-color: transparent;">
+            <h1 style="font-size: 22px; color: #1b5e20; margin: 0; font-weight: bold;">بيانات عضو هيئة التدريس</h1>
+            <h2 style="font-size: 16px; color: #333; margin: 5px 0 0 0;">جامعة المنوفية الأهلية</h2>
+            <h2 style="font-size: 13px; color: #333; margin: 5px 0 0 0;">منظومة إدارة وتوزيع الخطط والأعباء الدراسية</h2>
+          </div>
+        </td>
+        <td style="text-align: left; width: 100px; border: none; padding-bottom: 15px;">
+          <img src="${window.location.origin}${logo}" alt="لوجو الجامعة" style="width: 85px; height: 85px; object-fit: contain; margin-left: 35px;" />
+        </td>
+      </tr>
+    </table>
 
       <div class="section-title">البيانات الشخصية والمهنية</div>
       <div class="info-grid">
@@ -3143,7 +3118,7 @@ const ProfessorsPage = () => {
 
         <thead>
 
-          <tr style="background-color: #2e7d32; color: #ffffff;">
+          <tr style="background-color: transparent; color: #ffffff;">
 
             <th style="border: 1px solid #1b5e20; padding: 8px 8px; font-weight: bold; background-color: #2e7d32 !important; color: #ffffff !important;">العام الجامعي</th>
 
@@ -3168,13 +3143,13 @@ const ProfessorsPage = () => {
 
               <tr>
 
-                <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: bold; color: #222; font-size: 10pt; background-color: #ffffff;">${ay.name}</td>
+                <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: bold; color: #222; font-size: 10pt; background-color: transparent;">${ay.name}</td>
 
-                <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: normal; color: #222; font-size: 10pt; background-color: #ffffff;">${sem1}</td>
+                <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: normal; color: #222; font-size: 10pt; background-color: transparent;">${sem1}</td>
 
-                <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: normal; color: #222; font-size: 10pt; background-color: #ffffff;">${sem2}</td>
+                <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: normal; color: #222; font-size: 10pt; background-color: transparent;">${sem2}</td>
 
-                <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: normal; color: #222; font-size: 10pt; background-color: #ffffff;">${sum}</td>
+                <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: normal; color: #222; font-size: 10pt; background-color: transparent;">${sum}</td>
 
               </tr>
 
@@ -3358,7 +3333,7 @@ const ProfessorsPage = () => {
 
                 html += `
 
-                  <tr style="background-color: #fff3cd; color: #856404; font-size: 9pt;">
+                  <tr style="background-color: transparent; color: #856404; font-size: 9pt;">
 
                     <td colspan="5" style="text-align: center; font-weight: bold;">⚠️ إجمالي الساعات المنتقصة لهذا العام الجامعي: ${yearDeductions.map(d => {
 
@@ -3384,7 +3359,7 @@ const ProfessorsPage = () => {
 
               html += `
 
-                  <tr style="background-color: #e9ecef; font-weight: bold;">
+                  <tr style="background-color: transparent; font-weight: bold;">
 
                     <td colspan="5" style="text-align: center; color: #2e7d32;">إجمالي ساعات التدريس لهذا العام الجامعي ${totalYearDeductions > 0 ? '(الصافي بعد الانتقاص)' : ''}</td>
 
@@ -3408,7 +3383,7 @@ const ProfessorsPage = () => {
 
             html += `
 
-              <div style="margin-top: 15px; padding: 12px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; overflow: hidden;">
+              <div style="margin-top: 15px; padding: 12px; background-color: transparent; border: 1px solid #c3e6cb; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; overflow: hidden;">
 
                 <span style="font-size: 15px; font-weight: bold; color: #155724; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">إجمالي ساعات تدريس عضو هيئة التدريس في جامعة المنوفية الأهلية عبر السنين</span>
 
@@ -3725,7 +3700,7 @@ const ProfessorsPage = () => {
           table { border-collapse: collapse; direction: rtl; }
           th, td { border: 1px solid #333333; padding: 8px 25px; text-align: center; vertical-align: middle; }
           tr { height: 35px; }
-          th { background-color: #2e7d32; color: #ffffff; font-weight: bold; font-size: 18px; }
+          th { background-color: transparent; color: #ffffff; font-weight: bold; font-size: 18px; }
           td { font-size: 20px; mso-data-placement:same-cell; white-space: nowrap; color: #4a4a4a; }
           .header-row { font-size: 30px; font-weight: bold; color: #2e7d32; text-align: center; border: none; }
           .logo-cell { text-align: left; border: none; }
@@ -3754,7 +3729,7 @@ const ProfessorsPage = () => {
           </tr>
           <tr>
             <td colspan="7" style="border: none; text-align: center; color: #2e7d32; font-weight: bold; font-size: 22px;">
-              جامعة المنوفية الأهلية
+              منظومة إدارة وتوزيع الخطط والأعباء الدراسية - جامعة المنوفية الأهلية
             </td>
             <td colspan="${headers.length - 9}" style="border: none;"></td>
           </tr>
@@ -3765,7 +3740,7 @@ const ProfessorsPage = () => {
             </td>
           </tr>
           <tr>
-            ${headers.map(h => `<th style="background-color: #2e7d32; color: #ffffff;">${h}</th>`).join("")}
+            ${headers.map(h => `<th style="background-color: transparent; color: #ffffff;">${h}</th>`).join("")}
           </tr>
           ${excelRowsHtml}
           ${renderProfSignaturesExcelHTML(fids, headers.length)}

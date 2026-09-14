@@ -1972,19 +1972,7 @@ const ControlPanelPage = () => {
                                     );
                                 })}
 
-                                {/* زر إضافة قاعدة جديدة مخصصة */}
-                                <div className="text-center my-3">
-                                    <Button
-                                        type="button"
-                                        variant="outline-primary"
-                                        className="w-100 py-3 rounded-4 fw-bold shadow-xs border-2 d-flex align-items-center justify-content-center gap-2"
-                                        style={{ borderStyle: 'dashed', backgroundColor: '#f5f3ff', fontSize: '1rem', color: '#7c3aed', borderColor: '#a78bfa' }}
-                                        onClick={handleAddRuleGroup}
-                                    >
-                                        <FaPlus style={{ color: '#7c3aed' }} />
-                                        <span style={{ color: '#7c3aed' }}>➕ إضافة قاعدة ومعادلة جديدة لكليات أخرى</span>
-                                    </Button>
-                                </div>
+                                {/* زر إضافة قاعدة جديدة مخصصة تم إزالته بناءً على طلب المستخدم */}
                             </div>
 
                             {/* القسم 2: تفصيل الحدود حسب نوع الساعات اليومية */}

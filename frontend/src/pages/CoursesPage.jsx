@@ -2351,23 +2351,35 @@ const CoursesPage = () => {
 
         <body>
 
-          <div class="header-container">
+          <div class="header-container" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2e7d32; padding-bottom: 15px; margin-bottom: 20px;">
 
-            <img 
+            <div style="text-align: right; font-size: 11px; line-height: 1.5; color: transparent; width: 250px;">
 
-              src="${window.location.origin}${logo}" 
+            </div>
 
-              alt="جامعة المنوفية الأهلية" 
+            <div style="text-align: center;">
 
-              class="header-logo" 
+              <div style="display: inline-block; padding: 6px 20px; background-color: #f8f9fa; border: 2px solid #2e7d32; border-radius: 8px;">
 
-            />
+                <h2 style="margin: 0; font-size: 18px; color: #2e7d32; font-weight: bold;">${documentTitle}</h2>
 
-            <div>
+              </div>
 
-              <h2 class="header-title">${documentTitle}</h2>
+            </div>
 
-              <h3 class="header-subtitle">جامعة المنوفية الأهلية - شؤون التعليم والطلاب</h3>
+            <div style="display: flex; align-items: center; gap: 12px; width: 250px; justify-content: flex-end;">
+
+              <div style="text-align: right; line-height: 1.35;">
+
+                <div style="font-size: 16px; font-weight: bold; color: #1b5e20;">جامعة المنوفية الأهلية</div>
+
+                <div style="font-size: 13px; font-weight: bold; color: #222; margin-top: 2px;">إدارة شؤون التعليم والطلاب</div>
+
+                <div style="font-size: 11px; color: #555; margin-top: 2px;">منظومة إدارة وتوزيع الخطط والأعباء الدراسية</div>
+
+              </div>
+
+              <img src="${window.location.origin}${logo}" alt="جامعة المنوفية الأهلية" style="width: 75px; height: 75px; object-fit: contain;" />
 
             </div>
 
@@ -3062,6 +3074,7 @@ const CoursesPage = () => {
                     <h1>بيان مقرر دراسي</h1>
 
                     <h2>جامعة المنوفية الأهلية</h2>
+                    <h2 style="font-size: 13px;">منظومة إدارة وتوزيع الخطط والأعباء الدراسية</h2>
 
                   </div>
 
@@ -3996,8 +4009,8 @@ const CoursesPage = () => {
               </th>
             </tr>
             <tr style="height: 30px;">
-              <th colspan="${isAllMedicine ? 14 : activeCols.length - 1}" style="background-color: #2e7d32; color: #e8f5e9; text-align: right; padding-right: 15px; font-size: 16px; font-weight: normal; border: none; vertical-align: middle; padding-bottom: 5px;">
-                جامعة المنوفية الأهلية
+              <th colspan="${isAllMedicine ? 14 : activeCols.length - 1}" style="background-color: #2e7d32; color: #e8f5e9; text-align: right; padding-right: 15px; font-size: 16px; font-weight: bold; border: none; vertical-align: middle; padding-bottom: 5px;">
+                منظومة إدارة وتوزيع الخطط والأعباء الدراسية - جامعة المنوفية الأهلية
               </th>
             </tr>
             ${headersHtml}

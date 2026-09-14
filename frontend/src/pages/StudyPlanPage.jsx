@@ -2054,13 +2054,13 @@ const StudyPlanPage = () => {
     const formatSigTitleExcel = (title) => {
       if (!title) return "";
       const t = title.trim();
-      if (t.includes("نائب رئيس الجامعة") && (t.includes("للشئون") || t.includes("لشئون") || t.includes("لشؤون") || t.includes("للشؤون"))) {
+      if (t.includes("نائب رئيس الجامعة") && (t.includes("للشؤون") || t.includes("لشؤون") || t.includes("لشؤون") || t.includes("للشؤون"))) {
         return t.replace(/(لل?ش[ؤئ]ون)/, '<br style="mso-data-placement:same-cell;"/>$1');
       }
       if (t.includes("عميد قطاع") && (t.includes("والعلوم") || t.includes("والتطبيقية"))) {
         return t.replace(/(والعلوم)/, '<br style="mso-data-placement:same-cell;"/>$1');
       }
-      if ((t.includes("مدير إدارة") || t.includes("مدير ادارة")) && (t.includes("شؤون") || t.includes("شئون"))) {
+      if ((t.includes("مدير إدارة") || t.includes("مدير ادارة")) && (t.includes("شؤون") || t.includes("شؤون"))) {
         return t.replace(/(ش[ؤئ]ون)/, '<br style="mso-data-placement:same-cell;"/>$1');
       }
       if (t.includes("منسق البرامج") && t.includes("الهندسية")) {
@@ -3013,7 +3013,8 @@ ${isMedicine ? `
 
     <div style="position: absolute; right: 0; top: 0; text-align: right; line-height: 1.35; white-space: nowrap;">
       <div style="font-size: 13.5pt; font-weight: bold; color: #1b5e20;">جامعة المنوفية الأهلية</div>
-      <div style="font-size: 11pt; font-weight: bold; color: #222; margin-top: 2px;">شئون التعليم والطلاب</div>
+      <div style="font-size: 11pt; font-weight: bold; color: #222; margin-top: 2px;">إدارة شؤون التعليم والطلاب</div>
+                                                <div style="font-size: 10pt; font-weight: bold; color: #555; margin-top: 2px;">منظومة إدارة وتوزيع الخطط والأعباء الدراسية</div>
     </div>
 
     <div style="width: 100%; text-align: center; line-height: 1.35; padding: 0 140px; box-sizing: border-box;">
@@ -3078,14 +3079,15 @@ ${dataRowsHtml}
 <tr>
   <td class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #1b5e20; vertical-align: middle;"><font color="#1b5e20" size="4" style="font-size: 13pt;"><b>جامعة المنوفية الأهلية</b></font></td>
   <td colspan="${totalCols - 2}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #1b5e20; vertical-align: middle;"><font color="#1b5e20" size="4" style="font-size: 13pt;"><b>${facName.startsWith("كلية") ? facName : `كلية ${facName}`}</b></font></td>
-  <td colspan="1" rowspan="2" class="no-border" align="center" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; vertical-align: middle; padding: 0;"><img src="${window.location.origin}${logo}" width="85" height="85" style="display: block; margin: 0 auto;" /></td>
+  <td colspan="1" rowspan="3" class="no-border" align="center" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; vertical-align: middle; padding: 0;"><img src="${window.location.origin}${logo}" width="85" height="85" style="display: block; margin: 0 auto;" /></td>
 </tr>
 <tr>
-  <td class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; vertical-align: middle;"><font size="4" style="font-size: 13pt;"><b>شئون التعليم والطلاب</b></font></td>
+  <td class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; vertical-align: middle;"><font size="4" style="font-size: 13pt;"><b>إدارة شؤون التعليم والطلاب</b></font></td>
   <td colspan="${totalCols - 2}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #222; vertical-align: middle;"><font size="4" style="font-size: 13pt;"><b>المستويات ( ${levelNames} )</b></font></td>
 </tr>
 <tr>
-  <td colspan="${totalCols}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-size: 13pt !important; font-weight: bold; color: #333; vertical-align: middle; padding: 2px 0;"><font size="4" style="font-size: 13pt;"><b>${activeProgNamesList.length > 1 ? 'برامج' : 'برنامج'}: ${progNames}</b></font></td>
+  <td class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; vertical-align: middle;"><font size="4" font-weight: bold; style="font-size: 11pt; color: #555;"><b>منظومة إدارة وتوزيع الخطط والأعباء الدراسية</b></font></td>
+  <td colspan="${totalCols - 2}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #222; vertical-align: middle;"><font size="4" style="font-size: 13pt;"><b>${activeProgNamesList.length > 1 ? 'برامج' : 'برنامج'}: ${progNames}</b></font></td>
 </tr>
 <tr>
   <td colspan="${totalCols}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #1b5e20; padding: 3px 0;"><font color="#1b5e20" size="4" style="font-size: 13pt;"><b>توزيع الدروس على السادة أعضاء هيئة التدريس والهيئة المعاونة القائمين بالتدريس في ${selectedSemester} للعام الجامعي ${selectedYear} م &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; نموذج (1) تدريس ( نظام ساعات معتمدة )</b></font></td>
@@ -3356,20 +3358,21 @@ ${signaturesHtml}
           <th colspan="${totalCols}" style="border: none !important; background: transparent !important; color: inherit; padding: 10px 0 4px 0; font-weight: normal;">
             <div style="position: relative; width: 100%; box-sizing: border-box;">
               <div style="position: absolute; left: 0; top: 0; z-index: 10;">
-                <img src="${window.location.origin}${logo}" width="80" height="80" style="object-fit: contain; display: block; float: left;" />
+                <img src="${window.location.origin}${logo}" width="90" height="90" style="object-fit: contain; display: block; float: left;" />
               </div>
 
               <div style="position: absolute; right: 0; top: 0; text-align: right; line-height: 1.35; white-space: nowrap;">
                 <div style="font-size: 13.5pt; font-weight: bold; color: #1b5e20;">جامعة المنوفية الأهلية</div>
-                <div style="font-size: 11pt; font-weight: bold; color: #222; margin-top: 2px;">شئون التعليم والطلاب</div>
+                <div style="font-size: 11pt; font-weight: bold; color: #222; margin-top: 2px;">إدارة شؤون التعليم والطلاب</div>
+                <div style="font-size: 10pt; font-weight: bold; color: #555; margin-top: 2px;">منظومة إدارة وتوزيع الخطط والأعباء الدراسية</div>
               </div>
 
-              <div style="width: 100%; text-align: center; line-height: 1.35; padding: 0 140px; box-sizing: border-box;">
+              <div style="width: 100%; text-align: center; line-height: 1.35; padding: 15px 140px 0; box-sizing: border-box;">
                 <div style="font-size: 15.5pt; font-weight: bold; color: #1b5e20; white-space: nowrap;">${facName.startsWith("كلية") ? facName : `كلية ${facName}`}</div>
                 <div style="font-size: 11.5pt; font-weight: bold; color: #222; margin-top: 2px; white-space: nowrap;">${(isSingleProgram && progNames) ? `برنامج: ${progNames}` : "&nbsp;"}</div>
               </div>
 
-              <div style="width: 100%; text-align: right; font-weight: bold; font-size: 11.5pt; color: #1b5e20; margin-top: 6px; margin-bottom: 2px; padding-right: 2px; padding-left: 115px; box-sizing: border-box; line-height: 1.35;">
+              <div style="width: 100%; text-align: right; font-weight: bold; font-size: 11.5pt; color: #1b5e20; margin-top: 8px; margin-bottom: 2px; padding-right: 2px; padding-left: 115px; box-sizing: border-box; line-height: 1.35;">
                 بيان بالسادة أعضاء هيئة التدريس والهيئة المعاونة القائمين بالتدريس في ${selectedSemester} للعام الجامعي ${selectedYear} م &nbsp;&nbsp;&nbsp; نموذج (2) تدريس ( نظام ساعات معتمدة )
               </div>
             </div>
@@ -3408,8 +3411,8 @@ ${signaturesHtml}
   <x:Selected/>
   <x:FreezePanes/>
   <x:FrozenNoSplit/>
-  <x:SplitHorizontal>5</x:SplitHorizontal>
-  <x:TopRowBottomPane>5</x:TopRowBottomPane>
+  <x:SplitHorizontal>6</x:SplitHorizontal>
+  <x:TopRowBottomPane>6</x:TopRowBottomPane>
   <x:ActivePane>2</x:ActivePane>
   </x:WorksheetOptions>
   </x:ExcelWorksheet>
@@ -3423,11 +3426,15 @@ ${signaturesHtml}
   <table style="width: 100%; border-collapse: collapse;">
     <tr>
       <td class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #1b5e20; vertical-align: middle;"><font color="#1b5e20" size="4" style="font-size: 13pt;"><b>جامعة المنوفية الأهلية</b></font></td>
-      <td colspan="${totalCols - 2}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #1b5e20; vertical-align: middle;"><font color="#1b5e20" size="4" style="font-size: 13pt;"><b>${facName.startsWith("كلية") ? facName : `كلية ${facName}`}</b></font></td>
-      <td colspan="1" rowspan="2" class="no-border" align="center" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; vertical-align: middle; padding: 0;"><img src="${window.location.origin}${logo}" width="65" height="65" style="display: block; margin: 0 auto;" /></td>
+      <td colspan="${totalCols - 2}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #1b5e20; vertical-align: middle;"></td>
+      <td colspan="1" rowspan="3" class="no-border" align="center" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; vertical-align: middle; padding: 0;"><img src="${window.location.origin}${logo}" width="85" height="85" style="display: block; margin: 0 auto;" /></td>
     </tr>
     <tr>
-      <td class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; vertical-align: middle;"><font size="4" style="font-size: 13pt;"><b>شئون التعليم والطلاب</b></font></td>
+      <td class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; vertical-align: middle;"><font size="4" style="font-size: 13pt;"><b>إدارة شؤون التعليم والطلاب</b></font></td>
+      <td colspan="${totalCols - 2}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #1b5e20; vertical-align: middle;"><font color="#1b5e20" size="4" style="font-size: 13pt;"><b>${facName.startsWith("كلية") ? facName : `كلية ${facName}`}</b></font></td>
+    </tr>
+    <tr>
+      <td class="no-border header-title" style="border: none !important; mso-border-alt: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; vertical-align: middle;"><font size="4" style="font-size: 11pt; font-weight: bold; color: #555;"><b>منظومة إدارة وتوزيع الخطط والأعباء الدراسية</b></font></td>
       <td colspan="${totalCols - 2}" class="no-border header-title" style="border: none !important; mso-border-alt: none !important; text-align: center; font-weight: bold; font-size: 13pt !important; color: #222; vertical-align: middle;"><font size="4" style="font-size: 13pt;"><b>${(isSingleProgram && progNames) ? `برنامج: ${progNames}` : ""}</b></font></td>
     </tr>
     <tr>

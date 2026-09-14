@@ -703,7 +703,8 @@ const MainTablePage = () => {
                                             </div>
                                             <div style="position: absolute; right: 0; top: 0; text-align: right; line-height: 1.35; white-space: nowrap;">
                                                 <div style="font-size: 13.5pt; font-weight: bold; color: #1b5e20;">جامعة المنوفية الأهلية</div>
-                                                <div style="font-size: 11pt; font-weight: bold; color: #222; margin-top: 2px;">شئون التعليم والطلاب</div>
+                                                <div style="font-size: 11pt; font-weight: bold; color: #222; margin-top: 2px;">إدارة شؤون التعليم والطلاب</div>
+                                                <div style="font-size: 10pt; font-weight: bold; color: #555; margin-top: 2px;">منظومة إدارة وتوزيع الخطط والأعباء الدراسية</div>
                                             </div>
                                             <div style="width: 100%; text-align: center; line-height: 1.35; padding: 0 140px; box-sizing: border-box;">
                                                 <div style="font-size: 16pt; font-weight: bold; color: #1b5e20; white-space: nowrap;">الجدول الرئيسي الموحد</div>
@@ -995,7 +996,8 @@ const MainTablePage = () => {
                                             </div>
                                             <div style="position: absolute; right: 0; top: 0; text-align: right; line-height: 1.35; white-space: nowrap;">
                                                 <div style="font-size: 13.5pt; font-weight: bold; color: #1b5e20;">جامعة المنوفية الأهلية</div>
-                                                <div style="font-size: 11pt; font-weight: bold; color: #222; margin-top: 2px;">شئون التعليم والطلاب</div>
+                                                <div style="font-size: 11pt; font-weight: bold; color: #222; margin-top: 2px;">إدارة شؤون التعليم والطلاب</div>
+                                                <div style="font-size: 10pt; color: #555; font-weight: bold; margin-top: 2px;">منظومة إدارة وتوزيع الخطط والأعباء الدراسية</div>
                                             </div>
                                             <div style="width: 100%; text-align: center; line-height: 1.35; padding: 0 140px; box-sizing: border-box;">
                                                 <div style="font-size: 16pt; font-weight: bold; color: #1b5e20; white-space: nowrap;">بيانات أعضاء هيئة التدريس وتوزيع المقرارات</div>

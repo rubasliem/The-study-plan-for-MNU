@@ -191,7 +191,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
   const [customizedCourses, setCustomizedCourses] = useState([]);
   const [selectedPlanCourse, setSelectedPlanCourse] = useState(null);
   const [customWeeksCount, setCustomWeeksCount] = useState('');
-
+  const [showEditCourseWeeksModal, setShowEditCourseWeeksModal] = useState(false);
 
   // Deduction Form State
   const [deductedHours, setDeductedHours] = useState('');
@@ -560,6 +560,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
       if (selectedProfessorId) {
         fetchProfessorCourses(selectedProfessorId);
       }
+      setShowEditCourseWeeksModal(false);
     } catch (err) {
       console.error("Error saving course weeks", err);
       toast.error(err.response?.data?.detail || "حدث خطأ أثناء حفظ أسابيع المقرر");
@@ -587,6 +588,228 @@ const WorkloadPage = ({ isReadOnly = false }) => {
       console.error("Error deleting course weeks", err);
       toast.error("حدث خطأ أثناء استعادة عدد الأسابيع الافتراضي");
     }
+  };
+
+  const handleEditCourseWeeks = (c) => {
+    if (isReadOnly) {
+      toast.error("غير مصرح لك بتعديل أسابيع المقررات");
+      return;
+    }
+    const courseToEdit = availablePlanCourses.find(pc => pc.course_key === c.course_key);
+    if (courseToEdit) {
+      setSelectedPlanCourse(courseToEdit);
+    } else {
+      setSelectedPlanCourse({ course_key: c.course_key, course_name: c.course_name });
+    }
+    setCustomWeeksCount(String(c.weeks_count));
+    setShowEditCourseWeeksModal(true);
+  };
+
+  const handlePrintCustomCourses = () => {
+    if (customizedCourses.length === 0) {
+      toast.error("لا توجد مقررات مخصصة لطباعتها");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error("يرجى السماح بالنوافذ المنبثقة للطباعة");
+      return;
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+        <head>
+          <meta charset="utf-8" />
+          <title>بيان المقررات ذات الأسابيع المخصصة - ${selectedFacultyObj?.name || "كلية غير محددة"}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+            thead, .data-table thead { 
+              display: table-header-group !important; 
+            }
+            .data-table tfoot, tfoot { 
+              display: table-footer-group !important; 
+            }
+            thead tr, .header-row-main {
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+              page-break-after: avoid !important;
+              break-after: avoid !important;
+            }
+            tr { 
+              page-break-inside: avoid !important; 
+              break-inside: avoid !important; 
+            }
+            @page { size: A4 landscape; margin: 6mm 6mm; }
+            body { font-family: 'Cairo', Arial, sans-serif; direction: rtl; text-align: right; margin: 0; padding: 0; color: #000; background: #fff; zoom: 85%; }
+            .page-border-overlay {
+              position: fixed;
+              top: 0;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              width: 100%;
+              height: 100%;
+              border: 2.5px solid #1b5e20;
+              outline: 1px solid #1b5e20;
+              outline-offset: -5px;
+              box-sizing: border-box;
+              pointer-events: none;
+              z-index: 9999;
+            }
+            .print-container {
+              padding: 0 14px 10px 14px;
+              box-sizing: border-box;
+              width: 100%;
+            }
+            .data-table { 
+              border-collapse: collapse; 
+              direction: rtl; 
+              width: 100%; 
+              margin: 0 auto; 
+              table-layout: fixed; 
+              page-break-inside: auto;
+            }
+            .data-table th, .data-table td {
+              border: 1px solid #777;
+              padding: 6px 6px;
+              font-size: 9.5pt;
+              text-align: center;
+              vertical-align: middle;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .header-row-main th {
+              background-color: #388e3c !important;
+              color: #ffffff !important;
+              font-weight: bold;
+              font-size: 10pt;
+              border: 1px solid #1b5e20 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            td.course-name {
+              text-align: right;
+              font-weight: 700;
+              color: #0d47a1;
+            }
+            .diff-badge { 
+              display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: bold; 
+            }
+            .diff-neg { color: #ef4444; }
+            .diff-pos { color: #0ea5e9; }
+            .print-btn-bar {
+              margin: 10px 14px 10px 14px;
+              text-align: left;
+            }
+            .print-action-btn {
+              background: #2e7d32;
+              color: white;
+              border: none;
+              padding: 8px 20px;
+              border-radius: 6px;
+              font-family: inherit;
+              font-size: 14px;
+              cursor: pointer;
+              font-weight: bold;
+            }
+            @media print {
+              .no-print {
+                display: none !important;
+              }
+              thead, .data-table thead {
+                display: table-header-group !important;
+              }
+              tfoot, .data-table tfoot {
+                display: table-footer-group !important;
+              }
+              tr {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="page-border-overlay"></div>
+          <div class="no-print print-btn-bar">
+            <button class="print-action-btn" onclick="window.print()">طباعة الآن</button>
+          </div>
+          <div class="print-container">
+            <table class="data-table">
+              <colgroup>
+                <col style="width: 5%;">
+                <col style="width: 45%;">
+                <col style="width: 15%;">
+                <col style="width: 15%;">
+                <col style="width: 20%;">
+              </colgroup>
+              <thead>
+                <tr style="border: none !important;">
+                  <th colspan="5" style="border: none !important; background: transparent !important; color: inherit; padding: 10px 0 8px 0; font-weight: normal;">
+                    <table style="width: 100%; border-collapse: collapse; border: none !important; margin: 0; padding: 0;">
+                      <tr style="border: none !important; background: transparent !important;">
+                        <td style="width: 22%; text-align: right; vertical-align: top; border: none !important; background: transparent !important; padding: 0; line-height: 1.35; white-space: nowrap;">
+                          <div style="font-size: 13.5pt; font-weight: bold; color: #1b5e20;">جامعة المنوفية الأهلية</div>
+                          <div style="font-size: 11pt; font-weight: bold; color: #222; margin-top: 2px;">إدارة شؤون التعليم والطلاب</div>
+                                                <div style="font-size: 10pt; color: #555; margin-top: 2px;">منظومة إدارة وتوزيع الخطط والأعباء الدراسية</div>
+                        </td>
+                        <td style="width: 56%; text-align: center; vertical-align: top; border: none !important; background: transparent !important; padding: 0; line-height: 1.35;">
+                          <div style="font-size: 16pt; font-weight: bold; color: #1b5e20; white-space: nowrap;">بيان المقررات ذات الأسابيع المخصصة (أقل من أسابيع الترم)</div>
+                          <div style="font-size: 11.5pt; font-weight: bold; color: #222; margin-top: 3px; white-space: nowrap;">
+                            <span>${selectedFacultyObj?.name || 'كلية غير محددة'}</span> &nbsp;&nbsp;&nbsp;&nbsp; <span>العام الجامعي ${selectedAcademicYear}</span> &nbsp;&nbsp;&nbsp;&nbsp; <span>${selectedSemester}</span>
+                          </div>
+                          <div style="text-align: center; font-weight: bold; font-size: 10.5pt; color: #1b5e20; margin-top: 6px; margin-bottom: 2px; white-space: nowrap;">
+                            أسابيع الترم الافتراضية للكلية: ${currentFacultyWeeks} أسبوع &nbsp;•&nbsp; تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' })}
+                          </div>
+                        </td>
+                        <td style="width: 22%; text-align: left; vertical-align: top; border: none !important; background: transparent !important; padding: 0;">
+                          <img src="${window.location.origin}${logo}" width="80" height="80" style="object-fit: contain; display: inline-block;" />
+                        </td>
+                      </tr>
+                    </table>
+                  </th>
+                </tr>
+                <tr class="header-row-main">
+                  <th>#</th>
+                  <th>المقرر</th>
+                  <th>كود المقرر</th>
+                  <th>الأسابيع المخصصة</th>
+                  <th>الفارق</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${customizedCourses.map((c, i) => {
+                  const diff = c.weeks_count - currentFacultyWeeks;
+                  const diffText = diff === 0 ? "نفس الترم" : diff > 0 ? "+" + diff + " أسبوع" : diff + " أسبوع";
+                  const diffClass = diff < 0 ? 'diff-neg' : 'diff-pos';
+                  return `
+                    <tr>
+                      <td>${i + 1}</td>
+                      <td class="course-name">${c.course_name}</td>
+                      <td>${c.course_code || '-'}</td>
+                      <td style="font-weight: bold; color: #1b5e20;">${c.weeks_count}</td>
+                      <td><span class="diff-badge ${diffClass}">${diffText}</span></td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+          <script>
+            window.onload = () => {
+              setTimeout(() => { window.print(); }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   // 3. Fetch all deductions for the selected faculty & semester
@@ -1002,7 +1225,8 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                       <tr style="border: none !important; background: transparent !important;">
                         <td style="width: 22%; text-align: right; vertical-align: top; border: none !important; background: transparent !important; padding: 0; line-height: 1.35; white-space: nowrap;">
                           <div style="font-size: 13.5pt; font-weight: bold; color: #1b5e20;">جامعة المنوفية الأهلية</div>
-                          <div style="font-size: 11pt; font-weight: bold; color: #222; margin-top: 2px;">شئون التعليم والطلاب</div>
+                          <div style="font-size: 11pt; font-weight: bold; color: #222; margin-top: 2px;">إدارة شؤون التعليم والطلاب</div>
+                                                <div style="font-size: 10pt; color: #555; margin-top: 2px;">منظومة إدارة وتوزيع الخطط والأعباء الدراسية</div>
                         </td>
                         <td style="width: 56%; text-align: center; vertical-align: top; border: none !important; background: transparent !important; padding: 0; line-height: 1.35;">
                           <div style="font-size: 16pt; font-weight: bold; color: #1b5e20; white-space: nowrap;">بيان استقطاع وتخفيض الساعات التدريسية</div>
@@ -1348,7 +1572,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                 </div>
               ) : (
                 <>
-                  <Form onSubmit={handleSaveCourseWeeks} className="mb-4">
+                  <Form id="course-weeks-form" onSubmit={handleSaveCourseWeeks} className="mb-4">
                     {/* 1. اختيار المقرر */}
                     <Form.Group className="mb-3">
                       <div className="d-flex align-items-center justify-content-between mb-2">
@@ -1425,21 +1649,26 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                         المقررات المخصصة حالياً ({customizedCourses.length})
                       </span>
                       {customizedCourses.length > 0 && (
-                        <span className="badge bg-light text-secondary border small">
-                          أقل من أسابيع الترم
-                        </span>
+                        <div className="d-flex gap-2">
+                          <span className="badge bg-light text-secondary border small d-flex align-items-center">
+                            أقل من أسابيع الترم
+                          </span>
+                          <Button variant="outline-success" size="sm" className="py-1 px-1 fw-bold" style={{ fontSize: '0.9rem' }} onClick={handlePrintCustomCourses}>
+                            <FaPrint className="me-2" /> طباعة
+                          </Button>
+                        </div>
                       )}
                     </div>
 
                     {customizedCourses.length > 0 ? (
-                      <div className="table-responsive" style={{ maxHeight: '180px', overflowY: 'auto' }}>
-                        <Table hover size="sm" className="align-middle mb-0" style={{ fontSize: '0.85rem' }}>
-                          <thead className="table-light sticky-top">
+                      <div className="table-responsive rounded-3 border" style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                        <Table hover striped className="mb-0 text-center align-middle" style={{ fontSize: '0.92rem' }}>
+                          <thead style={{ backgroundColor: '#c62828', color: 'white' }} className="sticky-top">
                             <tr>
                               <th>المقرر</th>
-                              <th className="text-center">الأسابيع</th>
-                              <th className="text-center">الفارق</th>
-                              {!isReadOnly && <th className="text-center">إجراء</th>}
+                              <th>الأسابيع</th>
+                              <th>الفارق</th>
+                              {!isReadOnly && <th style={{ width: '110px' }}>إجراء</th>}
                             </tr>
                           </thead>
                           <tbody>
@@ -1464,17 +1693,27 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                                     </span>
                                   </td>
                                   {!isReadOnly && (
-                                    <td className="text-center">
-                                      <Button
-                                        variant="outline-danger"
-                                        size="sm"
-                                        className="py-0 px-2"
-                                        style={{ fontSize: '0.75rem' }}
-                                        title={`استعادة الافتراضي (${currentFacultyWeeks} أسبوع)`}
-                                        onClick={() => handleDeleteCourseWeeks(c.custom_id, c.course_name)}
-                                      >
-                                        <FaTimes />
-                                      </Button>
+                                    <td>
+                                      <div className="d-flex align-items-center justify-content-center gap-1">
+                                        <Button
+                                          variant="warning"
+                                          size="sm"
+                                          className="py-1 px-2 shadow-sm text-white"
+                                          title="تم تعديل أسابيع هذا المقرر مسبقاً (اضغط لإعادة التعديل)"
+                                          onClick={() => handleEditCourseWeeks(c)}
+                                        >
+                                          <FaEdit style={{ fontSize: '13px' }} />
+                                        </Button>
+                                        <Button
+                                          variant="outline-danger"
+                                          size="sm"
+                                          className="py-1 px-2 shadow-sm"
+                                          title={`استعادة الافتراضي (${currentFacultyWeeks} أسبوع)`}
+                                          onClick={() => handleDeleteCourseWeeks(c.custom_id, c.course_name)}
+                                        >
+                                          <FaTrash style={{ fontSize: '12px' }} />
+                                        </Button>
+                                      </div>
                                     </td>
                                   )}
                                 </tr>
@@ -2083,6 +2322,93 @@ const WorkloadPage = ({ isReadOnly = false }) => {
           )}
         </Card.Body>
       </Card>
+
+      {/* نافذة تعديل أسابيع المقرر */}
+      <Modal
+        show={showEditCourseWeeksModal}
+        onHide={() => !courseWeeksSaving && setShowEditCourseWeeksModal(false)}
+        centered
+        dir="rtl"
+        size="md"
+        backdrop="static"
+      >
+        <Modal.Header
+          closeButton={!courseWeeksSaving}
+          closeVariant="white"
+          style={{ backgroundColor: '#2e7d32', color: '#fff' }}
+        >
+          <Modal.Title className="fw-bold fs-5 d-flex align-items-center gap-2">
+            <FaEdit />
+            <span>تعديل أسابيع المقرر</span>
+          </Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleSaveCourseWeeks}>
+          <Modal.Body className="p-4" style={{ backgroundColor: '#fdfdfd' }}>
+            <div
+              className="p-3 mb-4 rounded-3 border shadow-sm"
+              style={{
+                backgroundColor: '#f1f8e9',
+                borderColor: '#c8e6c9'
+              }}
+            >
+              <div className="d-flex align-items-center gap-2">
+                <FaBookOpen className="text-primary fs-5" />
+                <div>
+                  <small className="text-muted d-block">المقرر الحالي:</small>
+                  <strong className="text-dark fs-6">{selectedPlanCourse?.course_name || 'غير محدد'}</strong>
+                </div>
+              </div>
+            </div>
+            
+            <Form.Group>
+              <Form.Label className="fw-bold text-dark mb-1">
+                عدد أسابيع المقرر <span className="text-danger">*</span>
+              </Form.Label>
+              <Form.Control
+                type="number"
+                min="1"
+                max="30"
+                step="1"
+                value={customWeeksCount}
+                onChange={(e) => setCustomWeeksCount(e.target.value)}
+                placeholder={String(currentFacultyWeeks)}
+                required
+                className="fw-bold fs-6 text-center"
+                style={{ borderColor: '#2e7d32' }}
+              />
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer className="bg-light d-flex justify-content-between">
+            <Button
+              variant="outline-secondary"
+              onClick={() => setShowEditCourseWeeksModal(false)}
+              disabled={courseWeeksSaving}
+              className="px-4"
+            >
+              إلغاء
+            </Button>
+            <Button
+              variant="success"
+              type="submit"
+              disabled={courseWeeksSaving || !customWeeksCount || parseInt(customWeeksCount) <= 0}
+              className="d-flex align-items-center gap-2 px-4 shadow-sm"
+              style={{ backgroundColor: '#2e7d32', borderColor: '#2e7d32' }}
+            >
+              {courseWeeksSaving ? (
+                <>
+                  <Spinner size="sm" animation="border" />
+                  <span>جاري الحفظ...</span>
+                </>
+              ) : (
+                <>
+                  <FaSave />
+                  <span>حفظ التعديلات</span>
+                </>
+              )}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
 
       {/* نافذة تعديل الاستقطاع */}
       <Modal
