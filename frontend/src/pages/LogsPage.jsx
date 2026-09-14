@@ -877,7 +877,7 @@ const LogsPage = () => {
                                         const isSelected = selectedIds.includes(item.id);
                                         const isFailed = item.status === 'failed';
                                         return (
-                                            <tr key={item.id} className={`${isSelected ? 'table-active' : ''} ${isFailed ? 'table-danger-subtle row-failed' : ''}`}>
+                                            <tr key={item.id} className={isFailed ? 'table-danger-subtle row-failed' : ''}>
                                                 {isAdmin && (
                                                     <td className="d-print-none">
                                                         <Form.Check 
