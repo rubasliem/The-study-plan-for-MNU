@@ -3644,12 +3644,12 @@ def export_professors_assignments(request: ExportAssignmentsRequest, db: Session
 def get_semester_filter(semester_str: str):
     if not semester_str:
         return None
-    if "الصيفي" in semester_str:
-        return models.StudyPlan.semester.like("%الصيفي%")
-    elif "الأول" in semester_str:
-        return models.StudyPlan.semester.like("%الأول%")
-    elif "الثاني" in semester_str:
-        return models.StudyPlan.semester.like("%الثاني%")
+    if "الصيفي" in semester_str or "صيف" in semester_str:
+        return or_(models.StudyPlan.semester.like("%الصيفي%"), models.StudyPlan.semester.like("%صيف%"))
+    elif "الأول" in semester_str or "اول" in semester_str:
+        return or_(models.StudyPlan.semester.like("%الأول%"), models.StudyPlan.semester.like("%اول%"))
+    elif "الثاني" in semester_str or "ثان" in semester_str:
+        return or_(models.StudyPlan.semester.like("%الثاني%"), models.StudyPlan.semester.like("%ثان%"))
     return models.StudyPlan.semester == semester_str
 
 @app.get("/api/study-plans", response_model=list[schemas.StudyPlanOut])
@@ -4112,21 +4112,15 @@ def delete_study_plan(id: int, db: Session = Depends(get_db)):
 
 @app.delete("/api/study-plans/bulk/all")
 def bulk_delete_study_plan(faculty_id: int, semester: str, academic_year: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    if "الصيفي" in semester:
-        semester_filter = models.StudyPlan.semester.like("%الصيفي%")
-    elif "الأول" in semester:
-        semester_filter = models.StudyPlan.semester.like("%الأول%")
-    elif "الثاني" in semester:
-        semester_filter = models.StudyPlan.semester.like("%الثاني%")
-    else:
-        semester_filter = models.StudyPlan.semester == semester
-
-    plans = db.query(models.StudyPlan).filter(
+    sem_filter = get_semester_filter(semester)
+    query = db.query(models.StudyPlan).filter(
         models.StudyPlan.faculty_id == faculty_id,
-        semester_filter,
         models.StudyPlan.academic_year == academic_year,
         models.StudyPlan.is_deleted == False
-    ).all()
+    )
+    if sem_filter is not None:
+        query = query.filter(sem_filter)
+    plans = query.all()
     
     if not plans:
         return {"message": "لا يوجد خطة دراسية لمسحها"}

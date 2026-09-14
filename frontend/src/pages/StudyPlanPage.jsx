@@ -888,10 +888,49 @@ const StudyPlanPage = () => {
   };
 
   const handleClearEntirePlan = async () => {
-    const isConfirmed = await confirmAction("هل أنت متأكد من مسح الخطة بالكامل؟");
-    if (isConfirmed) {
+    if (!selectedFaculty || !selectedSemester || !selectedYear) {
+      toast.error("الرجاء اختيار الكلية والفصل الدراسي والعام الجامعي أولاً.");
+      return;
+    }
+
+    if (planRows.length === 0 && (!existingPlanIds || existingPlanIds.length === 0)) {
+      toast.warning("الخطة الدراسية فارغة بالفعل.");
+      return;
+    }
+
+    const isConfirmed = await confirmAction("هل أنت متأكد من مسح الخطة الدراسية بالكامل من قاعدة البيانات؟");
+    if (!isConfirmed) return;
+
+    setSaving(true);
+    try {
+      if (existingPlanIds && existingPlanIds.length > 0) {
+        for (let pid of existingPlanIds) {
+          try {
+            await axios.delete(`${API}/api/study-plans/${pid}`);
+          } catch (e) {
+            console.warn(`Could not delete plan id ${pid}:`, e);
+          }
+        }
+      }
+
+      await axios.delete(`${API}/api/study-plans/bulk/all`, {
+        params: {
+          faculty_id: selectedFaculty,
+          semester: selectedSemester,
+          academic_year: selectedYear
+        }
+      });
+
       setPlanRows([]);
-      toast.success("تم مسح الخطة الدراسية بالكامل!");
+      setExistingPlanIds([]);
+      setCurrentPlan(null);
+      toast.success("تم مسح الخطة الدراسية بالكامل بنجاح!");
+      fetchFacultyDataAndPlan(selectedFaculty, selectedSemester, selectedYear, false);
+    } catch (err) {
+      console.error("Error clearing entire plan:", err);
+      toast.error("حدث خطأ أثناء مسح الخطة من قاعدة البيانات");
+    } finally {
+      setSaving(false);
     }
   };
 
