@@ -25,15 +25,56 @@
   gap: 12px;
 }
 
-.logo-image {
+.logo-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 135px;
   height: 135px;
-  object-fit: contain;
-  transition: transform 0.3s ease;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.35s ease;
 }
 
-.logo-container:hover .logo-image {
+.logo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform 0.35s ease;
+}
+
+/* شعاع ضوء براق يمر فوق صورة الشعار بانسيابية عند لمس/تمرير الماوس */
+.logo-wrapper::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -120%;
+  width: 65%;
+  height: 200%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.25) 20%,
+    rgba(255, 255, 255, 0.85) 50%,
+    rgba(255, 255, 255, 0.25) 80%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: rotate(25deg);
+  pointer-events: none;
+  z-index: 2;
+  transition: left 0.75s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.logo-wrapper:hover,
+.logo-container:hover .logo-wrapper {
   transform: scale(1.05);
+}
+
+.logo-wrapper:hover::before,
+.logo-container:hover .logo-wrapper::before {
+  left: 150%;
 }
 
 .logo-title {
@@ -180,10 +221,17 @@
   overflow: hidden !important;
   background-color: #ffffff;
   border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 8px;
+  border-radius: 10px;
   color: var(--text-title, #343a40);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   cursor: pointer;
+  height: 42px;
+  width: 42px;
+  min-width: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 /* شعاع ضوئي رمادي متحرك Sweep Shimmer Light مطابق تماماً لزر نسخ الخطة */
@@ -192,7 +240,7 @@
   position: absolute;
   top: 0;
   left: -100%;
-  width: 70%;
+  width: 100%;
   height: 100%;
   background: linear-gradient(
     90deg,
@@ -240,7 +288,7 @@
   border: 1px solid #fee2e2 !important;
   color: #ef4444;
   border-radius: 10px;
-  width: 100%;
+  flex: 1;
   height: 42px;
   display: flex;
   align-items: center;

@@ -4139,19 +4139,25 @@ def bulk_delete_study_plan(faculty_id: int, semester: str, academic_year: str, d
 
 @app.get("/api/professors/by-faculty/{faculty_id}")
 def get_professors_by_faculty(
-    faculty_id: int,
+    faculty_id: str,
     academic_year: Optional[str] = None,
     semester: Optional[str] = None,
     assigned_only: Optional[bool] = False,
     db: Session = Depends(get_db)
 ):
-    """جلب الدكاترة المنتمين لكلية معينة، أو المخصص لهم مقررات بالخطة الدراسية لهذا الفصل والعام فقط"""
+    """جلب الدكاترة المنتمين لكلية معينة، أو المخصص لهم مقررات بالخطة الدراسية لهذا الفصل والعام فقط، أو جميع الكليات"""
+    is_all = str(faculty_id).lower() == "all"
     if assigned_only or (academic_year and semester):
         items_query = db.query(models.StudyPlanItem.professor_id).join(models.StudyPlan).filter(
-            models.StudyPlan.faculty_id == faculty_id,
             models.StudyPlan.is_deleted == False,
             models.StudyPlanItem.professor_id.isnot(None)
         )
+        if not is_all:
+            try:
+                items_query = items_query.filter(models.StudyPlan.faculty_id == int(faculty_id))
+            except ValueError:
+                pass
+
         if academic_year:
             items_query = items_query.filter(models.StudyPlan.academic_year == academic_year)
         if semester:
@@ -4178,12 +4184,21 @@ def get_professors_by_faculty(
             return []
             
         profs = db.query(models.Professor).filter(models.Professor.id.in_(prof_ids)).order_by(models.Professor.name_ar).all()
-        return [{"id": p.id, "name_ar": p.name_ar, "job_title": p.job_title, "original_workplace": p.original_workplace} for p in profs]
+        return [{"id": p.id, "name_ar": p.name_ar, "job_title": p.job_title, "original_workplace": p.original_workplace, "faculties": [f.name for f in p.faculties]} for p in profs]
         
+    if is_all:
+        profs = db.query(models.Professor).filter(models.Professor.is_deleted == False).order_by(models.Professor.name_ar).all()
+        return [{"id": p.id, "name_ar": p.name_ar, "job_title": p.job_title, "original_workplace": p.original_workplace, "faculties": [f.name for f in p.faculties]} for p in profs]
+
+    try:
+        fac_id_int = int(faculty_id)
+    except ValueError:
+        return []
+
     profs = db.query(models.Professor).filter(
-        models.Professor.faculties.any(models.Faculty.id == faculty_id)
+        models.Professor.faculties.any(models.Faculty.id == fac_id_int)
     ).order_by(models.Professor.name_ar).all()
-    return [{"id": p.id, "name_ar": p.name_ar, "job_title": p.job_title, "original_workplace": p.original_workplace} for p in profs]
+    return [{"id": p.id, "name_ar": p.name_ar, "job_title": p.job_title, "original_workplace": p.original_workplace, "faculties": [f.name for f in p.faculties]} for p in profs]
 
 @app.get("/api/professors/{id}/assignments")
 def get_professor_assignments(id: int, db: Session = Depends(get_db)):
@@ -4400,17 +4415,25 @@ def get_all_workload_limits(
 
 @app.get("/api/workload/limits")
 def get_workload_limits(
-    faculty_id: int,
+    faculty_id: str,
     academic_year: str,
     semester: str,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    limit = db.query(models.FacultyWorkloadLimit).filter(
-        models.FacultyWorkloadLimit.faculty_id == faculty_id,
-        models.FacultyWorkloadLimit.academic_year == academic_year,
-        models.FacultyWorkloadLimit.semester == semester
-    ).first()
+    is_all = str(faculty_id).lower() == "all"
+    limit = None
+    if not is_all:
+        try:
+            fac_id_int = int(faculty_id)
+            limit = db.query(models.FacultyWorkloadLimit).filter(
+                models.FacultyWorkloadLimit.faculty_id == fac_id_int,
+                models.FacultyWorkloadLimit.academic_year == academic_year,
+                models.FacultyWorkloadLimit.semester == semester
+            ).first()
+        except ValueError:
+            pass
+
     if not limit:
         return {
             "faculty_id": faculty_id,
@@ -4564,7 +4587,7 @@ def get_workload_professor_courses(
     professor_id: int,
     academic_year: str,
     semester: str,
-    faculty_id: Optional[int] = None,
+    faculty_id: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
@@ -4587,8 +4610,12 @@ def get_workload_professor_courses(
     else:
         items_query = items_query.filter(models.StudyPlan.semester == semester)
         
-    if faculty_id:
-        items_query = items_query.filter(models.StudyPlan.faculty_id == faculty_id)
+    is_all_fac = not faculty_id or str(faculty_id).lower() == "all"
+    if not is_all_fac:
+        try:
+            items_query = items_query.filter(models.StudyPlan.faculty_id == int(faculty_id))
+        except ValueError:
+            pass
         
     items = items_query.all()
     
@@ -4632,8 +4659,11 @@ def get_workload_professor_courses(
         models.CourseWorkloadWeek.academic_year == academic_year,
         models.CourseWorkloadWeek.semester == semester
     )
-    if faculty_id:
-        cw_query = cw_query.filter(models.CourseWorkloadWeek.faculty_id == faculty_id)
+    if not is_all_fac:
+        try:
+            cw_query = cw_query.filter(models.CourseWorkloadWeek.faculty_id == int(faculty_id))
+        except ValueError:
+            pass
     cw_records = cw_query.all()
     custom_cw_map = {cw.course_key: cw.weeks_count for cw in cw_records}
     
@@ -4656,6 +4686,7 @@ def get_workload_professor_courses(
                 c_name = f"{c_name} ({dept_n})" if c_name else dept_n
                 
         p_name = itm.program.name if itm.program else ""
+        fac_id = itm.study_plan.faculty_id if (itm.study_plan and itm.study_plan.faculty_id) else None
         fac_name = itm.study_plan.faculty.name if (itm.study_plan and itm.study_plan.faculty) else ""
         
         course_key = f"mod_{m_id}" if m_id else f"crs_{c_id}" if c_id else f"name_{c_name}"
@@ -4700,6 +4731,7 @@ def get_workload_professor_courses(
         courses_list.append({
             "item_id": itm.id,
             "course_key": course_key,
+            "faculty_id": fac_id,
             "faculty_name": fac_name,
             "program_name": p_name,
             "course_name": c_name,
@@ -4723,13 +4755,34 @@ def get_workload_professor_courses(
     # Check existing deductions for this professor, year and semester
     ded_query = db.query(models.ProfessorLoadDeduction).filter(
         models.ProfessorLoadDeduction.professor_id == professor_id,
-        models.ProfessorLoadDeduction.academic_year == academic_year,
-        models.ProfessorLoadDeduction.semester == semester
+        models.ProfessorLoadDeduction.academic_year == academic_year
     )
-    if faculty_id:
-        ded_query = ded_query.filter(
-            (models.ProfessorLoadDeduction.faculty_id == faculty_id) | (models.ProfessorLoadDeduction.faculty_id == None)
-        )
+    if "الصيفي" in semester or "صيف" in semester:
+        ded_query = ded_query.filter(or_(
+            models.ProfessorLoadDeduction.semester.like("%الصيفي%"),
+            models.ProfessorLoadDeduction.semester.like("%صيف%")
+        ))
+    elif "الأول" in semester or "اول" in semester:
+        ded_query = ded_query.filter(or_(
+            models.ProfessorLoadDeduction.semester.like("%الأول%"),
+            models.ProfessorLoadDeduction.semester.like("%اول%")
+        ))
+    elif "الثاني" in semester or "ثان" in semester:
+        ded_query = ded_query.filter(or_(
+            models.ProfessorLoadDeduction.semester.like("%الثاني%"),
+            models.ProfessorLoadDeduction.semester.like("%ثان%")
+        ))
+    else:
+        ded_query = ded_query.filter(models.ProfessorLoadDeduction.semester == semester)
+
+    if not is_all_fac:
+        try:
+            fac_id_int = int(faculty_id)
+            ded_query = ded_query.filter(
+                (models.ProfessorLoadDeduction.faculty_id == fac_id_int) | (models.ProfessorLoadDeduction.faculty_id == None)
+            )
+        except ValueError:
+            pass
     deductions = ded_query.order_by(models.ProfessorLoadDeduction.week_number.asc()).all()
     
     total_deducted_hours = sum(d.deducted_hours for d in deductions)
@@ -4771,7 +4824,7 @@ def get_workload_professor_courses(
 
 @app.get("/api/workload/deductions")
 def get_workload_deductions(
-    faculty_id: Optional[int] = None,
+    faculty_id: Optional[str] = None,
     academic_year: Optional[str] = None,
     semester: Optional[str] = None,
     professor_id: Optional[int] = None,
@@ -4779,8 +4832,11 @@ def get_workload_deductions(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     query = db.query(models.ProfessorLoadDeduction)
-    if faculty_id:
-        query = query.filter(models.ProfessorLoadDeduction.faculty_id == faculty_id)
+    if faculty_id and str(faculty_id).lower() != "all":
+        try:
+            query = query.filter(models.ProfessorLoadDeduction.faculty_id == int(faculty_id))
+        except ValueError:
+            pass
     if academic_year:
         query = query.filter(models.ProfessorLoadDeduction.academic_year == academic_year)
     if semester:
@@ -4838,6 +4894,23 @@ def save_workload_deduction(
     else:
         weeks_to_process.append((None, data.week_name or "أسبوع محدد"))
 
+    # Resolve faculty_id if missing (e.g. when 'all' faculties was selected in UI)
+    resolved_faculty_id = data.faculty_id
+    if not resolved_faculty_id:
+        if data.course_id:
+            sp_item = db.query(models.StudyPlanItem).join(models.StudyPlan).filter(
+                models.StudyPlanItem.course_id == data.course_id,
+                models.StudyPlanItem.professor_id == data.professor_id,
+                models.StudyPlan.academic_year == data.academic_year,
+                models.StudyPlan.is_deleted == False
+            ).first()
+            if sp_item and sp_item.study_plan:
+                resolved_faculty_id = sp_item.study_plan.faculty_id
+        if not resolved_faculty_id:
+            prof_obj = db.query(models.Professor).filter(models.Professor.id == data.professor_id).first()
+            if prof_obj and prof_obj.faculties:
+                resolved_faculty_id = prof_obj.faculties[0].id
+
     user_action_by_str = get_user_action_by(current_user, db)
     saved_deds = []
     
@@ -4852,7 +4925,7 @@ def save_workload_deduction(
         ded = query.first()
 
         if ded:
-            ded.faculty_id = data.faculty_id or ded.faculty_id
+            ded.faculty_id = resolved_faculty_id or ded.faculty_id
             ded.deducted_hours = data.deducted_hours
             ded.week_number = w_num
             ded.week_name = w_name
@@ -4865,7 +4938,7 @@ def save_workload_deduction(
         else:
             ded = models.ProfessorLoadDeduction(
                 professor_id=data.professor_id,
-                faculty_id=data.faculty_id,
+                faculty_id=resolved_faculty_id,
                 academic_year=data.academic_year,
                 semester=data.semester,
                 deducted_hours=data.deducted_hours,
@@ -4987,31 +5060,53 @@ def delete_workload_deduction(
 
 @app.get("/api/workload/course-weeks")
 def get_course_workload_weeks(
-    faculty_id: int,
+    faculty_id: str,
     academic_year: str,
     semester: str,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    # 1. Determine default semester weeks for this faculty & year & semester
-    fac = db.query(models.Faculty).filter(models.Faculty.id == faculty_id).first()
+    is_all = str(faculty_id).lower() == "all"
     ay = db.query(models.AcademicYear).filter(models.AcademicYear.name == academic_year).first()
-    is_med = ("الطب والجراحة" in fac.name or "الطب" in fac.name) if fac else False
+    all_faculties = db.query(models.Faculty).all()
+    fac_map = {f.id: f for f in all_faculties}
     
-    default_weeks = 15
-    if "الصيفي" in semester or "صيف" in semester:
-        default_weeks = (ay.med_summer_weeks if (is_med and ay and ay.med_summer_weeks) else (ay.summer_weeks or 7)) if ay else 7
-    elif "الثاني" in semester:
-        default_weeks = (ay.med_semester2_weeks if (is_med and ay and ay.med_semester2_weeks) else (ay.semester2_weeks or 14)) if ay else 14
-    else:
-        default_weeks = (ay.med_semester1_weeks if (is_med and ay and ay.med_semester1_weeks) else (ay.semester1_weeks or 15)) if ay else 15
+    def get_fac_default_weeks(f_obj):
+        if not f_obj:
+            return 15
+        is_med = ("الطب والجراحة" in f_obj.name or "الطب" in f_obj.name)
+        if "الصيفي" in semester or "صيف" in semester:
+            return (ay.med_summer_weeks if (is_med and ay and ay.med_summer_weeks) else (ay.summer_weeks or 7)) if ay else 7
+        elif "الثاني" in semester:
+            return (ay.med_semester2_weeks if (is_med and ay and ay.med_semester2_weeks) else (ay.semester2_weeks or 14)) if ay else 14
+        else:
+            return (ay.med_semester1_weeks if (is_med and ay and ay.med_semester1_weeks) else (ay.semester1_weeks or 15)) if ay else 15
 
-    # 2. Get all study plan items for this faculty, academic_year, and semester
+    fac = None
+    default_weeks = 15
+    if not is_all:
+        try:
+            fac_id_int = int(faculty_id)
+            fac = fac_map.get(fac_id_int)
+        except ValueError:
+            pass
+        default_weeks = get_fac_default_weeks(fac)
+    else:
+        if "الصيفي" in semester or "صيف" in semester:
+            default_weeks = (ay.summer_weeks or 7) if ay else 7
+        elif "الثاني" in semester:
+            default_weeks = (ay.semester2_weeks or 14) if ay else 14
+        else:
+            default_weeks = (ay.semester1_weeks or 15) if ay else 15
+
+    # 2. Get all study plan items for this faculty (or all faculties), academic_year, and semester
     plan_query = db.query(models.StudyPlanItem).join(models.StudyPlan).filter(
-        models.StudyPlan.faculty_id == faculty_id,
         models.StudyPlan.academic_year == academic_year,
         models.StudyPlan.is_deleted == False
     )
+    if not is_all and fac:
+        plan_query = plan_query.filter(models.StudyPlan.faculty_id == fac.id)
+
     if "الصيفي" in semester:
         plan_query = plan_query.filter(models.StudyPlan.semester.like("%الصيفي%"))
     elif "الأول" in semester:
@@ -5024,11 +5119,15 @@ def get_course_workload_weeks(
     items = plan_query.all()
     
     # 3. Get existing custom weeks from DB
-    custom_records = db.query(models.CourseWorkloadWeek).filter(
-        models.CourseWorkloadWeek.faculty_id == faculty_id,
+    custom_records_query = db.query(models.CourseWorkloadWeek).filter(
         models.CourseWorkloadWeek.academic_year == academic_year,
         models.CourseWorkloadWeek.semester == semester
-    ).all()
+    )
+    if not is_all and fac:
+        custom_records_query = custom_records_query.filter(models.CourseWorkloadWeek.faculty_id == fac.id)
+    custom_records = custom_records_query.all()
+    
+    custom_map_by_fac = {(cw.faculty_id, cw.course_key): cw for cw in custom_records}
     custom_map = {cw.course_key: cw for cw in custom_records}
     
     # 4. Build unique course list from study plan items
@@ -5051,11 +5150,16 @@ def get_course_workload_weeks(
         if not c_name:
             continue
             
-        key = f"mod_{m_id}" if m_id else f"crs_{c_id}" if c_id else f"name_{c_name}"
+        base_key = f"mod_{m_id}" if m_id else f"crs_{c_id}" if c_id else f"name_{c_name}"
+        f_id = itm.study_plan.faculty_id if itm.study_plan else (fac.id if fac else None)
+        f_obj = fac_map.get(f_id) if f_id else fac
+        f_name = f_obj.name if f_obj else ""
+        item_def_weeks = get_fac_default_weeks(f_obj)
+        dict_key = f"fac_{f_id}_{base_key}" if is_all else base_key
         
-        if key not in courses_dict:
-            custom_entry = custom_map.get(key)
-            w_count = custom_entry.weeks_count if custom_entry else default_weeks
+        if dict_key not in courses_dict:
+            custom_entry = custom_map_by_fac.get((f_id, base_key)) or custom_map.get(base_key)
+            w_count = custom_entry.weeks_count if custom_entry else item_def_weeks
             is_custom = True if custom_entry else False
             custom_id = custom_entry.id if custom_entry else None
             
@@ -5066,21 +5170,69 @@ def get_course_workload_weeks(
             l_map = {"0": "التمهيدي", "1": "الأول", "2": "الثاني", "3": "الثالث", "4": "الرابع", "5": "الخامس", 0: "التمهيدي", 1: "الأول", 2: "الثاني", 3: "الثالث", 4: "الرابع", 5: "الخامس"}
             lvl_str = l_map.get(raw_lvl, str(raw_lvl)) if raw_lvl not in [None, '', '-'] else "-"
 
-            courses_dict[key] = {
-                "course_key": key,
+            # Resolve credit hours
+            c_credits = 0
+            if itm.module and itm.module.credit_hours is not None:
+                c_credits = itm.module.credit_hours
+            elif course and course.credit_hours is not None:
+                c_credits = course.credit_hours
+            if isinstance(c_credits, float) and c_credits.is_integer():
+                c_credits = int(c_credits)
+
+            courses_dict[dict_key] = {
+                "course_key": base_key,
+                "dict_key": dict_key,
+                "faculty_id": f_id,
+                "faculty_name": f_name,
                 "course_id": c_id,
                 "module_id": m_id,
                 "course_name": c_name,
                 "course_code": c_code,
+                "credit_hours": c_credits,
                 "program_name": p_name,
                 "level": lvl_str,
                 "weeks_count": w_count,
-                "default_weeks": default_weeks,
+                "default_weeks": item_def_weeks,
                 "is_custom": is_custom,
                 "custom_id": custom_id
             }
+
+    # Ensure any custom records not currently in plan items are also included in customized_list
+    for cw in custom_records:
+        cw_f_id = cw.faculty_id
+        cw_f_obj = fac_map.get(cw_f_id)
+        cw_f_name = cw_f_obj.name if cw_f_obj else (cw.faculty.name if cw.faculty else "")
+        cw_def_weeks = get_fac_default_weeks(cw_f_obj)
+        dict_key = f"fac_{cw_f_id}_{cw.course_key}" if is_all else cw.course_key
+
+        if dict_key not in courses_dict:
+            c_credits = 0
+            if cw.module and cw.module.credit_hours is not None:
+                c_credits = cw.module.credit_hours
+            elif cw.course and cw.course.credit_hours is not None:
+                c_credits = cw.course.credit_hours
+            if isinstance(c_credits, float) and c_credits.is_integer():
+                c_credits = int(c_credits)
+
+            courses_dict[dict_key] = {
+                "course_key": cw.course_key,
+                "dict_key": dict_key,
+                "faculty_id": cw_f_id,
+                "faculty_name": cw_f_name,
+                "course_id": cw.course_id,
+                "module_id": cw.module_id,
+                "course_name": cw.course_name,
+                "course_code": cw.course_code,
+                "credit_hours": c_credits,
+                "program_name": "",
+                "level": "-",
+                "weeks_count": cw.weeks_count,
+                "default_weeks": cw_def_weeks,
+                "is_custom": True,
+                "custom_id": cw.id
+            }
             
-    courses_list = sorted(list(courses_dict.values()), key=lambda x: x["course_name"])
+    courses_list = sorted(list(courses_dict.values()), key=lambda x: (x.get("faculty_name", ""), x["course_name"]))
     customized_list = [c for c in courses_list if c["is_custom"]]
     
     return {

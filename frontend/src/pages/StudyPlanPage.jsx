@@ -221,6 +221,73 @@ const StudyPlanPage = () => {
   const [sourceAcademicYear, setSourceAcademicYear] = useState("");
   const [sourceSemester, setSourceSemester] = useState("");
   const [copyingPlan, setCopyingPlan] = useState(false);
+  const [sourcePlanCourses, setSourcePlanCourses] = useState([]);
+  const [selectedSourceCourses, setSelectedSourceCourses] = useState([]);
+  const [loadingSourceCourses, setLoadingSourceCourses] = useState(false);
+  const [cachedSourcePlans, setCachedSourcePlans] = useState(null);
+
+  // جلب مقررات الخطة الدراسية للعام والفصل المصدر عند فتح نافذة النسخ أو تغيير العام/الفصل
+  useEffect(() => {
+    if (!showCopyPlanModal || !selectedFaculty || !sourceAcademicYear || !sourceSemester) {
+      setSourcePlanCourses([]);
+      setSelectedSourceCourses([]);
+      setCachedSourcePlans(null);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchSourcePlanCourses = async () => {
+      setLoadingSourceCourses(true);
+      try {
+        const res = await axios.get(
+          `${API}/api/study-plans?faculty_id=${selectedFaculty}&semester=${encodeURIComponent(sourceSemester)}&academic_year=${encodeURIComponent(sourceAcademicYear)}`
+        );
+        if (!isMounted) return;
+        const plans = res.data || [];
+        setCachedSourcePlans(plans);
+
+        const courseMap = new Map();
+        plans.forEach(plan => {
+          if (plan.items) {
+            plan.items.forEach(item => {
+              const cId = item.base_course_id || item.course_id;
+              if (cId && !courseMap.has(String(cId))) {
+                const nameAr = item.course?.name_ar || "";
+                const nameEn = item.course?.name_en || "";
+                const code = item.course?.code || "";
+                const displayName = nameAr || nameEn || "مقرر بدون اسم";
+                const label = code ? `${displayName} (${code})` : displayName;
+                courseMap.set(String(cId), {
+                  value: String(cId),
+                  label: label,
+                  code: code,
+                  nameAr: nameAr
+                });
+              }
+            });
+          }
+        });
+
+        setSourcePlanCourses(Array.from(courseMap.values()));
+      } catch (err) {
+        if (isMounted) {
+          console.error("Error fetching source plan courses:", err);
+          setSourcePlanCourses([]);
+          setCachedSourcePlans(null);
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingSourceCourses(false);
+        }
+      }
+    };
+
+    fetchSourcePlanCourses();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [showCopyPlanModal, selectedFaculty, sourceAcademicYear, sourceSemester]);
 
   // Excel Template & Import State
   const [importFile, setImportFile] = useState(null);
@@ -945,6 +1012,7 @@ const StudyPlanPage = () => {
     const otherYears = (academicYears.length > 0 ? academicYears : YEARS).filter(y => y !== selectedYear);
     setSourceAcademicYear(otherYears.length > 0 ? otherYears[0] : selectedYear);
     setSourceSemester(selectedSemester);
+    setSelectedSourceCourses([]);
     setTimeout(() => {
       setShowCopyPlanModal(true);
       setIsCopyGlowActive(false);
@@ -964,18 +1032,31 @@ const StudyPlanPage = () => {
 
     setCopyingPlan(true);
     try {
-      const res = await axios.get(`${API}/api/study-plans?faculty_id=${selectedFaculty}&semester=${encodeURIComponent(sourceSemester)}&academic_year=${encodeURIComponent(sourceAcademicYear)}`);
-      const plans = res.data;
+      let plans = cachedSourcePlans;
+      if (!plans || plans.length === 0) {
+        const res = await axios.get(`${API}/api/study-plans?faculty_id=${selectedFaculty}&semester=${encodeURIComponent(sourceSemester)}&academic_year=${encodeURIComponent(sourceAcademicYear)}`);
+        plans = res.data;
+      }
       if (!plans || plans.length === 0 || !plans[0].items || plans[0].items.length === 0) {
         toast.error(`لا توجد خطة دراسية مسجلة لعام (${sourceAcademicYear}) - (${sourceSemester}).`);
         setCopyingPlan(false);
         return;
       }
 
+      const selectedCourseIds = selectedSourceCourses && selectedSourceCourses.length > 0
+        ? selectedSourceCourses.map(opt => String(opt.value))
+        : null;
+
       let allRows = [];
       plans.forEach(plan => {
         if (plan.items) {
           plan.items.forEach(item => {
+            const courseIdentifier = String(item.base_course_id || item.course_id);
+            // إذا اختار المستخدم مقررات معينة، نلتزم بهذه المقررات فقط
+            if (selectedCourseIds && !selectedCourseIds.includes(courseIdentifier)) {
+              return;
+            }
+
             allRows.push({
               _key: Date.now() + Math.random(),
               base_course_id: item.base_course_id || item.course_id,
@@ -1010,6 +1091,12 @@ const StudyPlanPage = () => {
         }
       });
 
+      if (allRows.length === 0) {
+        toast.error("لم يتم العثور على أي بيانات للمقررات المحددة.");
+        setCopyingPlan(false);
+        return;
+      }
+
       // Filter and deduplicate allRows
       const courseMap = {};
       allRows.forEach(r => {
@@ -1032,16 +1119,30 @@ const StudyPlanPage = () => {
         });
       });
 
-      setPlanRows(cleanedRows);
+      // إذا تم تحديد مقررات معينة وكان هناك مقررات سابقة في الخطة الحالية، يتم دمجها مع الحفاظ على المقررات الأخرى
+      if (selectedCourseIds && selectedCourseIds.length > 0 && planRows.length > 0) {
+        const otherRows = planRows.filter(r => !selectedCourseIds.includes(String(r.base_course_id || r.course_id)));
+        setPlanRows([...otherRows, ...cleanedRows]);
+      } else {
+        setPlanRows(cleanedRows);
+      }
+
       setShowCopyPlanModal(false);
       const facName = faculties.find(f => String(f.id) === String(selectedFaculty))?.name || "الكلية";
+      const copyLogDesc = selectedCourseIds && selectedCourseIds.length > 0
+        ? `قام بنسخ (${selectedCourseIds.length}) مقرر محدد من ${sourceSemester} العام الجامعي ${sourceAcademicYear}`
+        : `قام بنسخ الخطة الدراسية من ${sourceSemester} العام الجامعي ${sourceAcademicYear}`;
       logAction(
-        `قام بنسخ الخطة الدراسية من ${sourceSemester} العام الجامعي ${sourceAcademicYear}`,
+        copyLogDesc,
         selectedFaculty ? [Number(selectedFaculty)] : null,
         selectedYear,
         selectedSemester
       );
-      toast.success(`تم نسخ الخطة الدراسية من عام (${sourceAcademicYear}) بنجاح! يمكنك الآن مراجعتها وتعديلها والضغط على حفظ.`);
+      if (selectedCourseIds && selectedCourseIds.length > 0) {
+        toast.success(`تم نسخ (${selectedCourseIds.length}) مقررات من عام (${sourceAcademicYear}) بنجاح! يمكنك الآن مراجعتها وتعديلها والضغط على حفظ.`);
+      } else {
+        toast.success(`تم نسخ الخطة الدراسية من عام (${sourceAcademicYear}) بنجاح! يمكنك الآن مراجعتها وتعديلها والضغط على حفظ.`);
+      }
     } catch (err) {
       console.error("Error copying plan:", err);
       toast.error("حدث خطأ أثناء محاولة نسخ الخطة الدراسية.");
@@ -6589,7 +6690,13 @@ ${signaturesHtml}
           </Alert>
           <Form.Group className="mb-3">
             <Form.Label className="fw-bold">اختر العام الجامعي المصدر (المراد النسخ منه):</Form.Label>
-            <Form.Select value={sourceAcademicYear} onChange={e => setSourceAcademicYear(e.target.value)}>
+            <Form.Select 
+              value={sourceAcademicYear} 
+              onChange={e => {
+                setSourceAcademicYear(e.target.value);
+                setSelectedSourceCourses([]);
+              }}
+            >
               {(academicYears.length > 0 ? academicYears : YEARS).filter(y => y !== selectedYear).map(y => (
                 <option key={y} value={y}>{y}</option>
               ))}
@@ -6597,16 +6704,128 @@ ${signaturesHtml}
           </Form.Group>
           <Form.Group className="mb-3">
             <Form.Label className="fw-bold">اختر الفصل الدراسي المصدر:</Form.Label>
-            <Form.Select value={sourceSemester} onChange={e => setSourceSemester(e.target.value)}>
+            <Form.Select 
+              value={sourceSemester} 
+              onChange={e => {
+                setSourceSemester(e.target.value);
+                setSelectedSourceCourses([]);
+              }}
+            >
               {SEMESTERS.map(s => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </Form.Select>
           </Form.Group>
+
+          {/* اختيار المقررات المراد نسخها (متعدد) */}
+          <Form.Group className="mb-3">
+            <div className="d-flex justify-content-between align-items-center mb-1">
+              <Form.Label className="fw-bold mb-0">
+                اختر المقررات المراد نسخها (اختياري):
+              </Form.Label>
+              {sourcePlanCourses.length > 0 && (
+                <div className="d-flex align-items-center gap-1">
+                  <Button 
+                    variant="link" 
+                    size="sm" 
+                    className="p-0 text-decoration-none fw-bold text-success me-2"
+                    style={{ fontSize: '0.8rem' }}
+                    onClick={() => setSelectedSourceCourses(sourcePlanCourses)}
+                  >
+                    تحديد الكل ({sourcePlanCourses.length})
+                  </Button>
+                  {selectedSourceCourses.length > 0 && (
+                    <Button 
+                      variant="link" 
+                      size="sm" 
+                      className="p-0 text-decoration-none fw-bold text-danger"
+                      style={{ fontSize: '0.8rem' }}
+                      onClick={() => setSelectedSourceCourses([])}
+                    >
+                      إلغاء التحديد
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <Select
+              isMulti
+              options={sourcePlanCourses}
+              value={selectedSourceCourses}
+              onChange={(selected) => setSelectedSourceCourses(selected || [])}
+              placeholder={
+                loadingSourceCourses
+                  ? "جاري فحص وتحميل المقررات..."
+                  : sourcePlanCourses.length === 0
+                  ? "لا توجد مقررات مسجلة في هذا الفصل/العام"
+                  : "حدد مقررات معينة (أو اتركها فارغة لنسخ كل المقررات)..."
+              }
+              isLoading={loadingSourceCourses}
+              isDisabled={loadingSourceCourses || sourcePlanCourses.length === 0}
+              noOptionsMessage={() => "لا توجد مقررات مسجلة"}
+              closeMenuOnSelect={false}
+              isClearable
+              styles={{
+                ...customSelectStyles,
+                multiValue: (base) => ({
+                  ...base,
+                  backgroundColor: '#e8f5e9',
+                  borderRadius: '6px',
+                  border: '1px solid #c8e6c9'
+                }),
+                multiValueLabel: (base) => ({
+                  ...base,
+                  color: '#2e7d32',
+                  fontWeight: 'bold',
+                  fontSize: '0.85rem'
+                }),
+                multiValueRemove: (base) => ({
+                  ...base,
+                  color: '#2e7d32',
+                  ':hover': {
+                    backgroundColor: '#c8e6c9',
+                    color: '#1b5e20'
+                  }
+                })
+              }}
+            />
+
+            <div className="mt-2" style={{ fontSize: '0.84rem' }}>
+              {selectedSourceCourses.length > 0 ? (
+                <div className="alert alert-success py-2 px-3 mb-0 d-flex align-items-center gap-2">
+                  <FaCheckCircle className="text-success flex-shrink-0" />
+                  <span>
+                    تم تحديد <strong>({selectedSourceCourses.length})</strong> مقرر. سيتم نسخ هذه المقررات المحددة فقط وتجاهل باقي الخطة.
+                  </span>
+                </div>
+              ) : (
+                <div className="text-muted d-flex align-items-center gap-1">
+                  <span>💡</span>
+                  <span><strong>افتراضياً:</strong> عند عدم اختيار مقررات محددة، سيتم نسخ الخطة الدراسية <strong>بكامل مقرراتها</strong> تلقائياً.</span>
+                </div>
+              )}
+            </div>
+          </Form.Group>
         </Modal.Body>
         <Modal.Footer className="d-flex justify-content-between">
-          <Button variant="success" className="fw-bold px-4" onClick={handleExecuteCopyPlan} disabled={copyingPlan} style={{ backgroundColor: "#15803d", borderColor: "#15803d" }}>
-            {copyingPlan ? <Spinner animation="border" size="sm" /> : "📋 بدء عملية النسخ"}
+          <Button 
+            variant="success" 
+            className="fw-bold px-4 d-flex align-items-center gap-2" 
+            onClick={handleExecuteCopyPlan} 
+            disabled={copyingPlan || loadingSourceCourses} 
+            style={{ backgroundColor: "#15803d", borderColor: "#15803d" }}
+          >
+            {copyingPlan ? (
+              <>
+                <Spinner animation="border" size="sm" />
+                <span>جاري النسخ...</span>
+              </>
+            ) : selectedSourceCourses.length > 0 ? (
+              `📋 نسخ المقررات المحددة (${selectedSourceCourses.length})`
+            ) : (
+              "📋 بدء عملية نسخ الخطة بالكامل"
+            )}
           </Button>
           <Button variant="secondary" className="fw-bold" onClick={() => setShowCopyPlanModal(false)}>
             إغلاق

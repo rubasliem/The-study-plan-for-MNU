@@ -287,31 +287,45 @@ const WorkloadPage = ({ isReadOnly = false }) => {
 
   // Selected faculty object and check if it's Health Sciences Technology
   const selectedFacultyObj = useMemo(() => {
+    if (selectedFaculty === "all") {
+      return { id: "all", name: "جميع الكليات" };
+    }
     return accessibleFaculties.find(f => String(f.id) === String(selectedFaculty));
   }, [accessibleFaculties, selectedFaculty]);
 
   // Formatted faculty name with preposition (e.g. "لكلية الهندسة" بدلاً من "لكلية كلية الهندسة")
   const facultyPrepositionLabel = useMemo(() => {
+    if (selectedFaculty === "all") {
+      return "لجميع الكليات";
+    }
     const fname = selectedFacultyObj?.name?.trim();
     if (!fname) return 'للكلية المختارة';
     if (fname.startsWith('كلية')) {
       return `ل${fname}`;
     }
     return `لكلية ${fname}`;
-  }, [selectedFacultyObj]);
+  }, [selectedFacultyObj, selectedFaculty]);
 
   const isHealthTechFaculty = useMemo(() => {
-    if (!selectedFacultyObj) return false;
+    if (!selectedFacultyObj || selectedFaculty === "all") return false;
     const name = selectedFacultyObj.name || "";
     return name.includes("العلوم الصحية") || name.includes("تكنولوجيا العلوم");
-  }, [selectedFacultyObj]);
+  }, [selectedFacultyObj, selectedFaculty]);
 
   // Calculate maximum semester weeks configured for this faculty/semester
   const currentFacultyWeeks = useMemo(() => {
-    if (!selectedFacultyObj) return 15;
+    const targetYear = academicYears.find(y => y.name === selectedAcademicYear);
+    if (!selectedFacultyObj || selectedFaculty === "all") {
+      if (selectedSemester.includes("الصيفي") || selectedSemester.includes("صيف")) {
+        return targetYear?.summer_weeks ?? 7;
+      }
+      if (selectedSemester.includes("الثاني")) {
+        return targetYear?.semester2_weeks ?? 14;
+      }
+      return targetYear?.semester1_weeks ?? 15;
+    }
     const fName = selectedFacultyObj.name || "";
     const isMed = fName.includes("الطب والجراحة") || fName.includes("الطب");
-    const targetYear = academicYears.find(y => y.name === selectedAcademicYear);
 
     if (selectedSemester.includes("الصيفي") || selectedSemester.includes("صيف")) {
       return isMed ? (targetYear?.med_summer_weeks ?? 7) : (targetYear?.summer_weeks ?? 7);
@@ -320,21 +334,24 @@ const WorkloadPage = ({ isReadOnly = false }) => {
       return isMed ? (targetYear?.med_semester2_weeks ?? 14) : (targetYear?.semester2_weeks ?? 14);
     }
     return isMed ? (targetYear?.med_semester1_weeks ?? 15) : (targetYear?.semester1_weeks ?? 15);
-  }, [selectedFacultyObj, selectedAcademicYear, selectedSemester, academicYears]);
+  }, [selectedFacultyObj, selectedFaculty, selectedAcademicYear, selectedSemester, academicYears]);
 
   // Plan Course Options for the Course Weeks Configuration dropdown
   const planCourseOptions = useMemo(() => {
     return availablePlanCourses.map(c => {
       const customBadge = c.is_custom ? `[مخصص: ${c.weeks_count} أسابيع]` : `[افتراضي: ${c.weeks_count} أسبوع]`;
+      const creditsBadge = (c.credit_hours != null && c.credit_hours !== '' && c.credit_hours > 0) ? `[${c.credit_hours} ساعة معتمدة]` : '';
+      const facultyBadge = (selectedFaculty === "all" && c.faculty_name) ? `[${c.faculty_name}]` : '';
       const codeSuffix = c.course_code ? `(${c.course_code})` : '';
       const progSuffix = c.program_name ? `- ${c.program_name}` : '';
+      const labelParts = [c.course_name, codeSuffix, progSuffix, facultyBadge, creditsBadge, customBadge].filter(Boolean).join(' ');
       return {
-        value: c.course_key,
-        label: `${c.course_name} ${codeSuffix} ${progSuffix} ${customBadge}`,
+        value: c.dict_key || c.course_key,
+        label: labelParts,
         course: c
       };
     });
-  }, [availablePlanCourses]);
+  }, [availablePlanCourses, selectedFaculty]);
 
   // Dynamic list of weeks for the deduction dropdown (الأسبوع 1، الأسبوع 2...)
   // Automatically limited to the selected course's weeks if chosen!
@@ -371,12 +388,15 @@ const WorkloadPage = ({ isReadOnly = false }) => {
     return profData.courses.map(c => {
       const lvl = formatLevelToWord(c.level);
       const lvlSuffix = lvl && lvl !== "-" ? ` - المستوى ${lvl}` : "";
+      const facSuffix = (selectedFaculty === "all" && c.faculty_name) ? ` [${c.faculty_name}]` : "";
       const weeksInfo = c.is_custom_weeks ? `[${c.weeks_count} أسابيع]` : `[${c.weeks_count || currentFacultyWeeks} أسبوع]`;
       return {
         value: c.item_id,
-        label: `${c.course_name} ${c.course_code ? `(${c.course_code})` : ''}${lvlSuffix} ${weeksInfo}`,
+        label: `${c.course_name} ${c.course_code ? `(${c.course_code})` : ''}${facSuffix}${lvlSuffix} ${weeksInfo}`,
         course_name: c.course_name,
         course_id: c.course_id || null,
+        faculty_id: c.faculty_id || null,
+        faculty_name: c.faculty_name || '',
         weeks_count: c.weeks_count || currentFacultyWeeks,
         is_custom_weeks: c.is_custom_weeks,
         hours_theory: c.hours_theory || 0,
@@ -385,7 +405,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
         hours_activity: c.hours_activity || 0
       };
     });
-  }, [profData?.courses, currentFacultyWeeks]);
+  }, [profData?.courses, currentFacultyWeeks, selectedFaculty]);
 
   // Teaching hour types dynamically determined from assigned hours in the study plan for this course
   const availableHourTypeOptions = useMemo(() => {
@@ -545,7 +565,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
     setCourseWeeksSaving(true);
     try {
       await axios.post(`${API}/api/workload/course-weeks`, {
-        faculty_id: parseInt(selectedFaculty),
+        faculty_id: selectedPlanCourse.faculty_id || (parseInt(selectedFaculty) || null),
         academic_year: selectedAcademicYear,
         semester: selectedSemester,
         course_key: selectedPlanCourse.course_key,
@@ -595,11 +615,11 @@ const WorkloadPage = ({ isReadOnly = false }) => {
       toast.error("غير مصرح لك بتعديل أسابيع المقررات");
       return;
     }
-    const courseToEdit = availablePlanCourses.find(pc => pc.course_key === c.course_key);
+    const courseToEdit = availablePlanCourses.find(pc => (pc.dict_key && pc.dict_key === c.dict_key) || pc.course_key === c.course_key);
     if (courseToEdit) {
       setSelectedPlanCourse(courseToEdit);
     } else {
-      setSelectedPlanCourse({ course_key: c.course_key, course_name: c.course_name });
+      setSelectedPlanCourse({ ...c, course_key: c.course_key, course_name: c.course_name, faculty_id: c.faculty_id });
     }
     setCustomWeeksCount(String(c.weeks_count));
     setShowEditCourseWeeksModal(true);
@@ -749,7 +769,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
               </colgroup>
               <thead>
                 <tr style="border: none !important;">
-                  <th colspan="5" style="border: none !important; background: transparent !important; color: inherit; padding: 10px 0 8px 0; font-weight: normal;">
+                  <th colspan="${selectedFaculty === 'all' ? 7 : 6}" style="border: none !important; background: transparent !important; color: inherit; padding: 10px 0 8px 0; font-weight: normal;">
                     <table style="width: 100%; border-collapse: collapse; border: none !important; margin: 0; padding: 0;">
                       <tr style="border: none !important; background: transparent !important;">
                         <td style="width: 22%; text-align: right; vertical-align: top; border: none !important; background: transparent !important; padding: 0; line-height: 1.35; white-space: nowrap;">
@@ -775,7 +795,9 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                 </tr>
                 <tr class="header-row-main">
                   <th>#</th>
+                  ${selectedFaculty === "all" ? '<th>الكلية</th>' : ''}
                   <th>المقرر</th>
+                  <th>الساعات المعتمدة</th>
                   <th>كود المقرر</th>
                   <th>الأسابيع المخصصة</th>
                   <th>الفارق</th>
@@ -783,13 +805,16 @@ const WorkloadPage = ({ isReadOnly = false }) => {
               </thead>
               <tbody>
                 ${customizedCourses.map((c, i) => {
-                  const diff = c.weeks_count - currentFacultyWeeks;
+                  const defW = c.default_weeks || currentFacultyWeeks;
+                  const diff = c.weeks_count - defW;
                   const diffText = diff === 0 ? "نفس الترم" : diff > 0 ? "+" + diff + " أسبوع" : diff + " أسبوع";
                   const diffClass = diff < 0 ? 'diff-neg' : 'diff-pos';
                   return `
                     <tr>
                       <td>${i + 1}</td>
+                      ${selectedFaculty === "all" ? `<td style="font-weight: 600; color: #1565c0;">${c.faculty_name || '-'}</td>` : ''}
                       <td class="course-name">${c.course_name}</td>
+                      <td style="font-weight: bold; color: #1b5e20;">${c.credit_hours ?? 0}</td>
                       <td>${c.course_code || '-'}</td>
                       <td style="font-weight: bold; color: #1b5e20;">${c.weeks_count}</td>
                       <td><span class="diff-badge ${diffClass}">${diffText}</span></td>
@@ -941,7 +966,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
     try {
       await axios.post(`${API}/api/workload/deductions`, {
         professor_id: selectedProfessorId,
-        faculty_id: parseInt(selectedFaculty) || null,
+        faculty_id: selectedCourse?.faculty_id || (parseInt(selectedFaculty) || null),
         academic_year: selectedAcademicYear,
         semester: selectedSemester,
         deducted_hours: dedVal,
@@ -1210,8 +1235,9 @@ const WorkloadPage = ({ isReadOnly = false }) => {
             <table class="data-table">
               <colgroup>
                 <col style="width: 4%;">
-                <col style="width: 20%;">
-                <col style="width: 19%;">
+                <col style="width: ${selectedFaculty === 'all' ? '17%' : '20%'};">
+                ${selectedFaculty === 'all' ? '<col style="width: 14%;">' : ''}
+                <col style="width: ${selectedFaculty === 'all' ? '16%' : '19%'};">
                 <col style="width: 11%;">
                 <col style="width: 10%;">
                 <col style="width: 10%;">
@@ -1220,7 +1246,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
               </colgroup>
               <thead>
                 <tr style="border: none !important;">
-                  <th colspan="8" style="border: none !important; background: transparent !important; color: inherit; padding: 10px 0 8px 0; font-weight: normal;">
+                  <th colspan="${selectedFaculty === 'all' ? 9 : 8}" style="border: none !important; background: transparent !important; color: inherit; padding: 10px 0 8px 0; font-weight: normal;">
                     <table style="width: 100%; border-collapse: collapse; border: none !important; margin: 0; padding: 0;">
                       <tr style="border: none !important; background: transparent !important;">
                         <td style="width: 22%; text-align: right; vertical-align: top; border: none !important; background: transparent !important; padding: 0; line-height: 1.35; white-space: nowrap;">
@@ -1247,6 +1273,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                 <tr class="header-row-main">
                   <th>#</th>
                   <th>اسم الأستاذ</th>
+                  ${selectedFaculty === "all" ? '<th>الكلية</th>' : ''}
                   <th>اسم المقرر</th>
                   <th>الأسبوع المستقطع منه</th>
                   <th>نوع الساعات</th>
@@ -1260,6 +1287,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                   <tr>
                     <td>${idx + 1}</td>
                     <td class="prof-name">${d.professor_name || 'غير محدد'}</td>
+                    ${selectedFaculty === "all" ? `<td style="color: #1b5e20; font-weight: bold;">${d.faculty_name || '-'}</td>` : ''}
                     <td class="course-name">${d.course_name || 'عام / بدون تحديد'}</td>
                     <td><strong>${d.week_name || '-'}</strong></td>
                     <td>${d.hour_type || '-'}</td>
@@ -1271,7 +1299,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
               </tbody>
               <tfoot>
                 <tr>
-                  <td colspan="5" style="text-align: center;">إجمالي الساعات المنتقصة بالكلية لهذا الفصل الدراسي</td>
+                  <td colspan="${selectedFaculty === "all" ? 6 : 5}" style="text-align: center;">إجمالي الساعات المنتقصة ${selectedFaculty === "all" ? "بجميع الكليات" : "بالكلية"} لهذا الفصل الدراسي</td>
                   <td class="hours-cell">- ${totalDeducted} ساعة</td>
                   <td colspan="2"></td>
                 </tr>
@@ -1336,9 +1364,11 @@ const WorkloadPage = ({ isReadOnly = false }) => {
       subCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
       // Columns Setup
+      const isAll = selectedFaculty === "all";
       worksheet.columns = [
         { key: 'index', width: 8 },
         { key: 'prof_name', width: 30 },
+        ...(isAll ? [{ key: 'faculty_name', width: 25 }] : []),
         { key: 'course_name', width: 26 },
         { key: 'week_name', width: 18 },
         { key: 'hour_type', width: 16 },
@@ -1350,7 +1380,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
       // Header Row (Row 6)
       const headerRowIndex = 6;
       const headerRow = worksheet.getRow(headerRowIndex);
-      headerRow.values = ['#', 'اسم الأستاذ', 'اسم المقرر', 'الأسبوع المستقطع منه', 'نوع الساعات', 'الساعات المنتقصة', 'سبب الانتقاص', 'سُجل بواسطة'];
+      headerRow.values = ['#', 'اسم الأستاذ', ...(isAll ? ['الكلية'] : []), 'اسم المقرر', 'الأسبوع المستقطع منه', 'نوع الساعات', 'الساعات المنتقصة', 'سبب الانتقاص', 'سُجل بواسطة'];
       headerRow.font = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
       headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
       headerRow.height = 28;
@@ -1374,6 +1404,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
         const row = worksheet.addRow({
           index: idx + 1,
           prof_name: d.professor_name || 'غير محدد',
+          ...(isAll ? { faculty_name: d.faculty_name || '-' } : {}),
           course_name: d.course_name || 'عام / بدون تحديد',
           week_name: d.week_name || '-',
           hour_type: d.hour_type || '-',
@@ -1392,7 +1423,8 @@ const WorkloadPage = ({ isReadOnly = false }) => {
             bottom: { style: 'thin', color: { argb: 'FFDDDDDD' } },
             right: { style: 'thin', color: { argb: 'FFDDDDDD' } }
           };
-          if (colNumber === 6) {
+          const hoursCol = isAll ? 7 : 6;
+          if (colNumber === hoursCol) {
             cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFC62828' } };
           }
         });
@@ -1401,7 +1433,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
       // Total Row
       const totalRow = worksheet.addRow({
         index: '',
-        prof_name: 'إجمالي الساعات المنتقصة بالكلية',
+        prof_name: isAll ? 'إجمالي الساعات المنتقصة بجميع الكليات' : 'إجمالي الساعات المنتقصة بالكلية',
         course_name: '',
         week_name: '',
         hour_type: '',
@@ -1410,8 +1442,10 @@ const WorkloadPage = ({ isReadOnly = false }) => {
         created_by: ''
       });
       totalRow.height = 26;
-      worksheet.mergeCells(`B${totalRow.number}:E${totalRow.number}`);
+      const mergeEndLetter = isAll ? 'F' : 'E';
+      worksheet.mergeCells(`B${totalRow.number}:${mergeEndLetter}${totalRow.number}`);
       
+      const hoursCol = isAll ? 7 : 6;
       totalRow.eachCell((cell, colNumber) => {
         cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FF111111' } };
         cell.fill = {
@@ -1426,7 +1460,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
           left: { style: 'thin', color: { argb: 'FFC62828' } },
           right: { style: 'thin', color: { argb: 'FFC62828' } }
         };
-        if (colNumber === 6) {
+        if (colNumber === hoursCol) {
           cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFC62828' } };
         }
       });
@@ -1498,11 +1532,14 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                 <Select
                   styles={customSelectStyles}
                   placeholder="اختر الكلية..."
-                  options={accessibleFaculties.map(f => ({ value: String(f.id), label: f.name }))}
-                  value={accessibleFaculties.find(f => String(f.id) === String(selectedFaculty)) ? {
+                  options={[
+                    { value: "all", label: "جميع الكليات" },
+                    ...accessibleFaculties.map(f => ({ value: String(f.id), label: f.name }))
+                  ]}
+                  value={selectedFaculty === "all" ? { value: "all", label: "جميع الكليات" } : (accessibleFaculties.find(f => String(f.id) === String(selectedFaculty)) ? {
                     value: String(selectedFaculty),
                     label: accessibleFaculties.find(f => String(f.id) === String(selectedFaculty))?.name
-                  } : null}
+                  } : null)}
                   onChange={(opt) => setSelectedFaculty(opt ? opt.value : "")}
                   isSearchable
                   noOptionsMessage={() => "لا توجد كليات"}
@@ -1587,7 +1624,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                         styles={customSelectStyles}
                         placeholder={availablePlanCourses.length > 0 ? "ابحث واختر المقرر لتحديد عدد أسابيعه..." : "لا توجد مقررات محملة بالخطة لهذا الفصل..."}
                         options={planCourseOptions}
-                        value={selectedPlanCourse ? planCourseOptions.find(o => o.value === selectedPlanCourse.course_key) || null : null}
+                        value={selectedPlanCourse ? (planCourseOptions.find(o => o.value === (selectedPlanCourse.dict_key || selectedPlanCourse.course_key)) || null) : null}
                         onChange={handleSelectPlanCourse}
                         isSearchable
                         isClearable
@@ -1665,22 +1702,39 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                         <Table hover striped className="mb-0 text-center align-middle" style={{ fontSize: '0.92rem' }}>
                           <thead style={{ backgroundColor: '#c62828', color: 'white' }} className="sticky-top">
                             <tr>
+                              <th style={{ width: '40px' }}>#</th>
+                              {selectedFaculty === "all" && <th style={{ minWidth: '130px' }}>الكلية</th>}
                               <th>المقرر</th>
+                              <th>الساعات المعتمدة</th>
                               <th>الأسابيع</th>
                               <th>الفارق</th>
                               {!isReadOnly && <th style={{ width: '110px' }}>إجراء</th>}
                             </tr>
                           </thead>
                           <tbody>
-                            {customizedCourses.map((c) => {
-                              const diff = c.weeks_count - currentFacultyWeeks;
+                            {customizedCourses.map((c, idx) => {
+                              const defW = c.default_weeks || currentFacultyWeeks;
+                              const diff = c.weeks_count - defW;
                               const diffText = diff === 0 ? "نفس الترم" : diff > 0 ? `+${diff} أسبوع` : `${diff} أسبوع`;
                               const diffBadgeBg = diff < 0 ? 'bg-danger-subtle text-danger' : 'bg-info-subtle text-primary';
                               return (
-                                <tr key={c.course_key}>
+                                <tr key={c.dict_key || c.course_key}>
+                                  <td className="fw-bold text-muted" style={{ fontSize: '0.85rem' }}>{idx + 1}</td>
+                                  {selectedFaculty === "all" && (
+                                    <td className="fw-semibold text-primary" style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
+                                      <Badge bg="light" text="dark" className="border">
+                                        {c.faculty_name || '-'}
+                                      </Badge>
+                                    </td>
+                                  )}
                                   <td className="fw-semibold text-dark">
                                     {c.course_name}
                                     {c.course_code && <small className="text-muted ms-1">({c.course_code})</small>}
+                                  </td>
+                                  <td className="text-center">
+                                    <Badge bg="success" className="px-2 py-1" style={{ fontSize: '0.85rem' }}>
+                                      {c.credit_hours != null && c.credit_hours !== '' ? `${c.credit_hours} ساعة` : '-'}
+                                    </Badge>
                                   </td>
                                   <td className="text-center">
                                     <Badge bg="primary" className="px-2 py-1">
@@ -1763,10 +1817,14 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                 <Select
                   styles={customSelectStyles}
                   placeholder="ابحث بالاسم عن عضو هيئة تدريس مسند لهم جميع المقررات في هذا الفصل..."
-                  options={professors.map(p => ({
-                    value: p.id,
-                    label: `${p.name_ar} ${p.job_title ? `(${p.job_title})` : ''}`
-                  }))}
+                  options={professors.map(p => {
+                    const workplace = p.original_workplace || (p.faculties && p.faculties.length > 0 ? p.faculties.join('، ') : '');
+                    const facPart = selectedFaculty === "all" && workplace ? `- ${workplace}` : '';
+                    return {
+                      value: p.id,
+                      label: `${p.name_ar} ${p.job_title ? `(${p.job_title})` : ''} ${facPart}`.trim()
+                    };
+                  })}
                   value={selectedProfessorId ? {
                     value: selectedProfessorId,
                     label: professors.find(p => p.id === selectedProfessorId)?.name_ar || ''
@@ -2248,6 +2306,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                   <tr>
                     <th style={{ width: '50px' }}>#</th>
                     <th>اسم الأستاذ</th>
+                    {selectedFaculty === "all" && <th>الكلية</th>}
                     <th>اسم المقرر</th>
                     <th>الأسبوع المستقطع منه</th>
                     <th>نوع الساعات</th>
@@ -2262,6 +2321,13 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                     <tr key={d.id || idx}>
                       <td className="fw-bold text-muted">{idx + 1}</td>
                       <td className="fw-bold text-dark fs-6">{d.professor_name || 'غير محدد'}</td>
+                      {selectedFaculty === "all" && (
+                        <td className="fw-semibold text-primary">
+                          <Badge bg="light" text="dark" className="border">
+                            {d.faculty_name || 'عام'}
+                          </Badge>
+                        </td>
+                      )}
                       <td className="fw-semibold text-primary">{d.course_name || 'عام / بدون تحديد'}</td>
                       <td className="fw-bold text-success">{d.week_name || '-'}</td>
                       <td>
@@ -2305,7 +2371,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                 </tbody>
                 <tfoot>
                   <tr className="fw-bold table-danger text-dark">
-                    <td colSpan={5}>إجمالي الساعات المنتقصة بالكلية لهذا الفصل</td>
+                    <td colSpan={selectedFaculty === "all" ? 6 : 5}>إجمالي الساعات المنتقصة {selectedFaculty === "all" ? "بجميع الكليات" : "بالكلية"} لهذا الفصل</td>
                     <td className="text-danger fs-6">
                       - {facultyDeductions.reduce((sum, d) => sum + (d.deducted_hours || 0), 0)} ساعة
                     </td>

@@ -36,8 +36,8 @@ const ControlPanelPage = () => {
     const { user, setUser } = useContext(AuthContext);
     const [users, setUsers] = useState([]);
     const [allUsers, setAllUsers] = useState([]);
-    const [selectedUserId, setSelectedUserId] = useState(null);
-    const [selectedPageToHide, setSelectedPageToHide] = useState("");
+    const [selectedUserIds, setSelectedUserIds] = useState([]);
+    const [selectedPageToHide, setSelectedPageToHide] = useState([]);
     const [hidingActionLoading, setHidingActionLoading] = useState(false);
     const [faculties, setFaculties] = useState([]);
     const [academicYears, setAcademicYears] = useState([]);
@@ -429,17 +429,28 @@ const ControlPanelPage = () => {
         }
     };
 
-    const selectedUserObj = useMemo(() => {
-        return allUsers.find(u => u.id === selectedUserId) || null;
-    }, [allUsers, selectedUserId]);
+    const selectedUserObjs = useMemo(() => {
+        return allUsers.filter(u => selectedUserIds.includes(u.id));
+    }, [allUsers, selectedUserIds]);
 
+    // For single user selection, show their hidden pages; for multi, show union
     const currentUserHiddenPages = useMemo(() => {
-        return parseHiddenPages(selectedUserObj);
-    }, [selectedUserObj]);
+        if (selectedUserObjs.length === 1) return parseHiddenPages(selectedUserObjs[0]);
+        if (selectedUserObjs.length > 1) {
+            // Show pages hidden for ALL selected users (intersection)
+            const allHidden = selectedUserObjs.map(u => parseHiddenPages(u));
+            return allHidden.reduce((acc, curr) => acc.filter(id => curr.includes(id)), allHidden[0] || []);
+        }
+        return [];
+    }, [selectedUserObjs]);
 
     const availablePagesToHide = useMemo(() => {
-        return SIDEBAR_PAGES.filter(p => !currentUserHiddenPages.includes(p.id));
-    }, [currentUserHiddenPages]);
+        if (selectedUserObjs.length <= 1) {
+            return SIDEBAR_PAGES.filter(p => !currentUserHiddenPages.includes(p.id));
+        }
+        // For multi-user, show all pages (different users may have different hidden pages)
+        return SIDEBAR_PAGES;
+    }, [currentUserHiddenPages, selectedUserObjs]);
 
     const userSelectOptions = useMemo(() => {
         return allUsers
@@ -634,50 +645,75 @@ const ControlPanelPage = () => {
     };
 
     const handleHidePage = async () => {
-        if (!selectedUserId) {
-            toast.error('يرجى اختيار المستخدم أولاً');
+        if (!selectedUserIds || selectedUserIds.length === 0) {
+            toast.error('يرجى اختيار مستخدم واحد على الأقل');
             return;
         }
-        if (!selectedPageToHide) {
-            toast.error('يرجى اختيار الصفحة المراد إخفاؤها من القائمة');
+        if (!selectedPageToHide || selectedPageToHide.length === 0) {
+            toast.error('يرجى اختيار صفحة واحدة على الأقل من القائمة');
             return;
         }
 
         setHidingActionLoading(true);
         try {
-            const targetUser = allUsers.find(u => u.id === selectedUserId);
-            const currentHidden = parseHiddenPages(targetUser);
-            if (currentHidden.includes(selectedPageToHide)) {
-                toast.error('هذه الصفحة مخفية بالفعل عن هذا المستخدم');
-                return;
+            const selectedPageIds = selectedPageToHide.map(opt => opt.value);
+            let totalNewCount = 0;
+            let totalAlreadyCount = 0;
+            const affectedUsernames = [];
+
+            // Process each selected user
+            for (const userId of selectedUserIds) {
+                const targetUser = allUsers.find(u => u.id === userId);
+                if (!targetUser) continue;
+                const currentHidden = parseHiddenPages(targetUser);
+                const newPageIds = selectedPageIds.filter(id => !currentHidden.includes(id));
+                const alreadyCount = selectedPageIds.filter(id => currentHidden.includes(id)).length;
+                totalAlreadyCount += alreadyCount;
+
+                if (newPageIds.length === 0) continue;
+
+                const newHidden = [...currentHidden, ...newPageIds];
+                await axios.put(`${API}/api/users/${userId}/hidden-pages`, {
+                    hidden_pages: newHidden
+                });
+
+                const updatedJson = JSON.stringify(newHidden);
+                setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, hidden_pages: updatedJson } : u));
+                setUsers(prev => prev.map(u => u.id === userId ? { ...u, hidden_pages: updatedJson } : u));
+
+                if (user && user.id === userId && setUser) {
+                    setUser(prev => ({ ...prev, hidden_pages: updatedJson }));
+                }
+
+                totalNewCount += newPageIds.length;
+                affectedUsernames.push(targetUser.username);
             }
 
-            const newHidden = [...currentHidden, selectedPageToHide];
-            await axios.put(`${API}/api/users/${selectedUserId}/hidden-pages`, {
-                hidden_pages: newHidden
-            });
-
-            const updatedJson = JSON.stringify(newHidden);
-            setAllUsers(prev => prev.map(u => u.id === selectedUserId ? { ...u, hidden_pages: updatedJson } : u));
-            setUsers(prev => prev.map(u => u.id === selectedUserId ? { ...u, hidden_pages: updatedJson } : u));
-
-            if (user && user.id === selectedUserId && setUser) {
-                setUser(prev => ({ ...prev, hidden_pages: updatedJson }));
+            if (totalNewCount > 0) {
+                const pageNames = selectedPageIds.map(id => {
+                    const p = SIDEBAR_PAGES.find(x => x.id === id);
+                    return p ? p.label : id;
+                }).join('، ');
+                if (affectedUsernames.length === 1) {
+                    toast.success(`تم إخفاء ${totalNewCount > 1 ? 'الصفحات' : 'صفحة'} (${pageNames}) بنجاح عن ${affectedUsernames[0]}`);
+                } else {
+                    toast.success(`تم إخفاء (${pageNames}) بنجاح عن ${affectedUsernames.length} مستخدمين`);
+                }
+            } else if (totalAlreadyCount > 0) {
+                toast.error('جميع الصفحات المختارة مخفية بالفعل عن المستخدمين المحددين');
             }
 
-            const pageObj = SIDEBAR_PAGES.find(p => p.id === selectedPageToHide);
-            toast.success(`تم إخفاء صفحة "${pageObj ? pageObj.label : selectedPageToHide}" بنجاح عن ${targetUser.username}`);
-            setSelectedPageToHide("");
+            setSelectedPageToHide([]);
         } catch (error) {
             console.error('Error hiding page', error);
-            toast.error(error.response?.data?.detail || 'حدث خطأ أثناء إخفاء الصفحة');
+            toast.error(error.response?.data?.detail || 'حدث خطأ أثناء إخفاء الصفحات');
         } finally {
             setHidingActionLoading(false);
         }
     };
 
     const handleUnhidePage = async (pageId, customUserId = null) => {
-        const targetUserId = customUserId || selectedUserId;
+        const targetUserId = customUserId || (selectedUserIds.length === 1 ? selectedUserIds[0] : null);
         if (!targetUserId) return;
         setHidingActionLoading(true);
         try {
@@ -708,7 +744,7 @@ const ControlPanelPage = () => {
     };
 
     const handleUnhideAllForUser = async (userId = null) => {
-        const targetId = userId || selectedUserId;
+        const targetId = userId || (selectedUserIds.length === 1 ? selectedUserIds[0] : null);
         if (!targetId) return;
         if (!(await confirmAction('هل أنت متأكد من إلغاء إخفاء جميع الصفحات لهذا المستخدم؟'))) return;
         
@@ -1211,47 +1247,69 @@ const ControlPanelPage = () => {
                                         <span>اختر المستخدم (ابحث بالاسم):</span>
                                     </Form.Label>
                                     <Select
+                                        isMulti
                                         options={userSelectOptions}
-                                        value={userSelectOptions.find(opt => opt.value === selectedUserId) || null}
-                                        onChange={(opt) => {
-                                            setSelectedUserId(opt ? opt.value : null);
-                                            setSelectedPageToHide("");
+                                        value={userSelectOptions.filter(opt => selectedUserIds.includes(opt.value))}
+                                        onChange={(opts) => {
+                                            setSelectedUserIds(opts ? opts.map(o => o.value) : []);
+                                            setSelectedPageToHide([]);
                                         }}
                                         placeholder="ابحث باسم المستخدم أو وظيفته أو كليته..."
                                         isClearable
                                         isSearchable
+                                        closeMenuOnSelect={false}
                                         noOptionsMessage={() => "لا يوجد مستخدم مطابق"}
-                                        styles={customSelectStyles}
+                                        styles={{
+                                            ...customSelectStyles,
+                                            multiValue: (base) => ({ ...base, backgroundColor: '#e8f5e9', borderRadius: '6px' }),
+                                            multiValueLabel: (base) => ({ ...base, color: '#2e7d32', fontWeight: '600', fontSize: '0.85rem' }),
+                                            multiValueRemove: (base) => ({ ...base, color: '#c62828', ':hover': { backgroundColor: '#ffebee', color: '#c62828' } }),
+                                        }}
                                     />
                                 </Form.Group>
                             </Col>
 
-                            {/* اختيار الصفحة من الـ Sidebar */}
+                            {/* اختيار الصفحات من الـ Sidebar - multi-select */}
                             <Col lg={4} md={6} xs={12}>
                                 <Form.Group>
                                     <Form.Label className="fw-bold mb-2 d-flex align-items-center gap-2" style={{ color: '#1e293b' }}>
                                         <FaListUl className="text-primary" />
                                         <span>اختر الصفحة في القائمة الجانبية:</span>
                                     </Form.Label>
-                                    <Form.Select
+                                    <Select
+                                        isMulti
+                                        isDisabled={selectedUserIds.length === 0}
                                         value={selectedPageToHide}
-                                        onChange={(e) => setSelectedPageToHide(e.target.value)}
-                                        disabled={!selectedUserId}
-                                        style={{
-                                            minHeight: '44px',
-                                            borderRadius: '10px',
-                                            borderColor: '#ced4da',
-                                            fontSize: '0.92rem',
-                                            fontWeight: '500'
+                                        onChange={(opts) => setSelectedPageToHide(opts || [])}
+                                        options={availablePagesToHide.map(p => ({ value: p.id, label: `${p.icon} ${p.label}` }))}
+                                        placeholder="-- اختر صفحة أو أكثر لإخفائها --"
+                                        noOptionsMessage={() => "لا توجد صفحات متاحة للإخفاء"}
+                                        closeMenuOnSelect={false}
+                                        styles={{
+                                            control: (base, state) => ({
+                                                ...base,
+                                                minHeight: '44px',
+                                                borderRadius: '10px',
+                                                borderColor: state.isFocused ? '#66bb6a' : '#ced4da',
+                                                boxShadow: state.isFocused ? '0 0 0 0.2rem rgba(102,187,106,0.25)' : 'none',
+                                                fontSize: '0.92rem',
+                                                fontWeight: '500',
+                                                direction: 'rtl',
+                                            }),
+                                            menu: (base) => ({ ...base, zIndex: 9999, direction: 'rtl', textAlign: 'right' }),
+                                            placeholder: (base) => ({ ...base, color: '#6c757d' }),
+                                            multiValue: (base) => ({ ...base, backgroundColor: '#e8f5e9', borderRadius: '6px' }),
+                                            multiValueLabel: (base) => ({ ...base, color: '#2e7d32', fontWeight: '600' }),
+                                            multiValueRemove: (base) => ({ ...base, color: '#c62828', ':hover': { backgroundColor: '#ffebee', color: '#c62828' } }),
+                                            option: (base, state) => ({
+                                                ...base,
+                                                backgroundColor: state.isSelected ? '#388e3c' : state.isFocused ? '#e8f5e9' : 'white',
+                                                color: state.isSelected ? 'white' : '#1e293b',
+                                                textAlign: 'right',
+                                                direction: 'rtl',
+                                            }),
                                         }}
-                                    >
-                                        <option value="">-- اختر صفحة لإخفائها --</option>
-                                        {availablePagesToHide.map(p => (
-                                            <option key={p.id} value={p.id}>
-                                                {p.icon} {p.label}
-                                            </option>
-                                        ))}
-                                    </Form.Select>
+                                    />
                                 </Form.Group>
                             </Col>
 
@@ -1260,7 +1318,7 @@ const ControlPanelPage = () => {
                                 <Button
                                     variant="danger"
                                     onClick={handleHidePage}
-                                    disabled={!selectedUserId || !selectedPageToHide || hidingActionLoading}
+                                    disabled={selectedUserIds.length === 0 || selectedPageToHide.length === 0 || hidingActionLoading}
                                     className="w-100 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm"
                                     style={{
                                         minHeight: '44px',
@@ -1274,7 +1332,7 @@ const ControlPanelPage = () => {
                                     ) : (
                                         <>
                                             <FaEyeSlash />
-                                            <span>إخفاء الصفحة للمستخدم</span>
+                                            <span>{selectedPageToHide.length > 1 ? `إخفاء ${selectedPageToHide.length} صفحات` : 'إخفاء الصفحة للمستخدم'}</span>
                                         </>
                                     )}
                                 </Button>
@@ -1282,95 +1340,102 @@ const ControlPanelPage = () => {
                         </Row>
                     </div>
 
-                    {/* حالة المستخدم المختار والصفحات المخفية عنه */}
-                    {selectedUserObj && (
+                    {/* حالة المستخدمين المختارين والصفحات المخفية عنهم */}
+                    {selectedUserObjs.length > 0 && (
                         <div className="p-3 mb-4 rounded-3 border" style={{ backgroundColor: '#ffffff' }}>
-                            <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom">
-                                <div className="d-flex align-items-center gap-2">
-                                    <span className="badge bg-success px-3 py-2 fs-6 fw-bold rounded-pill">
-                                        المستخدم: {selectedUserObj.username}
-                                    </span>
-                                    <span className="badge bg-light text-dark border px-3 py-2 fs-6">
-                                        {selectedUserObj.job_title || selectedUserObj.role}
-                                    </span>
-                                    {selectedUserObj.faculty_id && (
-                                        <span className="badge bg-light text-secondary border px-3 py-2 fs-6">
-                                            {getFacultyName(selectedUserObj.faculty_id)}
-                                        </span>
-                                    )}
-                                </div>
-                                {currentUserHiddenPages.length > 0 && (
-                                    <Button
-                                        variant="outline-secondary"
-                                        size="sm"
-                                        onClick={() => handleUnhideAllForUser(selectedUserObj.id)}
-                                        disabled={hidingActionLoading}
-                                        className="d-flex align-items-center gap-1 rounded-pill px-3"
-                                    >
-                                        <FaUndo size={12} />
-                                        <span>إظهار جميع الصفحات</span>
-                                    </Button>
-                                )}
-                            </div>
+                            {selectedUserObjs.map(userObj => {
+                                const userHiddenPages = parseHiddenPages(userObj);
+                                return (
+                                    <div key={userObj.id} className={`${selectedUserObjs.length > 1 ? 'mb-3 pb-3 border-bottom' : ''}`}>
+                                        <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                            <div className="d-flex align-items-center gap-2">
+                                                <span className="badge bg-success px-3 py-2 fs-6 fw-bold rounded-pill">
+                                                    المستخدم: {userObj.username}
+                                                </span>
+                                                <span className="badge bg-light text-dark border px-3 py-2 fs-6">
+                                                    {userObj.job_title || userObj.role}
+                                                </span>
+                                                {userObj.faculty_id && (
+                                                    <span className="badge bg-light text-secondary border px-3 py-2 fs-6">
+                                                        {getFacultyName(userObj.faculty_id)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {userHiddenPages.length > 0 && (
+                                                <Button
+                                                    variant="outline-secondary"
+                                                    size="sm"
+                                                    onClick={() => handleUnhideAllForUser(userObj.id)}
+                                                    disabled={hidingActionLoading}
+                                                    className="d-flex align-items-center gap-1 rounded-pill px-3"
+                                                >
+                                                    <FaUndo size={12} />
+                                                    <span>إظهار جميع الصفحات</span>
+                                                </Button>
+                                            )}
+                                        </div>
 
-                            <div>
-                                <h6 className="fw-bold text-muted mb-3 d-flex align-items-center gap-2">
-                                    <span>الصفحات المخفية حالياً من القائمة الجانبية:</span>
-                                    <Badge bg={currentUserHiddenPages.length > 0 ? "warning" : "success"} text={currentUserHiddenPages.length > 0 ? "dark" : "white"}>
-                                        {currentUserHiddenPages.length}
-                                    </Badge>
-                                </h6>
-
-                                {currentUserHiddenPages.length === 0 ? (
-                                    <div className="alert alert-success d-flex align-items-center gap-2 mb-0 py-2 px-3" role="alert">
-                                        <FaCheckCircle className="text-success fs-5 flex-shrink-0" />
                                         <div>
-                                            <strong>جميع صفحات القائمة الجانبية ظاهرة</strong> لهذا المستخدم حالياً ولا توجد أي صفحات مخفية عنه.
+                                            <h6 className="fw-bold text-muted mb-3 d-flex align-items-center gap-2">
+                                                <span>الصفحات المخفية حالياً من القائمة الجانبية:</span>
+                                                <Badge bg={userHiddenPages.length > 0 ? "warning" : "success"} text={userHiddenPages.length > 0 ? "dark" : "white"}>
+                                                    {userHiddenPages.length}
+                                                </Badge>
+                                            </h6>
+
+                                            {userHiddenPages.length === 0 ? (
+                                                <div className="alert alert-success d-flex align-items-center gap-2 mb-0 py-2 px-3" role="alert">
+                                                    <FaCheckCircle className="text-success fs-5 flex-shrink-0" />
+                                                    <div>
+                                                        <strong>جميع صفحات القائمة الجانبية ظاهرة</strong> لهذا المستخدم حالياً ولا توجد أي صفحات مخفية عنه.
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="d-flex flex-wrap gap-2">
+                                                    {userHiddenPages.map(pageId => {
+                                                        const pageObj = SIDEBAR_PAGES.find(p => p.id === pageId);
+                                                        const pageName = pageObj ? pageObj.label : pageId;
+                                                        const pageIcon = pageObj ? pageObj.icon : '📄';
+                                                        return (
+                                                            <div 
+                                                                key={pageId}
+                                                                className="d-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill shadow-sm"
+                                                                style={{
+                                                                    backgroundColor: '#fef2f2',
+                                                                    border: '1px solid #fecaca',
+                                                                    color: '#991b1b',
+                                                                    fontSize: '0.9rem',
+                                                                    fontWeight: '600'
+                                                                }}
+                                                            >
+                                                                <span>{pageIcon}</span>
+                                                                <span>{pageName}</span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleUnhidePage(pageId, userObj.id)}
+                                                                    disabled={hidingActionLoading}
+                                                                    title={`إلغاء إخفاء صفحة ${pageName}`}
+                                                                    className="btn btn-sm p-0 ms-1 d-flex align-items-center justify-content-center text-danger"
+                                                                    style={{
+                                                                        width: '20px',
+                                                                        height: '20px',
+                                                                        borderRadius: '50%',
+                                                                        backgroundColor: '#fee2e2',
+                                                                        border: 'none',
+                                                                        cursor: 'pointer'
+                                                                    }}
+                                                                >
+                                                                    <FaTimes size={11} />
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                ) : (
-                                    <div className="d-flex flex-wrap gap-2">
-                                        {currentUserHiddenPages.map(pageId => {
-                                            const pageObj = SIDEBAR_PAGES.find(p => p.id === pageId);
-                                            const pageName = pageObj ? pageObj.label : pageId;
-                                            const pageIcon = pageObj ? pageObj.icon : '📄';
-                                            return (
-                                                <div 
-                                                    key={pageId}
-                                                    className="d-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill shadow-sm"
-                                                    style={{
-                                                        backgroundColor: '#fef2f2',
-                                                        border: '1px solid #fecaca',
-                                                        color: '#991b1b',
-                                                        fontSize: '0.9rem',
-                                                        fontWeight: '600'
-                                                    }}
-                                                >
-                                                    <span>{pageIcon}</span>
-                                                    <span>{pageName}</span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleUnhidePage(pageId, selectedUserObj.id)}
-                                                        disabled={hidingActionLoading}
-                                                        title={`إلغاء إخفاء صفحة ${pageName}`}
-                                                        className="btn btn-sm p-0 ms-1 d-flex align-items-center justify-content-center text-danger"
-                                                        style={{
-                                                            width: '20px',
-                                                            height: '20px',
-                                                            borderRadius: '50%',
-                                                            backgroundColor: '#fee2e2',
-                                                            border: 'none',
-                                                            cursor: 'pointer'
-                                                        }}
-                                                    >
-                                                        <FaTimes size={11} />
-                                                    </button>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
+                                );
+                            })}
                         </div>
                     )}
 
@@ -1392,6 +1457,7 @@ const ControlPanelPage = () => {
                             <Table hover className="mb-0 align-middle text-center">
                                 <thead className="bg-light">
                                     <tr style={{ borderBottom: '2px solid #e2e8f0', fontSize: '0.9rem' }}>
+                                        <th style={{ width: '50px' }}>#</th>
                                         <th style={{ textAlign: 'right', paddingRight: '15px' }}>المستخدم</th>
                                         <th>الوظيفة / الصفة</th>
                                         <th>الكلية</th>
@@ -1403,10 +1469,11 @@ const ControlPanelPage = () => {
                                     {allUsers.filter(u => {
                                         const role = (u.role || '').toLowerCase();
                                         return role !== 'admin' && role !== 'super_admin' && !u.is_super_admin && !u.is_superuser && parseHiddenPages(u).length > 0;
-                                    }).map(u => {
+                                    }).map((u, index) => {
                                         const hiddenList = parseHiddenPages(u);
                                         return (
                                             <tr key={u.id}>
+                                                <td className="fw-bold" style={{ color: '#64748b' }}>{index + 1}</td>
                                                 <td className="fw-bold text-end pe-3" style={{ color: '#1e293b' }}>
                                                     {u.username}
                                                 </td>
@@ -1452,7 +1519,7 @@ const ControlPanelPage = () => {
                                     })}
                                     {allUsers.filter(u => parseHiddenPages(u).length > 0).length === 0 && (
                                         <tr>
-                                            <td colSpan="5" className="text-center text-muted py-4">
+                                            <td colSpan="6" className="text-center text-muted py-4">
                                                 لا توجد صفحات مخفية عن أي مستخدم حالياً.
                                             </td>
                                         </tr>
