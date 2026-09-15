@@ -2673,7 +2673,7 @@ const ProfessorsPage = () => {
             </div>
           </div>
           
-          <div class="section-title">أسابيع حضور عضو هيئة التدريس لكل عام جامعي</div>
+          <div class="section-title">أسابيع حضور عضو هيئة التدريس ${modalActiveYear && modalActiveYear !== "جميع الأعوام" ? `للعام الجامعي (${modalActiveYear})` : "لكل عام جامعي"}</div>
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11pt; text-align: center; border: 1px solid #1b5e20;">
             <thead>
               <tr style="background-color: transparent; color: #ffffff;">
@@ -2684,7 +2684,9 @@ const ProfessorsPage = () => {
               </tr>
             </thead>
             <tbody>
-              ${academicYears.map(ay => {
+              ${academicYears
+                .filter(ay => !modalActiveYear || modalActiveYear === "جميع الأعوام" || ay.name === modalActiveYear)
+                .map(ay => {
                 const yData = formData.academic_year_weeks?.[ay.name] || {};
                 const sem1 = getProfDisplayTermWeeks('semester1_weeks', 'med_semester1_weeks', 15, 15, ay, yData, formData.faculties).text;
                 const sem2 = getProfDisplayTermWeeks('semester2_weeks', 'med_semester2_weeks', 14, 14, ay, yData, formData.faculties).text;
@@ -2702,241 +2704,131 @@ const ProfessorsPage = () => {
           </table>
 
           
-
           ${(() => {
-
+            const isAllYears = !modalActiveYear || modalActiveYear === "جميع الأعوام";
             const assignmentsByYear = professorAssignments.reduce((acc, curr) => {
-
               if (!acc[curr.academic_year]) acc[curr.academic_year] = [];
-
               acc[curr.academic_year].push(curr);
-
               return acc;
-
             }, {});
 
+            const allSortedYears = Object.keys(assignmentsByYear).sort().reverse();
+            const displayedYears = isAllYears 
+              ? allSortedYears 
+              : (assignmentsByYear[modalActiveYear] ? [modalActiveYear] : []);
 
-
-            const sortedYears = Object.keys(assignmentsByYear).sort().reverse();
-
-            
-
-            if (sortedYears.length === 0) {
-
-              return `<div class="section-title">تكليفات جامعة المنوفية الأهلية</div>
-
-                      <table><tr><td colspan="5">لا توجد تكليفات لعضو هيئة التدريس</td></tr></table>`;
-
+            if (displayedYears.length === 0) {
+              return `<div class="section-title">المقررات المكلف بها من الخطة الدراسية ${!isAllYears ? `للعام الجامعي (${modalActiveYear})` : ''}</div>
+                      <table><tr><td colspan="8">لا توجد تكليفات لعضو هيئة التدريس ${!isAllYears ? `في الخطة الدراسية للعام الجامعي: ${modalActiveYear}` : 'في أي عام جامعي'}</td></tr></table>`;
             }
 
-
-
             let html = "";
-
-            sortedYears.forEach(year => {
-
-              html += `<div class="section-title">تكليف جامعة المنوفية الأهلية للعام الجامعي (${year})</div>
-
+            displayedYears.forEach(year => {
+              html += `<div class="section-title">المقررات المكلف بها من الخطة الدراسية للعام الجامعي (${year})</div>
               <table>
-
                 <thead>
-
                   <tr>
-
                     <th>الكلية</th>
-
                     <th>البرنامج</th>
-
                     <th>المقرر</th>
-
                     <th>المستوى</th>
-
                     <th>الفصل الدراسي</th>
-
                     <th>ساعات التدريس كل اسبوع</th>
-
                     <th>الساعات المنتقصة</th>
-
                     <th>إجمالي الساعات الفعلية في الترم للمقرر</th>
-
                   </tr>
-
                 </thead>
-
                 <tbody>`;
 
-              
-
               const yearAssignments = assignmentsByYear[year];
-
               const yearDeductions = (professorDeductions || []).filter(d => d.academic_year === year);
-
               const totalYearDeductions = yearDeductions.reduce((sum, d) => sum + (d.deducted_hours || 0), 0);
-
               const facultySpans = [];
-
               let i = 0;
-
               while (i < yearAssignments.length) {
-
                 const currentFac = yearAssignments[i].faculty_name;
-
                 let count = 1;
-
                 while (i + count < yearAssignments.length && yearAssignments[i + count].faculty_name === currentFac) {
-
                   count++;
-
                 }
-
                 facultySpans.push({ index: i, count: count, name: currentFac });
-
                 i += count;
-
               }
-
-
 
               yearAssignments.forEach((a, idx) => {
-
                 const spanObj = facultySpans.find(s => s.index === idx);
-
                 const facTd = spanObj ? `<td rowspan="${spanObj.count}" style="vertical-align: middle; font-weight: bold;">${spanObj.name}</td>` : '';
-
                 const termHours = getTermTotalHours(a.hours, a.course_semester, a.academic_year || year, formData, a.faculty_name);
-
                 const courseDeds = getCourseDeductions(a, yearDeductions, yearAssignments);
-
                 const courseDeductedHours = courseDeds.reduce((sum, d) => sum + (d.deducted_hours || 0), 0);
-
                 const actualTermHours = Math.max(0, termHours - courseDeductedHours);
 
-
-
                 const dedTd = courseDeductedHours > 0
-
                   ? `<div style="color: #dc3545; font-weight: bold;">- ${courseDeductedHours} ساعة</div>` +
-
                     `<div style="font-size: 8.5pt; color: #555; font-weight: normal; margin-top: 2px;">` +
-
                     courseDeds.map(d => {
-
                       const weekStr = d.week_name || (d.week_number ? `الأسبوع ${d.week_number}` : '');
-
                       return `<div>[${weekStr}${d.hour_type ? ` (${d.hour_type})` : ''}: خصم ${d.deducted_hours} س${d.reason ? ` - السبب: ${d.reason}` : ''}]</div>`;
-
                     }).join('') +
-
                     `</div>`
-
                   : `-`;
 
-
-
                 html += `
-
                   <tr>
-
                     ${facTd}
-
                     <td>${(a.program_name || "").replace(/ - /g, "<br/>")}</td>
-
                     <td>${a.course_name}</td>
-
                     <td>${formatLvl(a.level)}</td>
-
                     <td>${formatSem(a.course_semester)}</td>
-
                     <td>${formatHours(a.hours)}</td>
-
                     <td style="text-align: center;">${dedTd}</td>
-
                     <td style="font-weight: bold; color: #1e40af; text-align: center;">${formatHours(actualTermHours)}</td>
-
                   </tr>
-
                 `;
-
               });
 
-
-
               const totalWeeklyHours = formatHours(assignmentsByYear[year].reduce((sum, current) => sum + (current.hours || 0), 0));
-
               const rawTotalTerm = assignmentsByYear[year].reduce((sum, current) => sum + getTermTotalHours(current.hours, current.course_semester, current.academic_year || year, formData, current.faculty_name), 0);
-
               const netTotalTerm = formatHours(Math.max(0, rawTotalTerm - totalYearDeductions));
 
-
-
               if (totalYearDeductions > 0) {
-
                 html += `
-
                   <tr style="background-color: transparent; color: #856404; font-size: 9pt;">
-
                     <td colspan="5" style="text-align: center; font-weight: bold;">⚠️ إجمالي الساعات المنتقصة لهذا العام الجامعي: ${yearDeductions.map(d => {
-
                       const weekStr = d.week_name || (d.week_number ? `الأسبوع ${d.week_number}` : '');
-
                       return `[${d.semester}${weekStr ? ` - ${weekStr}` : ''}${d.hour_type ? ` (${d.hour_type})` : ''}: خصم ${d.deducted_hours} س ${d.reason ? `- السبب: ${d.reason}` : ''}]`;
-
                     }).join(' ')}</td>
-
                     <td style="text-align: center;">-</td>
-
                     <td style="text-align: center; font-weight: bold; color: #dc3545;">- ${totalYearDeductions} ساعة</td>
-
                     <td style="text-align: center;">-</td>
-
                   </tr>
-
                 `;
-
               }
 
-
-
               html += `
-
                   <tr style="background-color: transparent; font-weight: bold;">
-
                     <td colspan="5" style="text-align: center; color: #2e7d32;">إجمالي ساعات التدريس لهذا العام الجامعي ${totalYearDeductions > 0 ? '(الصافي بعد الانتقاص)' : ''}</td>
-
                     <td style="text-align: center; color: #2e7d32;">${totalWeeklyHours} ساعة</td>
-
                     <td style="text-align: center; color: ${totalYearDeductions > 0 ? '#dc3545' : '#6b7280'};">${totalYearDeductions > 0 ? `- ${totalYearDeductions} ساعة` : '-'}</td>
-
                     <td style="text-align: center; color: #1e40af;">${netTotalTerm} ساعة</td>
-
                   </tr>
-
                 </tbody>
-
               </table>`;
-
             });
 
-            
-
-            const grandTotalTerm = formatHours(professorAssignments.reduce((sum, curr) => sum + getTermTotalHours(curr.hours, curr.course_semester, curr.academic_year, formData, curr.faculty_name), 0));
-
-            html += `
-
-              <div style="margin-top: 15px; padding: 12px; background-color: transparent; border: 1px solid #c3e6cb; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; overflow: hidden;">
-
-                <span style="font-size: 15px; font-weight: bold; color: #155724; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">إجمالي ساعات تدريس عضو هيئة التدريس في جامعة المنوفية الأهلية عبر السنين</span>
-
-                <span style="font-size: 15px; font-weight: bold; color: #155724; white-space: nowrap; flex-shrink: 0; margin-right: 10px;">${grandTotalTerm} ساعة</span>
-
-              </div>
-
-            `;
-
-            
+            if (isAllYears && allSortedYears.length > 0) {
+              const totalAllDeductions = (professorDeductions || []).reduce((sum, d) => sum + (d.deducted_hours || 0), 0);
+              const rawGrandTotal = professorAssignments.reduce((sum, curr) => sum + getTermTotalHours(curr.hours, curr.course_semester, curr.academic_year, formData, curr.faculty_name), 0);
+              const grandTotalTerm = formatHours(Math.max(0, rawGrandTotal - totalAllDeductions));
+              html += `
+                <div style="margin-top: 15px; padding: 12px; background-color: transparent; border: 1px solid #c3e6cb; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; overflow: hidden;">
+                  <span style="font-size: 15px; font-weight: bold; color: #155724; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">إجمالي ساعات تدريس عضو هيئة التدريس في جامعة المنوفية الأهلية عبر السنين ${totalAllDeductions > 0 ? '(الصافي)' : ''}</span>
+                  <span style="font-size: 15px; font-weight: bold; color: #155724; white-space: nowrap; flex-shrink: 0; margin-right: 10px;">${grandTotalTerm} ساعة</span>
+                </div>
+              `;
+            }
 
             return html;
-
           })()}
 
                 </td>
@@ -3112,7 +3004,7 @@ ${renderProfSignaturesHTML(fids)}
 
 
 
-      <div class="section-title">أسابيع حضور عضو هيئة التدريس لكل عام جامعي</div>
+      <div class="section-title">أسابيع حضور عضو هيئة التدريس ${modalActiveYear && modalActiveYear !== "جميع الأعوام" ? `للعام الجامعي (${modalActiveYear})` : "لكل عام جامعي"}</div>
 
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11pt; text-align: center; border: 1px solid #1b5e20;">
 
@@ -3134,7 +3026,9 @@ ${renderProfSignaturesHTML(fids)}
 
         <tbody>
 
-          ${academicYears.map(ay => {
+          ${academicYears
+            .filter(ay => !modalActiveYear || modalActiveYear === "جميع الأعوام" || ay.name === modalActiveYear)
+            .map(ay => {
             const yData = formData.academic_year_weeks?.[ay.name] || {};
             const sem1 = getProfDisplayTermWeeks('semester1_weeks', 'med_semester1_weeks', 15, 15, ay, yData, formData.faculties).text;
             const sem2 = getProfDisplayTermWeeks('semester2_weeks', 'med_semester2_weeks', 14, 14, ay, yData, formData.faculties).text;
@@ -3165,6 +3059,7 @@ ${renderProfSignaturesHTML(fids)}
 
       ${(() => {
 
+            const isAllYears = !modalActiveYear || modalActiveYear === "جميع الأعوام";
             const assignmentsByYear = professorAssignments.reduce((acc, curr) => {
 
               if (!acc[curr.academic_year]) acc[curr.academic_year] = [];
@@ -3177,15 +3072,18 @@ ${renderProfSignaturesHTML(fids)}
 
 
 
-            const sortedYears = Object.keys(assignmentsByYear).sort().reverse();
+            const allSortedYears = Object.keys(assignmentsByYear).sort().reverse();
+            const displayedYears = isAllYears 
+              ? allSortedYears 
+              : (assignmentsByYear[modalActiveYear] ? [modalActiveYear] : []);
 
             
 
-            if (sortedYears.length === 0) {
+            if (displayedYears.length === 0) {
 
-              return `<div class="section-title">تكليفات جامعة المنوفية الأهلية</div>
+              return `<div class="section-title">المقررات المكلف بها من الخطة الدراسية ${!isAllYears ? `للعام الجامعي (${modalActiveYear})` : ''}</div>
 
-                      <table><tr><td colspan="5">لا توجد تكليفات لعضو هيئة التدريس</td></tr></table>`;
+                      <table><tr><td colspan="8">لا توجد تكليفات لعضو هيئة التدريس ${!isAllYears ? `في الخطة الدراسية للعام الجامعي: ${modalActiveYear}` : 'في أي عام جامعي'}</td></tr></table>`;
 
             }
 
@@ -3193,9 +3091,9 @@ ${renderProfSignaturesHTML(fids)}
 
             let html = "";
 
-            sortedYears.forEach(year => {
+            displayedYears.forEach(year => {
 
-              html += `<div class="section-title">تكليف جامعة المنوفية الأهلية للعام الجامعي (${year})</div>
+              html += `<div class="section-title">المقررات المكلف بها من الخطة الدراسية للعام الجامعي (${year})</div>
 
               <table>
 
@@ -3379,19 +3277,22 @@ ${renderProfSignaturesHTML(fids)}
 
             
 
-            const grandTotalTerm = formatHours(professorAssignments.reduce((sum, curr) => sum + getTermTotalHours(curr.hours, curr.course_semester, curr.academic_year, formData, curr.faculty_name), 0));
+            if (isAllYears && allSortedYears.length > 0) {
+              const totalAllDeductions = (professorDeductions || []).reduce((sum, d) => sum + (d.deducted_hours || 0), 0);
+              const rawGrandTotal = professorAssignments.reduce((sum, curr) => sum + getTermTotalHours(curr.hours, curr.course_semester, curr.academic_year, formData, curr.faculty_name), 0);
+              const grandTotalTerm = formatHours(Math.max(0, rawGrandTotal - totalAllDeductions));
+              html += `
 
-            html += `
+                <div style="margin-top: 15px; padding: 12px; background-color: transparent; border: 1px solid #c3e6cb; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; overflow: hidden;">
 
-              <div style="margin-top: 15px; padding: 12px; background-color: transparent; border: 1px solid #c3e6cb; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; overflow: hidden;">
+                  <span style="font-size: 15px; font-weight: bold; color: #155724; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">إجمالي ساعات تدريس عضو هيئة التدريس في جامعة المنوفية الأهلية عبر السنين ${totalAllDeductions > 0 ? '(الصافي)' : ''}</span>
 
-                <span style="font-size: 15px; font-weight: bold; color: #155724; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">إجمالي ساعات تدريس عضو هيئة التدريس في جامعة المنوفية الأهلية عبر السنين</span>
+                  <span style="font-size: 15px; font-weight: bold; color: #155724; white-space: nowrap; flex-shrink: 0; margin-right: 10px;">${grandTotalTerm} ساعة</span>
 
-                <span style="font-size: 15px; font-weight: bold; color: #155724; white-space: nowrap; flex-shrink: 0; margin-right: 10px;">${grandTotalTerm} ساعة</span>
+                </div>
 
-              </div>
-
-            `;
+              `;
+            }
 
             
 
