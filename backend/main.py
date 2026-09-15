@@ -1792,23 +1792,28 @@ async def import_professors_excel(
 
     # Helper function to extract academic title
     def parse_job_title_and_clean_name(name):
-        name = name.strip()
-        prefixes = [
-            ("أ.د/", "أ.د"), ("أ.د.", "أ.د"), ("أ.د", "أ.د"),
-            ("أ.م.د/", "أ.م"), ("أ.م.د.", "أ.م"), ("أ.م.د", "أ.م"), ("أ.م/", "أ.م"), ("أ.م.", "أ.م"), ("أ.م", "أ.م"),
-            ("م.م/", "م.م"), ("م.م.", "م.م"), ("م.م", "م.م"), ("مدرس مساعد", "م.م"),
-            ("م.ع/", "م.ع"), ("م.ع.", "م.ع"), ("م.ع", "م.ع"), ("معيد", "م.ع"),
-            ("د/", "د"), ("د.", "د"), ("دكتور", "د"),
-            ("أ/", "أ"), ("أستاذ", "أ")
+        if not name:
+            return "د", ""
+        name = str(name).strip()
+        # Clean leading noise like dots or slashes
+        name = re.sub(r'^[./\-]+', '', name).strip()
+        
+        patterns = [
+            (r'^(أ\.د|أستاذ\s+دكتور|استاذ\s+دكتور)[\s\./]+', "أ.د"),
+            (r'^(أ\.م\.د|أستاذ\s+مساعد|استاذ\s+مساعد)[\s\./]+', "أ.م.د"),
+            (r'^(أ\.م|أستاذ|استاذ)[\s\./]+', "أ.م"),
+            (r'^(م\.م|مدرس\s+مساعد)[\s\./]+', "م.م"),
+            (r'^(م\.ع|معيد|معيدة)[\s\./]+', "م.ع"),
+            (r'^(دكتور|دكتورة|د)[\s\./]+', "د"),
+            (r'^(أ|م)[\s\./]+', "م.ع"),
         ]
         extracted_title = "د" # Default title
         clean_name = name
-        for prefix, title in prefixes:
-            if name.startswith(prefix):
+        for pat, title in patterns:
+            m = re.match(pat, clean_name, flags=re.IGNORECASE)
+            if m:
                 extracted_title = title
-                clean_name = name[len(prefix):].strip()
-                if clean_name.startswith("/") or clean_name.startswith("."):
-                    clean_name = clean_name[1:].strip()
+                clean_name = clean_name[m.end():].strip()
                 break
         clean_name = clean_name.lstrip("/. ").strip()
         return extracted_title, clean_name
