@@ -274,18 +274,9 @@ const AdminUsersPage = () => {
         );
     }
 
-    const restrictedFromAdminPages = [
-        'مدير',
-        'نائب رئيس الجامعة للشئون الأكاديمية',
-        'عميد قطاع الهندسة والعلوم الأساسية والتطبيقية',
-        'عميد قطاع العلوم الصحية',
-        'مدير إدارة IT',
-        'مدير إدارة المالية',
-        'عضو هيئة تدريس'
-    ];
-    const isSuperAdmin = user?.role === 'admin' && !restrictedFromAdminPages.includes(user?.job_title);
+    const isAdminUser = user?.role === 'admin';
 
-    if (!isSuperAdmin && user?.role !== 'faculty_professor') {
+    if (!isAdminUser && user?.role !== 'faculty_professor') {
         return <Container className="mt-5 text-center text-danger"><h4>ليس لديك صلاحية للوصول إلى هذه الصفحة</h4></Container>;
     }
 

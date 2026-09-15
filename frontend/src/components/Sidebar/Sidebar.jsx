@@ -289,19 +289,9 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
     }
   ];
 
-  const restrictedFromAdminPages = [
-    'مدير',
-    'نائب رئيس الجامعة للشئون الأكاديمية',
-    'عميد قطاع الهندسة والعلوم الأساسية والتطبيقية',
-    'عميد قطاع العلوم الصحية',
-    'مدير إدارة IT',
-    'مدير إدارة المالية',
-    'عضو هيئة تدريس'
-  ];
+  const isAdminUser = user?.role === 'admin';
 
-  const isSuperAdmin = user?.role === 'admin' && !restrictedFromAdminPages.includes(user?.job_title);
-
-  if (isSuperAdmin) {
+  if (isAdminUser) {
     menuItems.push({
       id: 'admin',
       label: 'إدارة المسؤولين',

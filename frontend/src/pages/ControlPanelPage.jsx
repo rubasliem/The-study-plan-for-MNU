@@ -454,10 +454,7 @@ const ControlPanelPage = () => {
 
     const userSelectOptions = useMemo(() => {
         return allUsers
-            .filter(u => {
-                const role = (u.role || '').toLowerCase();
-                return role !== 'admin' && role !== 'super_admin' && !u.is_super_admin && !u.is_superuser;
-            })
+            .filter(u => u.id !== user?.id)
             .map(u => {
                 const facName = getFacultyName(u.faculty_id);
                 let roleText = u.job_title || (u.role === 'admin' ? 'مدير عام' : u.role === 'faculty_admin' ? 'مسؤول كلية' : u.role === 'faculty_professor' ? 'مدير برنامج' : u.role === 'student_affairs' ? 'شؤون طلاب' : u.role === 'reviewer' ? 'مراجع' : u.role);
@@ -476,7 +473,7 @@ const ControlPanelPage = () => {
                     user: u
                 };
             });
-    }, [allUsers, faculties]);
+    }, [allUsers, faculties, user?.id]);
 
     const customSelectStyles = {
         control: (base, state) => ({
