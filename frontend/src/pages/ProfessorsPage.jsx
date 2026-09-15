@@ -5107,13 +5107,15 @@ ${renderProfSignaturesHTML(fids)}
                       onChange={(e) => {
                         const selectedYear = e.target.value;
                         setModalActiveYear(selectedYear);
-                        setFormData(prev => ({
-                          ...prev,
-                          academic_year: selectedYear,
-                          semester1_weeks: prev.academic_year_weeks?.[selectedYear]?.semester1_weeks ?? '',
-                          semester2_weeks: prev.academic_year_weeks?.[selectedYear]?.semester2_weeks ?? '',
-                          summer_weeks: prev.academic_year_weeks?.[selectedYear]?.summer_weeks ?? ''
-                        }));
+                        if (selectedYear !== "جميع الأعوام") {
+                          setFormData(prev => ({
+                            ...prev,
+                            academic_year: selectedYear,
+                            semester1_weeks: prev.academic_year_weeks?.[selectedYear]?.semester1_weeks ?? '',
+                            semester2_weeks: prev.academic_year_weeks?.[selectedYear]?.semester2_weeks ?? '',
+                            summer_weeks: prev.academic_year_weeks?.[selectedYear]?.summer_weeks ?? ''
+                          }));
+                        }
                       }}
                       style={{
                         flex: '1',
@@ -5129,6 +5131,7 @@ ${renderProfSignaturesHTML(fids)}
                         outline: 'none'
                       }}
                     >
+                      <option value="جميع الأعوام">🌟 جميع الأعوام الجامعية</option>
                       {academicYears.map((ay) => {
                         const hasCustom = formData.academic_year_weeks?.[ay.name];
                         return (
@@ -5141,7 +5144,14 @@ ${renderProfSignaturesHTML(fids)}
                   </div>
 
                   {/* خيارات الفصول الدراسية للعام المحدد حالياً */}
-                  {(() => {
+                  {modalActiveYear === "جميع الأعوام" ? (
+                    <div style={{ backgroundColor: '#f0fdf4', padding: '12px 16px', borderRadius: '8px', border: '1px dashed #86efac', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px', color: '#166534' }}>
+                      <i className="bi bi-info-circle-fill text-success" style={{ fontSize: '18px' }}></i>
+                      <span style={{ fontSize: '13.5px', fontWeight: '500' }}>
+                        يتم عرض أسابيع الحضور لجميع الأعوام في الجدول أدناه. لتعديل أسابيع أي عام محدد، انقر على زر <b>"تعديل"</b> في الصف الخاص به أو اختره من القائمة أعلاه.
+                      </span>
+                    </div>
+                  ) : (() => {
                     const activeYear = modalActiveYear || formData.academic_year || academicYears[0]?.name || "2026/2027";
                     const currentYearObj = academicYears.find(y => y.name === activeYear) || academicYears[0] || {};
                     const isProfMed = (formData.faculties || []).some(f => isMedicineFacultyName(typeof f === 'string' ? f : f.name || f.name_ar));
@@ -5256,7 +5266,9 @@ ${renderProfSignaturesHTML(fids)}
                           </tr>
                         </thead>
                         <tbody>
-                          {academicYears.map((ay) => {
+                          {academicYears
+                            .filter(ay => !modalActiveYear || modalActiveYear === "جميع الأعوام" || ay.name === modalActiveYear)
+                            .map((ay) => {
                             const yData = formData.academic_year_weeks?.[ay.name] || {};
                             const isCurrentActive = (modalActiveYear || formData.academic_year || academicYears[0]?.name) === ay.name;
                             return (
