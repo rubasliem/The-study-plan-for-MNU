@@ -4994,38 +4994,97 @@ ${renderProfSignaturesHTML(fids)}
 
 
             {/* حقل عدد أيام العمل في الأسبوع */}
-
             <div style={{ marginBottom: '15px' }}>
-
               <select
-
                 value={formData.work_days || ""}
-
                 onChange={(e) => setFormData({ ...formData, work_days: e.target.value })}
-
                 disabled={modalMode === 'view' || formData.contract_type === 'كلي' || formData.contract_type === 'بالساعة'}
-
                 style={inputStyle}
-
               >
-
                 <option value="" disabled hidden>اختر عدد أيام العمل...</option>
-
                 <option value="5 أيام في الأسبوع">5 أيام في الأسبوع (للرئيسي / الكلي)</option>
-
                 <option value="يوم واحد">يوم واحد (جزئي)</option>
-
                 <option value="يومان">يومان (جزئي)</option>
-
                 <option value="3 أيام">3 أيام (جزئي)</option>
-
                 <option value="بالساعة">بالساعة</option>
-
               </select>
+            </div>
 
+            {/* حقل الكليات التابع لها */}
+            <div style={{ marginBottom: '18px' }}>
+              <label style={{ fontWeight: 'bold', marginBottom: '6px', display: 'block', color: '#333' }}>
+                الكليات التابع لها
+              </label>
+              <Select
+                isMulti
+                isDisabled={modalMode === 'view'}
+                placeholder="ابحث/اختر الكليات..."
+                styles={customSelectStyles}
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                noOptionsMessage={() => "لا توجد نتائج"}
+                options={faculties.map(f => ({ value: String(f.id), label: f.name }))}
+                value={selectedFaculties}
+                onChange={(selected) => setSelectedFaculties(selected || [])}
+                isSearchable={true}
+                isClearable={true}
+              />
+              {errors.faculties && <span style={{ color: 'red', fontSize: '12px', display: 'block', marginTop: '5px' }}>{errors.faculties}</span>}
             </div>
 
 
+
+            {/* في وضع العرض: القائمة المنسدلة لاختيار العام الجامعي المعروض أعلى أسابيع الحضور والمقررات */}
+            {modalMode === 'view' && (
+              <div style={{
+                marginBottom: '16px',
+                padding: '12px 18px',
+                backgroundColor: '#f0fdf4',
+                border: '1.5px solid #86efac',
+                borderRadius: '10px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '12px',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.03)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="bi bi-calendar2-range text-success" style={{ fontSize: '20px' }}></i>
+                  <div>
+                    <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#166534' }}>
+                      العام الجامعي المعروض:
+                    </div>
+                    <small style={{ color: '#15803d' }}>
+                      اختر عاماً محدداً لعرض أسابيعه ومقرراته فقط، أو اختر "جميع الأعوام"
+                    </small>
+                  </div>
+                </div>
+                <select
+                  value={modalActiveYear || "جميع الأعوام"}
+                  onChange={(e) => setModalActiveYear(e.target.value)}
+                  style={{
+                    minWidth: '240px',
+                    padding: '8px 16px',
+                    fontSize: '15px',
+                    fontWeight: 'bold',
+                    color: '#166534',
+                    border: '2px solid #22c55e',
+                    borderRadius: '8px',
+                    backgroundColor: '#ffffff',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                  }}
+                >
+                  <option value="جميع الأعوام">🌟 جميع الأعوام الجامعية</option>
+                  {academicYears.map((ay) => (
+                    <option key={ay.id || ay.name} value={ay.name}>
+                      📅 العام الجامعي: {ay.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* حقل العام الجامعي وتوزيع أسابيع الحضور لكل عام جامعي */}
             <div style={{ marginBottom: '20px', padding: '16px 18px', border: '1.5px solid #c8e6c9', borderRadius: '10px', backgroundColor: '#f9fcf9' }}>
@@ -5317,103 +5376,14 @@ ${renderProfSignaturesHTML(fids)}
 
 
 
-            {/* قسم الكليات والتكليفات من الخطة الدراسية */}
-
-            <div style={{ marginTop: '15px', padding: '15px', border: '1px solid #ccc', borderRadius: '8px' }}>
-
-              <div style={{ marginBottom: '15px' }}>
-
-                <label style={{ fontWeight: 'bold', marginBottom: '5px', display: 'block' }}>الكليات التابع لها</label>
-
-                <Select
-
-                  isMulti
-
-                  isDisabled={modalMode === 'view'}
-
-                  placeholder="ابحث/اختر الكليات..."
-
-                  styles={customSelectStyles}
-
-                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-
-                  noOptionsMessage={() => "لا توجد نتائج"}
-
-                  options={faculties.map(f => ({ value: String(f.id), label: f.name }))}
-
-                  value={selectedFaculties}
-
-                  onChange={(selected) => setSelectedFaculties(selected || [])}
-
-                  isSearchable={true}
-
-                  isClearable={true}
-
-                />
-
-                {errors.faculties && <span style={{ color: 'red', fontSize: '12px', display: 'block', marginTop: '5px' }}>{errors.faculties}</span>}
-
-              </div>
-
-
-
-              {modalMode === 'view' && (
-                <div style={{ marginTop: '20px' }}>
-                  {/* قائمة منسدلة لاختيار العام الجامعي في وضع العرض */}
-                  <div style={{
-                    marginBottom: '16px',
-                    padding: '12px 18px',
-                    backgroundColor: '#f0fdf4',
-                    border: '1.5px solid #86efac',
-                    borderRadius: '10px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: '12px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <i className="bi bi-calendar2-range text-success" style={{ fontSize: '20px' }}></i>
-                      <div>
-                        <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#166534' }}>
-                          العام الجامعي المعروض:
-                        </div>
-                        <small style={{ color: '#15803d' }}>
-                          اختر عاماً محدداً لعرض أسابيعه ومقرراته فقط، أو اختر "جميع الأعوام"
-                        </small>
-                      </div>
-                    </div>
-                    <select
-                      value={modalActiveYear || "جميع الأعوام"}
-                      onChange={(e) => setModalActiveYear(e.target.value)}
-                      style={{
-                        minWidth: '240px',
-                        padding: '8px 16px',
-                        fontSize: '15px',
-                        fontWeight: 'bold',
-                        color: '#166534',
-                        border: '2px solid #22c55e',
-                        borderRadius: '8px',
-                        backgroundColor: '#ffffff',
-                        cursor: 'pointer',
-                        outline: 'none',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
-                      }}
-                    >
-                      <option value="جميع الأعوام">🌟 جميع الأعوام الجامعية</option>
-                      {academicYears.map((ay) => (
-                        <option key={ay.id || ay.name} value={ay.name}>
-                          📅 العام الجامعي: {ay.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px' }}>
-                    <h5 style={{ margin: 0, fontWeight: 'bold', color: '#2e7d32' }}>
-                      المقررات المكلف بها (من الخطة الدراسية) {modalActiveYear && modalActiveYear !== "جميع الأعوام" ? `- للعام الجامعي: ${modalActiveYear}` : ''}
-                    </h5>
-                  </div>
+            {/* قسم التكليفات من الخطة الدراسية في وضع العرض */}
+            {modalMode === 'view' && (
+              <div style={{ marginTop: '15px', padding: '15px', border: '1px solid #ccc', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px' }}>
+                  <h5 style={{ margin: 0, fontWeight: 'bold', color: '#2e7d32' }}>
+                    المقررات المكلف بها (من الخطة الدراسية) {modalActiveYear && modalActiveYear !== "جميع الأعوام" ? `- للعام الجامعي: ${modalActiveYear}` : ''}
+                  </h5>
+                </div>
 
                   {(() => {
                     const assignmentsByYear = professorAssignments.reduce((acc, curr) => {
@@ -5706,9 +5676,7 @@ ${renderProfSignaturesHTML(fids)}
 
                 </div>
 
-              )}
-
-            </div>
+            )}
 
 
 
