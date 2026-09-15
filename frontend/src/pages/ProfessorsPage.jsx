@@ -4626,311 +4626,381 @@ ${renderProfSignaturesHTML(fids)}
 
 
 
-            <div style={{ marginBottom: '15px' }}>
+            {modalMode === 'view' ? (
+              /* وضع عرض بيانات عضو هيئة التدريس: بطاقة معلومات أنيقة وعالية الوضوح */
+              <div style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '12px',
+                border: '1.5px solid #d1fae5',
+                padding: '20px 22px',
+                marginBottom: '20px',
+                boxShadow: '0 3px 10px rgba(0,0,0,0.03)'
+              }}>
+                {/* ترويسة البطاقة: الاسم والدرجة ونوع التعاقد */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '14px',
+                  borderBottom: '2px solid #ecfdf5',
+                  paddingBottom: '16px',
+                  marginBottom: '18px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div style={{
+                      width: '54px',
+                      height: '54px',
+                      borderRadius: '50%',
+                      backgroundColor: '#e8f5e9',
+                      color: '#1b5e20',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '24px',
+                      fontWeight: 'bold',
+                      border: '2px solid #86efac',
+                      boxShadow: '0 2px 5px rgba(27,94,32,0.12)'
+                    }}>
+                      <i className="bi bi-person-badge"></i>
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontWeight: '800', color: '#111827', fontSize: '21px', letterSpacing: '-0.3px' }}>
+                        {formData.name_ar || "-"}
+                      </h4>
+                      <div style={{ fontSize: '14px', color: '#374151', marginTop: '4px', fontWeight: '600' }}>
+                        <span style={{ color: '#166534' }}>{getFullJobTitle(formData.job_title)}</span>
+                        {formData.original_workplace ? ` • ${formData.original_workplace}` : ''}
+                      </div>
+                    </div>
+                  </div>
 
-              <input
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{
+                      backgroundColor: '#1b5e20',
+                      color: '#ffffff',
+                      padding: '6px 14px',
+                      borderRadius: '20px',
+                      fontSize: '13.5px',
+                      fontWeight: 'bold',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
+                    }}>
+                      <i className="bi bi-mortarboard-fill"></i>
+                      {getFullJobTitle(formData.job_title)}
+                    </span>
+                    {formData.contract_type && (
+                      <span style={{
+                        backgroundColor: formData.contract_type === 'كلي' ? '#dbeafe' : (formData.contract_type === 'جزئي' ? '#fef3c7' : '#f3e8ff'),
+                        color: formData.contract_type === 'كلي' ? '#1e40af' : (formData.contract_type === 'جزئي' ? '#92400e' : '#6b21a8'),
+                        border: `1px solid ${formData.contract_type === 'كلي' ? '#93c5fd' : (formData.contract_type === 'جزئي' ? '#fcd34d' : '#d8b4fe')}`,
+                        padding: '6px 14px',
+                        borderRadius: '20px',
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px'
+                      }}>
+                        <i className="bi bi-file-earmark-text-fill"></i>
+                        تعاقد {formData.contract_type}
+                      </span>
+                    )}
+                  </div>
+                </div>
 
-                placeholder="الاسم بالعربية (ثلاثي)"
+                {/* شبكة تفاصيل البيانات بألوان واضحة وتباعد مريح */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                  gap: '14px',
+                  marginBottom: '16px'
+                }}>
+                  {/* الرقم القومي */}
+                  <div style={{ backgroundColor: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ fontSize: '13px', color: '#475569', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                      <i className="bi bi-card-heading text-success ms-1" style={{ fontSize: '15px' }}></i> الرقم القومي:
+                    </span>
+                    <span style={{ fontSize: '15.5px', color: '#0f172a', fontWeight: '800', letterSpacing: '0.5px' }}>
+                      {formData.national_id || "-"}
+                    </span>
+                  </div>
 
-                value={formData.name_ar || ""}
+                  {/* البريد الإلكتروني */}
+                  <div style={{ backgroundColor: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ fontSize: '13px', color: '#475569', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                      <i className="bi bi-envelope text-success ms-1" style={{ fontSize: '15px' }}></i> البريد الإلكتروني:
+                    </span>
+                    <span style={{ fontSize: '14.5px', color: '#0f172a', fontWeight: '700', wordBreak: 'break-all' }}>
+                      {formData.email || "-"}
+                    </span>
+                  </div>
 
-                onChange={(e) => setFormData({ ...formData, name_ar: e.target.value })}
+                  {/* رقم الهاتف */}
+                  <div style={{ backgroundColor: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ fontSize: '13px', color: '#475569', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                      <i className="bi bi-telephone text-success ms-1" style={{ fontSize: '15px' }}></i> رقم الهاتف:
+                    </span>
+                    <span style={{ fontSize: '15.5px', color: '#0f172a', fontWeight: '800' }}>
+                      {formData.phone || "-"}
+                    </span>
+                  </div>
 
-                disabled={modalMode === 'view'}
+                  {/* جهة القدوم */}
+                  <div style={{ backgroundColor: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ fontSize: '13px', color: '#475569', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                      <i className="bi bi-building text-success ms-1" style={{ fontSize: '15px' }}></i> جهة القدوم / العمل الأصلي:
+                    </span>
+                    <span style={{ fontSize: '15px', color: '#0f172a', fontWeight: '700' }}>
+                      {formData.original_workplace || "-"}
+                    </span>
+                  </div>
 
-                style={{ ...inputStyle, borderColor: errors.name_ar ? 'red' : '#ccc' }}
+                  {/* طبيعة العمل بالجامعة الأهلية */}
+                  <div style={{ backgroundColor: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ fontSize: '13px', color: '#475569', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                      <i className="bi bi-briefcase text-success ms-1" style={{ fontSize: '15px' }}></i> طبيعة العمل بالجامعة الأهلية:
+                    </span>
+                    <span style={{ fontSize: '15px', color: '#0f172a', fontWeight: '700' }}>
+                      {formData.mnu_job_title || "-"}
+                    </span>
+                  </div>
 
-              />
+                  {/* عدد أيام العمل */}
+                  <div style={{ backgroundColor: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ fontSize: '13px', color: '#475569', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                      <i className="bi bi-calendar-check text-success ms-1" style={{ fontSize: '15px' }}></i> عدد أيام العمل:
+                    </span>
+                    <span style={{ fontSize: '15px', color: '#0f172a', fontWeight: '700' }}>
+                      {formData.work_days || (formData.contract_type === 'كلي' ? '5 أيام في الأسبوع' : (formData.contract_type === 'بالساعة' ? 'بالساعة' : '-'))}
+                    </span>
+                  </div>
+                </div>
 
-              {errors.name_ar && <span style={{ color: 'red', fontSize: '12px' }}>{errors.name_ar}</span>}
-
-            </div>
-
-
-
-            {modalMode !== 'edit' && (
-
-              <div style={{ marginBottom: '15px' }}>
-
-                <input
-
-                  placeholder="الرقم القومي"
-
-                  value={formData.national_id || ""}
-
-                  onChange={(e) => setFormData({ ...formData, national_id: e.target.value })}
-
-                  disabled={modalMode === 'view'}
-
-                  style={{ ...inputStyle, borderColor: errors.national_id ? 'red' : '#ccc' }}
-
-                />
-
-                {errors.national_id && <span style={{ color: 'red', fontSize: '12px' }}>{errors.national_id}</span>}
-
+                {/* الكليات التابع لها كشريط بطاقات مميز */}
+                <div style={{
+                  backgroundColor: '#f0fdf4',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                  border: '1.5px solid #86efac',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  flexWrap: 'wrap'
+                }}>
+                  <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#166534', minWidth: '130px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="bi bi-buildings-fill text-success" style={{ fontSize: '17px' }}></i> الكليات التابع لها:
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', flex: '1' }}>
+                    {selectedFaculties && selectedFaculties.length > 0 ? (
+                      selectedFaculties.map((f, i) => (
+                        <span key={i} style={{
+                          backgroundColor: '#ffffff',
+                          color: '#166534',
+                          border: '1.5px solid #4ade80',
+                          padding: '5px 14px',
+                          borderRadius: '16px',
+                          fontSize: '13.5px',
+                          fontWeight: 'bold',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+                        }}>
+                          🏛️ {f.label}
+                        </span>
+                      ))
+                    ) : (
+                      <span style={{ color: '#64748b', fontSize: '13.5px' }}>لا توجد كليات محددة</span>
+                    )}
+                  </div>
+                </div>
               </div>
+            ) : (
+              /* وضع الإضافة أو التعديل */
+              <>
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ fontWeight: 'bold', marginBottom: '4px', display: 'block', color: '#1b5e20' }}>
+                    الاسم بالعربية (ثلاثي) <span style={{ color: 'red' }}>*</span>
+                  </label>
+                  <input
+                    placeholder="الاسم بالعربية (ثلاثي)"
+                    value={formData.name_ar || ""}
+                    onChange={(e) => setFormData({ ...formData, name_ar: e.target.value })}
+                    style={{ ...inputStyle, borderColor: errors.name_ar ? 'red' : '#ccc' }}
+                  />
+                  {errors.name_ar && <span style={{ color: 'red', fontSize: '12px' }}>{errors.name_ar}</span>}
+                </div>
 
+                {modalMode !== 'edit' && (
+                  <div style={{ marginBottom: '15px' }}>
+                    <label style={{ fontWeight: 'bold', marginBottom: '4px', display: 'block', color: '#1b5e20' }}>
+                      الرقم القومي <span style={{ color: 'red' }}>*</span>
+                    </label>
+                    <input
+                      placeholder="الرقم القومي (14 رقم)"
+                      value={formData.national_id || ""}
+                      onChange={(e) => setFormData({ ...formData, national_id: e.target.value })}
+                      style={{ ...inputStyle, borderColor: errors.national_id ? 'red' : '#ccc' }}
+                    />
+                    {errors.national_id && <span style={{ color: 'red', fontSize: '12px' }}>{errors.national_id}</span>}
+                  </div>
+                )}
+
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ fontWeight: 'bold', marginBottom: '4px', display: 'block', color: '#1b5e20' }}>
+                    البريد الإلكتروني
+                  </label>
+                  <input
+                    placeholder="الإيميل"
+                    value={formData.email || ""}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ fontWeight: 'bold', marginBottom: '4px', display: 'block', color: '#1b5e20' }}>
+                    رقم التليفون
+                  </label>
+                  <input
+                    placeholder="رقم التليفون"
+                    maxLength={11}
+                    value={formData.phone || ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (/^\d*$/.test(val)) {
+                        setFormData({ ...formData, phone: val });
+                      }
+                    }}
+                    style={{
+                      ...inputStyle,
+                      borderColor: errors.phone ? 'red' : '#ccc',
+                      borderWidth: errors.phone ? '2px' : '1px'
+                    }}
+                  />
+                  {errors.phone && (
+                    <span style={{ color: 'red', fontSize: '12px', display: 'block', marginTop: '5px' }}>
+                      {errors.phone}
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ fontWeight: 'bold', marginBottom: '4px', display: 'block', color: '#1b5e20' }}>
+                    الدرجة العلمية <span style={{ color: 'red' }}>*</span>
+                  </label>
+                  <select
+                    value={formData.job_title}
+                    onChange={(e) => setFormData({ ...formData, job_title: e.target.value })}
+                    style={{
+                      ...inputStyle,
+                      borderColor: errors.job_title ? 'red' : '#ccc',
+                      borderWidth: errors.job_title ? '2px' : '1px'
+                    }}
+                  >
+                    <option value="" disabled hidden> الدرجة العلمية...</option>
+                    <option value="أ.م">أستاذ (أ.م)</option>
+                    <option value="أ.م.د">أستاذ مساعد (أ.م.د)</option>
+                    <option value="د">مدرس (د)</option>
+                    <option value="م.م">مدرس مساعد (م.م)</option>
+                    <option value="معيد">معيد</option>
+                    <option value="أخصائي">أخصائي</option>
+                  </select>
+                  {errors.job_title && <span style={{ color: 'red', fontSize: '12px' }}>{errors.job_title}</span>}
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ fontWeight: 'bold', marginBottom: '4px', display: 'block', color: '#1b5e20' }}>
+                    جهة القدوم / العمل الأصلي
+                  </label>
+                  <input
+                    placeholder="جهة القدوم / العمل الأصلي"
+                    value={formData.original_workplace || ""}
+                    onChange={(e) => setFormData({ ...formData, original_workplace: e.target.value })}
+                    style={{ ...inputStyle, borderColor: errors.original_workplace ? 'red' : '#ccc' }}
+                  />
+                  {errors.original_workplace && <span style={{ color: 'red', fontSize: '12px' }}>{errors.original_workplace}</span>}
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ fontWeight: 'bold', marginBottom: '4px', display: 'block', color: '#1b5e20' }}>
+                    طبيعة العمل / الوظيفة بجامعة المنوفية الأهلية
+                  </label>
+                  <input
+                    placeholder="طبيعة العمل / الوظيفة بجامعة المنوفية الأهلية (مثل: نائب رئيس الجامعة، مدير برنامج، منسق فرقة...)"
+                    value={formData.mnu_job_title || ""}
+                    onChange={(e) => setFormData({ ...formData, mnu_job_title: e.target.value })}
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ fontWeight: 'bold', marginBottom: '4px', display: 'block', color: '#1b5e20' }}>
+                    نوع التعاقد
+                  </label>
+                  <select
+                    value={formData.contract_type || ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      let days = formData.work_days;
+                      if (val === 'كلي') days = '5 أيام في الأسبوع';
+                      else if (val === 'بالساعة') days = 'بالساعة';
+                      else if (days === '5 أيام في الأسبوع' || days === 'بالساعة') days = 'يومان';
+                      
+                      setFormData({
+                        ...formData,
+                        contract_type: val,
+                        work_days: days
+                      });
+                    }}
+                    style={inputStyle}
+                  >
+                    <option value="" disabled hidden>اختر نوع التعاقد...</option>
+                    <option value="كلي">تعاقد كلي (5 أيام في الأسبوع)</option>
+                    <option value="جزئي">تعاقد جزئي</option>
+                    <option value="بالساعة">تعاقد بالساعة</option>
+                  </select>
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ fontWeight: 'bold', marginBottom: '4px', display: 'block', color: '#1b5e20' }}>
+                    عدد أيام العمل في الأسبوع
+                  </label>
+                  <select
+                    value={formData.work_days || ""}
+                    onChange={(e) => setFormData({ ...formData, work_days: e.target.value })}
+                    disabled={formData.contract_type === 'كلي' || formData.contract_type === 'بالساعة'}
+                    style={inputStyle}
+                  >
+                    <option value="" disabled hidden>اختر عدد أيام العمل...</option>
+                    <option value="5 أيام في الأسبوع">5 أيام في الأسبوع (للرئيسي / الكلي)</option>
+                    <option value="يوم واحد">يوم واحد (جزئي)</option>
+                    <option value="يومان">يومان (جزئي)</option>
+                    <option value="3 أيام">3 أيام (جزئي)</option>
+                    <option value="بالساعة">بالساعة</option>
+                  </select>
+                </div>
+
+                <div style={{ marginBottom: '18px' }}>
+                  <label style={{ fontWeight: 'bold', marginBottom: '6px', display: 'block', color: '#1b5e20' }}>
+                    الكليات التابع لها <span style={{ color: 'red' }}>*</span>
+                  </label>
+                  <Select
+                    isMulti
+                    placeholder="ابحث/اختر الكليات..."
+                    styles={customSelectStyles}
+                    menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                    noOptionsMessage={() => "لا توجد نتائج"}
+                    options={faculties.map(f => ({ value: String(f.id), label: f.name }))}
+                    value={selectedFaculties}
+                    onChange={(selected) => setSelectedFaculties(selected || [])}
+                    isSearchable={true}
+                    isClearable={true}
+                  />
+                  {errors.faculties && <span style={{ color: 'red', fontSize: '12px', display: 'block', marginTop: '5px' }}>{errors.faculties}</span>}
+                </div>
+              </>
             )}
-
-            {/* حقل البريد الإلكتروني */}
-
-            <div style={{ marginBottom: '15px' }}>
-
-              <input
-
-                placeholder="الإيميل"
-
-                value={formData.email || ""}
-
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-
-                disabled={modalMode === 'view'}
-
-                style={inputStyle}
-
-              />
-
-            </div>
-
-
-
-            {/* حقل رقم التليفون */}
-
-            <div style={{ marginBottom: '15px' }}>
-
-              <input
-
-                placeholder="رقم التليفون"
-
-                maxLength={11}
-
-                value={formData.phone || ""}
-
-                disabled={modalMode === 'view'}
-
-                onChange={(e) => {
-
-                  const val = e.target.value;
-
-                  // السماح فقط بالأرقام
-
-                  if (/^\d*$/.test(val)) {
-
-                    setFormData({ ...formData, phone: val });
-
-                  }
-
-                }}
-
-                style={{
-
-                  ...inputStyle,
-
-                  borderColor: errors.phone ? 'red' : '#ccc',
-
-                  borderWidth: errors.phone ? '2px' : '1px'
-
-                }}
-
-              />
-
-
-
-              {/* رسالة الخطأ */}
-
-              {errors.phone && (
-
-                <span style={{ color: 'red', fontSize: '12px', display: 'block', marginTop: '5px' }}>
-
-                  {errors.phone}
-
-                </span>
-
-              )}
-
-            </div>
-
-
-
-            <div style={{ marginBottom: '15px' }}>
-
-              <select
-
-                value={formData.job_title}
-
-                onChange={(e) => setFormData({ ...formData, job_title: e.target.value })}
-
-                disabled={modalMode === 'view'}
-
-                style={{
-
-                  ...inputStyle,
-
-                  borderColor: errors.job_title ? 'red' : '#ccc',
-
-                  borderWidth: errors.job_title ? '2px' : '1px'
-
-                }}
-
-              >
-
-                <option value="" disabled hidden> الدرجة العلمية...</option>
-
-                <option value="أ.م">أستاذ (أ.م)</option>
-
-                <option value="أ.م.د">أستاذ مساعد (أ.م.د)</option>
-
-                <option value="د">مدرس (د)</option>
-
-                <option value="م.م">مدرس مساعد (م.م)</option>
-
-                <option value="معيد">معيد</option>
-
-                <option value="أخصائي">أخصائي</option>
-
-              </select>
-
-              {errors.job_title && <span style={{ color: 'red', fontSize: '12px' }}>{errors.job_title}</span>}
-
-            </div>
-
-
-
-            <div style={{ marginBottom: '15px' }}>
-
-              <input
-
-                placeholder="جهة القدوم / العمل الأصلي"
-
-                value={formData.original_workplace || ""}
-
-                onChange={(e) => setFormData({ ...formData, original_workplace: e.target.value })}
-
-                disabled={modalMode === 'view'}
-
-                style={{ ...inputStyle, borderColor: errors.original_workplace ? 'red' : '#ccc' }}
-
-              />
-
-              {errors.original_workplace && <span style={{ color: 'red', fontSize: '12px' }}>{errors.original_workplace}</span>}
-
-            </div>
-
-
-
-            {/* حقل طبيعة العمل / الوظيفة في جامعة المنوفية الأهلية */}
-
-            <div style={{ marginBottom: '15px' }}>
-
-              <input
-
-                placeholder="طبيعة العمل / الوظيفة بجامعة المنوفية الأهلية (مثل: نائب رئيس الجامعة، مدير برنامج، منسق فرقة...)"
-
-                value={formData.mnu_job_title || ""}
-
-                onChange={(e) => setFormData({ ...formData, mnu_job_title: e.target.value })}
-
-                disabled={modalMode === 'view'}
-
-                style={inputStyle}
-
-              />
-
-            </div>
-
-
-
-            {/* حقل نوع التعاقد */}
-
-            <div style={{ marginBottom: '15px' }}>
-
-              <select
-
-                value={formData.contract_type || ""}
-
-                onChange={(e) => {
-
-                  const val = e.target.value;
-
-                  let days = formData.work_days;
-
-                  if (val === 'كلي') days = '5 أيام في الأسبوع';
-
-                  else if (val === 'بالساعة') days = 'بالساعة';
-
-                  else if (days === '5 أيام في الأسبوع' || days === 'بالساعة') days = 'يومان';
-
-                  
-
-                  setFormData({
-
-                    ...formData,
-
-                    contract_type: val,
-
-                    work_days: days
-
-                  });
-
-                }}
-
-                disabled={modalMode === 'view'}
-
-                style={inputStyle}
-
-              >
-
-                <option value="" disabled hidden>اختر نوع التعاقد...</option>
-
-                <option value="كلي">تعاقد كلي (5 أيام في الأسبوع)</option>
-
-                <option value="جزئي">تعاقد جزئي</option>
-
-                <option value="بالساعة">تعاقد بالساعة</option>
-
-              </select>
-
-            </div>
-
-
-
-            {/* حقل عدد أيام العمل في الأسبوع */}
-            <div style={{ marginBottom: '15px' }}>
-              <select
-                value={formData.work_days || ""}
-                onChange={(e) => setFormData({ ...formData, work_days: e.target.value })}
-                disabled={modalMode === 'view' || formData.contract_type === 'كلي' || formData.contract_type === 'بالساعة'}
-                style={inputStyle}
-              >
-                <option value="" disabled hidden>اختر عدد أيام العمل...</option>
-                <option value="5 أيام في الأسبوع">5 أيام في الأسبوع (للرئيسي / الكلي)</option>
-                <option value="يوم واحد">يوم واحد (جزئي)</option>
-                <option value="يومان">يومان (جزئي)</option>
-                <option value="3 أيام">3 أيام (جزئي)</option>
-                <option value="بالساعة">بالساعة</option>
-              </select>
-            </div>
-
-            {/* حقل الكليات التابع لها */}
-            <div style={{ marginBottom: '18px' }}>
-              <label style={{ fontWeight: 'bold', marginBottom: '6px', display: 'block', color: '#333' }}>
-                الكليات التابع لها
-              </label>
-              <Select
-                isMulti
-                isDisabled={modalMode === 'view'}
-                placeholder="ابحث/اختر الكليات..."
-                styles={customSelectStyles}
-                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                noOptionsMessage={() => "لا توجد نتائج"}
-                options={faculties.map(f => ({ value: String(f.id), label: f.name }))}
-                value={selectedFaculties}
-                onChange={(selected) => setSelectedFaculties(selected || [])}
-                isSearchable={true}
-                isClearable={true}
-              />
-              {errors.faculties && <span style={{ color: 'red', fontSize: '12px', display: 'block', marginTop: '5px' }}>{errors.faculties}</span>}
-            </div>
 
 
 
