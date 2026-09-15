@@ -5691,17 +5691,11 @@ ${renderProfSignaturesHTML(fids)}
                       <>
 
                         {allYearsHtml}
-
-                        {sortedYears.length > 0 && (
-
+                        {isAllYears && allSortedYears.length > 0 && (
                           <div style={{ marginTop: '10px', padding: '12px 15px', backgroundColor: '#d4edda', borderRadius: '5px', border: '1px solid #c3e6cb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-
                             <h5 style={{ margin: 0, fontWeight: 'bold', color: '#155724', fontSize: '16px' }}>إجمالي ساعات تدريس عضو هيئة التدريس في جامعة المنوفية الأهلية عبر السنين {totalAllDeductions > 0 ? '(الصافي)' : ''}</h5>
-
                             <h5 style={{ margin: 0, fontWeight: 'bold', color: '#155724', fontSize: '16px' }}>{grandTotalTerm} ساعة {totalAllDeductions > 0 ? `(تم خصم ${totalAllDeductions} س إجمالي)` : ''}</h5>
-
                           </div>
-
                         )}
 
                       </>
