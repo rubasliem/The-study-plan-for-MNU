@@ -4711,71 +4711,78 @@ ${renderProfSignaturesHTML(fids)}
                   </div>
                 </div>
 
-                {/* شبكة تفاصيل البيانات بألوان واضحة وتباعد مريح */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-                  gap: '14px',
-                  marginBottom: '16px'
-                }}>
+                {/* شبكة تفاصيل البيانات بتوزيع واسع وواضح للمربعات الطويلة */}
+                <div className="row g-3 mb-3">
                   {/* الرقم القومي */}
-                  <div style={{ backgroundColor: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                    <span style={{ fontSize: '13px', color: '#475569', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
-                      <i className="bi bi-card-heading text-success ms-1" style={{ fontSize: '15px' }}></i> الرقم القومي:
-                    </span>
-                    <span style={{ fontSize: '15.5px', color: '#0f172a', fontWeight: '800', letterSpacing: '0.5px' }}>
-                      {formData.national_id || "-"}
-                    </span>
-                  </div>
-
-                  {/* البريد الإلكتروني */}
-                  <div style={{ backgroundColor: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                    <span style={{ fontSize: '13px', color: '#475569', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
-                      <i className="bi bi-envelope text-success ms-1" style={{ fontSize: '15px' }}></i> البريد الإلكتروني:
-                    </span>
-                    <span style={{ fontSize: '14.5px', color: '#0f172a', fontWeight: '700', wordBreak: 'break-all' }}>
-                      {formData.email || "-"}
-                    </span>
+                  <div className="col-12 col-md-4">
+                    <div style={{ backgroundColor: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', height: '100%' }}>
+                      <span style={{ fontSize: '13px', color: '#475569', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                        <i className="bi bi-card-heading text-success ms-1" style={{ fontSize: '15px' }}></i> الرقم القومي:
+                      </span>
+                      <span style={{ fontSize: '15.5px', color: '#0f172a', fontWeight: '800', letterSpacing: '0.5px' }}>
+                        {formData.national_id || "-"}
+                      </span>
+                    </div>
                   </div>
 
                   {/* رقم الهاتف */}
-                  <div style={{ backgroundColor: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                    <span style={{ fontSize: '13px', color: '#475569', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
-                      <i className="bi bi-telephone text-success ms-1" style={{ fontSize: '15px' }}></i> رقم الهاتف:
-                    </span>
-                    <span style={{ fontSize: '15.5px', color: '#0f172a', fontWeight: '800' }}>
-                      {formData.phone || "-"}
-                    </span>
+                  <div className="col-12 col-md-4">
+                    <div style={{ backgroundColor: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', height: '100%' }}>
+                      <span style={{ fontSize: '13px', color: '#475569', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                        <i className="bi bi-telephone text-success ms-1" style={{ fontSize: '15px' }}></i> رقم الهاتف:
+                      </span>
+                      <span style={{ fontSize: '15.5px', color: '#0f172a', fontWeight: '800' }}>
+                        {formData.phone || "-"}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* جهة القدوم */}
-                  <div style={{ backgroundColor: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                    <span style={{ fontSize: '13px', color: '#475569', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
-                      <i className="bi bi-building text-success ms-1" style={{ fontSize: '15px' }}></i> جهة القدوم / العمل الأصلي:
-                    </span>
-                    <span style={{ fontSize: '15px', color: '#0f172a', fontWeight: '700' }}>
-                      {formData.original_workplace || "-"}
-                    </span>
+                  {/* جهة القدوم / العمل الأصلي */}
+                  <div className="col-12 col-md-4">
+                    <div style={{ backgroundColor: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', height: '100%' }}>
+                      <span style={{ fontSize: '13px', color: '#475569', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                        <i className="bi bi-building text-success ms-1" style={{ fontSize: '15px' }}></i> جهة القدوم / العمل الأصلي:
+                      </span>
+                      <span style={{ fontSize: '15px', color: '#0f172a', fontWeight: '700' }}>
+                        {formData.original_workplace || "-"}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* طبيعة العمل بالجامعة الأهلية */}
-                  <div style={{ backgroundColor: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                    <span style={{ fontSize: '13px', color: '#475569', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
-                      <i className="bi bi-briefcase text-success ms-1" style={{ fontSize: '15px' }}></i> طبيعة العمل بالجامعة الأهلية:
-                    </span>
-                    <span style={{ fontSize: '15px', color: '#0f172a', fontWeight: '700' }}>
-                      {formData.mnu_job_title || "-"}
-                    </span>
+                  {/* البريد الإلكتروني (مربع كبير وعريض) */}
+                  <div className="col-12 col-md-6">
+                    <div style={{ backgroundColor: '#f8fafc', padding: '14px 18px', borderRadius: '8px', border: '1.5px solid #cbd5e1', height: '100%', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+                      <span style={{ fontSize: '13.5px', color: '#334155', fontWeight: '700', display: 'block', marginBottom: '6px' }}>
+                        <i className="bi bi-envelope-at-fill text-success ms-1" style={{ fontSize: '16px' }}></i> البريد الإلكتروني:
+                      </span>
+                      <span style={{ fontSize: '15.5px', color: '#0f172a', fontWeight: '800', wordBreak: 'break-all', display: 'block' }}>
+                        {formData.email || "-"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* طبيعة العمل بالجامعة الأهلية (مربع كبير وعريض) */}
+                  <div className="col-12 col-md-6">
+                    <div style={{ backgroundColor: '#f8fafc', padding: '14px 18px', borderRadius: '8px', border: '1.5px solid #cbd5e1', height: '100%', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+                      <span style={{ fontSize: '13.5px', color: '#334155', fontWeight: '700', display: 'block', marginBottom: '6px' }}>
+                        <i className="bi bi-briefcase-fill text-success ms-1" style={{ fontSize: '16px' }}></i> طبيعة العمل بالجامعة الأهلية:
+                      </span>
+                      <span style={{ fontSize: '15px', color: '#0f172a', fontWeight: '700', display: 'block' }}>
+                        {formData.mnu_job_title || "-"}
+                      </span>
+                    </div>
                   </div>
 
                   {/* عدد أيام العمل */}
-                  <div style={{ backgroundColor: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                    <span style={{ fontSize: '13px', color: '#475569', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
-                      <i className="bi bi-calendar-check text-success ms-1" style={{ fontSize: '15px' }}></i> عدد أيام العمل:
-                    </span>
-                    <span style={{ fontSize: '15px', color: '#0f172a', fontWeight: '700' }}>
-                      {formData.work_days || (formData.contract_type === 'كلي' ? '5 أيام في الأسبوع' : (formData.contract_type === 'بالساعة' ? 'بالساعة' : '-'))}
-                    </span>
+                  <div className="col-12">
+                    <div style={{ backgroundColor: '#f8fafc', padding: '11px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                      <span style={{ fontSize: '13px', color: '#475569', fontWeight: '700' }}>
+                        <i className="bi bi-calendar-check text-success ms-1" style={{ fontSize: '15px' }}></i> عدد أيام العمل في الأسبوع:
+                      </span>
+                      <span style={{ fontSize: '14.5px', color: '#0f172a', fontWeight: '800', backgroundColor: '#ffffff', padding: '3px 12px', borderRadius: '12px', border: '1px solid #cbd5e1' }}>
+                        {formData.work_days || (formData.contract_type === 'كلي' ? '5 أيام في الأسبوع' : (formData.contract_type === 'بالساعة' ? 'بالساعة' : '-'))}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
