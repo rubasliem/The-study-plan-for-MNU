@@ -176,10 +176,12 @@ const formatLevelToWord = (lvl) => {
 
 const getFormattedProfName = (profObj) => {
   if (!profObj || (!profObj.name_ar && !profObj.name)) return "--";
-  let rawName = profObj.name_ar || profObj.name || "";
+  let rawName = String(profObj.name_ar || profObj.name || "").trim();
 
-  // Strip preexisting title prefix if present in rawName
-  rawName = rawName.replace(/^(أ\.د|أ\.م\.د|أ\.م|د|م\.م|م)\s*[\/\.]?\s*/, "").trim();
+  // Strip preexisting title prefix ONLY if explicitly followed by slash/dot or title word e.g. "د/ " or "أ.د." or "دكتور "
+  rawName = rawName.replace(/^(أ\.د|أ\.م\.د|أ\.م|م\.م|د|م)\s*[\/\.]\s*/, "")
+                   .replace(/^(أ\.د|أ\.م\.د|أ\.م|م\.م|دكتور|دكتورة|أستاذ|استاذ)\s+/i, "")
+                   .trim();
 
   const abbr = getJobTitleAbbr(profObj.job_title);
   return abbr ? `${abbr} / ${rawName}` : rawName;
@@ -383,7 +385,7 @@ const StudyPlanPage = () => {
 
     if (showLoading) setLoading(true);
     try {
-      const [coursesRes, programsRes, plansRes, sigsRes, limitsRes] = await Promise.all([
+      const [coursesRes, programsRes, plansRes, sigsRes, limitsRes, profsRes] = await Promise.all([
         axios.get(`${API}/api/courses`),
         axios.get(`${API}/api/programs`),
         axios.get(`${API}/api/study-plans?faculty_id=${facultyId}&semester=${encodeURIComponent(semester)}&academic_year=${encodeURIComponent(year)}`),
@@ -391,8 +393,17 @@ const StudyPlanPage = () => {
         axios.get(`${API}/api/workload/limits?faculty_id=${facultyId}&academic_year=${encodeURIComponent(year)}&semester=${encodeURIComponent(semester)}`).catch(err => {
           console.warn("Could not fetch workload limits:", err);
           return { data: null };
+        }),
+        axios.get(`${API}/api/professors`).catch(err => {
+          console.warn("Could not fetch professors:", err);
+          return { data: null };
         })
       ]);
+
+      const freshProfs = profsRes?.data || [];
+      if (freshProfs.length > 0) {
+        setProfessors(freshProfs);
+      }
 
       setWorkloadLimits(limitsRes?.data || null);
 
@@ -449,6 +460,8 @@ const StudyPlanPage = () => {
               progIds = [item.program_id];
             }
 
+            const matchedProf = freshProfs.find(p => String(p.id) === String(item.professor_id)) || item.professor;
+
             allRows.push({
               _key: Date.now() + Math.random(),
               base_course_id: item.base_course_id || item.course_id,
@@ -460,9 +473,9 @@ const StudyPlanPage = () => {
               shared_course_ids: sharedCourseIds,
               entry_group_id: item.entry_group_id || "",
               professor_id: item.professor_id,
-              professor_name: item.professor ? (item.professor.name_ar || item.professor.name) : "",
-              prof_job_title: item.professor?.job_title || "",
-              prof_workplace: item.professor?.original_workplace || "",
+              professor_name: matchedProf ? (matchedProf.name_ar || matchedProf.name) : "",
+              prof_job_title: matchedProf?.job_title || "",
+              prof_workplace: matchedProf?.original_workplace || "",
               nameAr: item.course?.name_ar || "",
               nameEn: item.course?.name_en || "",
               code: item.course?.code || "",
