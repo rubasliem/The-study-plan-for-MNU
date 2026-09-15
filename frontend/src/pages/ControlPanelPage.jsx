@@ -53,6 +53,12 @@ const ControlPanelPage = () => {
     const [loading, setLoading] = useState(true);
     const [draggedYearIndex, setDraggedYearIndex] = useState(null);
 
+    // Navigation Tabs State
+    const [activeTab, setActiveTab] = useState('permissions'); // 'permissions' | 'hidden-pages' | 'workload-limits' | 'academic-years'
+    const [permissionSearch, setPermissionSearch] = useState('');
+    const [permissionFacultyFilter, setPermissionFacultyFilter] = useState('');
+    const [hiddenPagesSearch, setHiddenPagesSearch] = useState('');
+
     // Default year/semester (starred) - stored in localStorage
     const [defaultYear, setDefaultYear] = useState(() => localStorage.getItem('mnu_default_academic_year') || '');
     const [defaultSemester, setDefaultSemester] = useState(() => localStorage.getItem('mnu_default_semester') || 'الفصل الدراسي الأول');
@@ -921,6 +927,46 @@ const ControlPanelPage = () => {
         }
     };
 
+    // Filtered users for Permissions Table
+    const filteredPermissionsUsers = useMemo(() => {
+        return users.filter(u => {
+            const q = permissionSearch.trim().toLowerCase();
+            const matchesSearch = !q ||
+                (u.username || '').toLowerCase().includes(q) ||
+                (u.job_title || '').toLowerCase().includes(q);
+
+            let matchesFaculty = true;
+            if (permissionFacultyFilter) {
+                if (permissionFacultyFilter === 'all') {
+                    matchesFaculty = Boolean(u.all_faculties_access || u.role === 'admin' || u.role === 'student_affairs');
+                } else {
+                    const facId = permissionFacultyFilter;
+                    matchesFaculty = Boolean(
+                        String(u.faculty_id) === String(facId) ||
+                        (u.assigned_faculties && u.assigned_faculties.some(f => String(f.id) === String(facId)))
+                    );
+                }
+            }
+            return matchesSearch && matchesFaculty;
+        });
+    }, [users, permissionSearch, permissionFacultyFilter]);
+
+    // Filtered users for Hidden Pages Summary Table
+    const filteredHiddenPagesUsers = useMemo(() => {
+        return allUsers.filter(u => {
+            const role = (u.role || '').toLowerCase();
+            const isExcludedAdmin = role === 'admin' || role === 'super_admin' || u.is_super_admin || u.is_superuser;
+            const hasHidden = parseHiddenPages(u).length > 0;
+            if (isExcludedAdmin || !hasHidden) return false;
+
+            const q = hiddenPagesSearch.trim().toLowerCase();
+            if (!q) return true;
+            return (u.username || '').toLowerCase().includes(q) ||
+                (u.job_title || '').toLowerCase().includes(q) ||
+                getFacultyName(u.faculty_id).toLowerCase().includes(q);
+        });
+    }, [allUsers, hiddenPagesSearch, faculties]);
+
     if (loading) {
         return (
             <Container className="text-center mt-5">
@@ -935,277 +981,421 @@ const ControlPanelPage = () => {
 
     return (
         <div style={{ padding: '20px', direction: 'rtl' }}>
-            <div className="row mb-3 align-items-center">
-                <div className="col-12">
-                    <h2 style={{ margin: 0, fontWeight: 'bold', color: '#2e7d32' }} className="d-flex align-items-center gap-3">
-                        <FaShieldAlt className="text-success" style={{ marginLeft: '15px' }} /> 
-                        لوحة التحكم - صلاحيات مسؤولي الكليات
+            {/* Header Title */}
+            <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+                <div>
+                    <h2 style={{ margin: 0, fontWeight: 'bold', color: '#1e3a29' }} className="d-flex align-items-center gap-3">
+                        <span style={{ 
+                            width: '42px', 
+                            height: '42px', 
+                            borderRadius: '12px', 
+                            backgroundColor: '#e8f5e9', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            color: '#2e7d32'
+                        }}>
+                            <FaShieldAlt size={22} />
+                        </span>
+                        <span>لوحة التحكم وإدارة الصلاحيات</span>
                     </h2>
+                    <p className="text-muted mb-0 mt-1" style={{ fontSize: '0.9rem' }}>
+                        إدارة صلاحيات مسؤولي الكليات، إخفاء صفحات القائمة الجانبية، وضوابط الأعباء التدريسية وتوزيع الأسابيع
+                    </p>
                 </div>
             </div>
 
-            <Card className="shadow-sm border-0 mt-4" style={{ width: '100%' }}>
-                <Card.Body className="p-0">
-                    <style>
-                        {`
-                        .sticky-col-1 { position: sticky; right: 0; z-index: 2; background-color: inherit; width: 180px; min-width: 180px; border-left: 2px solid #dee2e6; }
-                        .sticky-col-2 { position: sticky; right: 180px; z-index: 2; background-color: inherit; width: 340px; min-width: 340px; border-left: 2px solid #dee2e6; }
-                        thead .sticky-col-1, thead .sticky-col-2 { background-color: var(--primary) !important; color: white; z-index: 3; }
-                        /* Ensure sticky columns have opaque backgrounds over stripes */
-                        tbody .sticky-col-1, tbody .sticky-col-2 { background-color: #fff; }
-                        .table-striped > tbody > tr:nth-of-type(odd) > .sticky-col-1,
-                        .table-striped > tbody > tr:nth-of-type(odd) > .sticky-col-2 {
-                            background-color: var(--bs-table-striped-bg, rgba(0, 0, 0, 0.05));
-                        }
-                        .table-hover > tbody > tr:hover > .sticky-col-1,
-                        .table-hover > tbody > tr:hover > .sticky-col-2 {
-                            background-color: var(--bs-table-hover-bg, rgba(0, 0, 0, 0.075));
-                        }
-                        `}
-                    </style>
-                    <div className="table-responsive" style={{ width: '100%', overflowX: 'auto', margin: 0 }}>
-                        <Table responsive striped bordered hover className="mb-0" style={{ width: 'max-content', minWidth: '100%' }}>
-                            <thead className="bg-light">
-                                <tr style={{ borderBottom: '2.5px solid var(--secondary)', whiteSpace: 'nowrap', height: '80px' }}>
-                                    <th className="sticky-col-1" style={{ overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'middle' }}>اسم المستخدم</th>
-                                    <th className="sticky-col-2" style={{ overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'middle' }}>الكلية</th>
-                                    <th className="text-center" style={{ verticalAlign: 'middle' }}>
-                                        <div>جدول الأساتذة</div>
-                                        <small className="fw-semibold" style={{ fontSize: '0.78rem', color: '#ffe082', display: 'block', marginTop: '2px' }}>(الخطة الدراسية)</small>
-                                    </th>
-                                    <th className="text-center" style={{ verticalAlign: 'middle' }}>
-                                        <div>بيانات الأساتذة</div>
-                                        <small className="fw-semibold" style={{ fontSize: '0.78rem', color: '#ffe082', display: 'block', marginTop: '2px' }}>(الجدول الرئيسي)</small>
-                                    </th>
-                                    <th className="text-center" style={{ verticalAlign: 'middle' }}>
-                                        <div>إنهاء الخطة</div>
-                                        <small className="fw-semibold" style={{ fontSize: '0.78rem', color: '#ffe082', display: 'block', marginTop: '2px' }}>(الخطة الدراسية)</small>
-                                    </th>
-                                    <th className="text-center" style={{ verticalAlign: 'middle' }}>
-                                        <div>مراجعة أولى</div>
-                                        <small className="fw-semibold" style={{ fontSize: '0.78rem', color: '#ffe082', display: 'block', marginTop: '2px' }}>(الخطة الدراسية)</small>
-                                    </th>
-                                    <th className="text-center" style={{ verticalAlign: 'middle' }}>
-                                        <div>مراجعة ثانية</div>
-                                        <small className="fw-semibold" style={{ fontSize: '0.78rem', color: '#ffe082', display: 'block', marginTop: '2px' }}>(الخطة الدراسية)</small>
-                                    </th>
-                                    <th className="text-center" style={{ verticalAlign: 'middle' }}>
-                                        <div>إعتماد الخطة</div>
-                                        <small className="fw-semibold" style={{ fontSize: '0.78rem', color: '#ffe082', display: 'block', marginTop: '2px' }}>(الخطة الدراسية)</small>
-                                    </th>
-                                    <th className="text-center" style={{ verticalAlign: 'middle' }}>
-                                        <div>الحذف</div>
-                                        <small className="fw-semibold" style={{ fontSize: '0.78rem', color: '#ffe082', display: 'block', marginTop: '2px' }}>(هيئة التدريس)</small>
-                                    </th>
-                                    <th className="text-center" style={{ verticalAlign: 'middle' }}>
-                                        <div>الرؤية</div>
-                                        <small className="fw-semibold" style={{ fontSize: '0.78rem', color: '#ffe082', display: 'block', marginTop: '2px' }}>(هيئة التدريس)</small>
-                                    </th>
-                                    <th className="text-center" style={{ verticalAlign: 'middle' }}>
-                                        <div>التصدير</div>
-                                        <small className="fw-semibold" style={{ fontSize: '0.78rem', color: '#ffe082', display: 'block', marginTop: '2px' }}>(هيئة التدريس)</small>
-                                    </th>
-                                    <th className="text-center" style={{ verticalAlign: 'middle' }}>
-                                        <div>الاستيراد</div>
-                                        <small className="fw-semibold" style={{ fontSize: '0.78rem', color: '#ffe082', display: 'block', marginTop: '2px' }}>(هيئة التدريس)</small>
-                                    </th>
-                                    <th className="text-center" style={{ verticalAlign: 'middle' }}>
-                                        <div>استرجاع المحذوف</div>
-                                        <small className="fw-semibold" style={{ fontSize: '0.78rem', color: '#ffe082', display: 'block', marginTop: '2px' }}>(المحذوفات)</small>
-                                    </th>
-                                    <th className="text-center" style={{ verticalAlign: 'middle' }}>
-                                        <div>الحذف النهائي</div>
-                                        <small className="fw-semibold" style={{ fontSize: '0.78rem', color: '#ffe082', display: 'block', marginTop: '2px' }}>(المحذوفات)</small>
-                                    </th>
-                                    <th className="text-center" style={{ verticalAlign: 'middle' }}>
-                                        <div>أعباء الأساتذة</div>
-                                        <small className="fw-semibold" style={{ fontSize: '0.78rem', color: '#ffe082', display: 'block', marginTop: '2px' }}>(تعديل الصفحة)</small>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {users.map((u) => (
-                                    <tr key={u.id} style={{ height: '70px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
-                                        <td className="fw-bold text-center sticky-col-1" style={{ overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'middle' }}>
-                                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.username.split('@')[0]}</div>
-                                            {(() => {
-                                                const jobTitle = u.job_title || (
-                                                    u.role === 'admin' ? 'مدير عام (Super Admin)' :
-                                                    u.role === 'manager' ? 'مدير' :
-                                                    u.role === 'student_affairs' ? 'مدير شؤون الطلاب' :
-                                                    u.role === 'reviewer' ? 'المراجع' :
-                                                    u.role === 'faculty_professor' ? 'مدير برنامج' :
-                                                    'مسؤول كلية'
-                                                );
-                                                
-                                                let badgeBg = 'bg-secondary text-white';
-                                                let badgeStyle = { fontSize: '11px', padding: '4px 8px', fontWeight: 'bold' };
+            {/* Navigation Tabs Bar */}
+            <div className="d-flex flex-wrap gap-2 mb-4 p-2 rounded-4 shadow-sm bg-white border" style={{ borderColor: '#e2e8f0' }}>
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('permissions')}
+                    className={`btn d-flex align-items-center gap-2 px-4 py-2 fw-bold rounded-3 transition-all ${
+                        activeTab === 'permissions' ? 'btn-success shadow-sm' : 'btn-light text-secondary border-0'
+                    }`}
+                    style={{ fontSize: '0.95rem' }}
+                >
+                    <FaShieldAlt />
+                    <span>صلاحيات مسؤولي الكليات</span>
+                    <Badge bg={activeTab === 'permissions' ? 'light' : 'success'} text={activeTab === 'permissions' ? 'dark' : 'white'} className="ms-1 rounded-pill">
+                        {users.length}
+                    </Badge>
+                </button>
 
-                                                if (u.role === 'admin' || jobTitle.includes('Super Admin') || jobTitle.includes('مدير عام')) {
-                                                    badgeBg = 'bg-danger text-white';
-                                                } else if (u.role === 'manager' || jobTitle.includes('عميد') || jobTitle.includes('نائب') || jobTitle.includes('مدير إدارة')) {
-                                                    badgeBg = 'text-white';
-                                                    badgeStyle.backgroundColor = '#0d9488'; // teal
-                                                } else if (u.role === 'student_affairs') {
-                                                    badgeBg = 'bg-warning text-dark';
-                                                } else if (u.role === 'reviewer' || jobTitle.includes('المراجع')) {
-                                                    badgeBg = 'text-white';
-                                                    badgeStyle.backgroundColor = '#8b5cf6'; // purple
-                                                } else if (jobTitle.includes('هيئة تدريس') || u.role === 'faculty_professor') {
-                                                    badgeBg = 'text-white';
-                                                    badgeStyle.backgroundColor = '#16a34a'; // green
-                                                } else {
-                                                    badgeBg = 'bg-info text-white';
-                                                }
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('hidden-pages')}
+                    className={`btn d-flex align-items-center gap-2 px-4 py-2 fw-bold rounded-3 transition-all ${
+                        activeTab === 'hidden-pages' ? 'btn-success shadow-sm' : 'btn-light text-secondary border-0'
+                    }`}
+                    style={{ fontSize: '0.95rem' }}
+                >
+                    <FaEyeSlash />
+                    <span>إدارة إخفاء الصفحات</span>
+                    <Badge bg={activeTab === 'hidden-pages' ? 'light' : 'warning'} text={activeTab === 'hidden-pages' ? 'dark' : 'dark'} className="ms-1 rounded-pill">
+                        {allUsers.filter(u => parseHiddenPages(u).length > 0).length}
+                    </Badge>
+                </button>
 
-                                                return (
-                                                    <div className="mt-1">
-                                                        <span className={`badge ${badgeBg}`} style={badgeStyle}>
-                                                            {jobTitle}
-                                                        </span>
-                                                    </div>
-                                                );
-                                            })()}
-                                        </td>
-                                        <td className="sticky-col-2" style={{ verticalAlign: 'middle', whiteSpace: 'normal', padding: '10px' }}>
-                                            <div className="fw-bold" style={{ color: 'var(--primary-hover)', lineHeight: '1.5' }}>
-                                                {u.all_faculties_access || u.role === 'admin' || u.role === 'student_affairs' ? (
-                                                    <span className="text-success fw-bold">جميع الكليات بالجامعة</span>
-                                                ) : u.assigned_faculties && u.assigned_faculties.length > 0 ? (
-                                                    <div className="d-flex flex-wrap gap-2 justify-content-center align-items-center w-100">
-                                                        {u.assigned_faculties.map(f => {
-                                                            const isLong = f.name.length > 22;
-                                                            return (
-                                                                <div 
-                                                                    key={f.id} 
-                                                                    className="text-center fw-semibold"
-                                                                    style={{ 
-                                                                        fontSize: '12.5px', 
-                                                                        flex: isLong ? '1 1 100%' : '0 1 calc(50% - 0.5rem)',
-                                                                        padding: '2px 4px',
-                                                                        color: 'var(--primary-hover)'
-                                                                    }}
-                                                                >
-                                                                    - {f.name}
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                ) : (
-                                                    u.faculty_id ? getFacultyName(u.faculty_id) : "غير محدد"
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="text-center" style={{ verticalAlign: 'middle' }}>
-                                            <Form.Check 
-                                                type="switch"
-                                                checked={u.perm_view_prof_study_plan}
-                                                onChange={() => handleTogglePermission(u.id, 'perm_view_prof_study_plan', u.perm_view_prof_study_plan)}
-                                            />
-                                        </td>
-                                        <td className="text-center" style={{ verticalAlign: 'middle' }}>
-                                            <Form.Check 
-                                                type="switch"
-                                                checked={u.perm_view_prof_data_btn}
-                                                onChange={() => handleTogglePermission(u.id, 'perm_view_prof_data_btn', u.perm_view_prof_data_btn)}
-                                            />
-                                        </td>
-                                        <td className="text-center" style={{ verticalAlign: 'middle' }}>
-                                            <Form.Check 
-                                                type="switch"
-                                                checked={u.perm_finish_plan}
-                                                onChange={() => handleTogglePermission(u.id, 'perm_finish_plan', u.perm_finish_plan)}
-                                            />
-                                        </td>
-                                        <td className="text-center" style={{ verticalAlign: 'middle' }}>
-                                            <Form.Check 
-                                                type="switch"
-                                                checked={u.perm_review_1}
-                                                onChange={() => handleTogglePermission(u.id, 'perm_review_1', u.perm_review_1)}
-                                            />
-                                        </td>
-                                        <td className="text-center" style={{ verticalAlign: 'middle' }}>
-                                            <Form.Check 
-                                                type="switch"
-                                                checked={u.perm_review_2}
-                                                onChange={() => handleTogglePermission(u.id, 'perm_review_2', u.perm_review_2)}
-                                            />
-                                        </td>
-                                        <td className="text-center" style={{ verticalAlign: 'middle' }}>
-                                            <Form.Check 
-                                                type="switch"
-                                                checked={u.perm_approve_plan}
-                                                onChange={() => handleTogglePermission(u.id, 'perm_approve_plan', u.perm_approve_plan)}
-                                            />
-                                        </td>
-                                        <td className="text-center" style={{ verticalAlign: 'middle' }}>
-                                            <Form.Check 
-                                                type="switch"
-                                                checked={u.perm_view_prof_delete_btn}
-                                                onChange={() => handleTogglePermission(u.id, 'perm_view_prof_delete_btn', u.perm_view_prof_delete_btn)}
-                                            />
-                                        </td>
-                                        <td className="text-center" style={{ verticalAlign: 'middle' }}>
-                                            <Form.Check 
-                                                type="switch"
-                                                checked={u.perm_view_prof_view_btn}
-                                                onChange={() => handleTogglePermission(u.id, 'perm_view_prof_view_btn', u.perm_view_prof_view_btn)}
-                                            />
-                                        </td>
-                                        <td className="text-center" style={{ verticalAlign: 'middle' }}>
-                                            <Form.Check 
-                                                type="switch"
-                                                checked={u.perm_view_prof_print_btn}
-                                                onChange={() => handleTogglePermission(u.id, 'perm_view_prof_print_btn', u.perm_view_prof_print_btn)}
-                                            />
-                                        </td>
-                                        <td className="text-center" style={{ verticalAlign: 'middle' }}>
-                                            <Form.Check 
-                                                type="switch"
-                                                checked={u.perm_view_prof_import_btn}
-                                                onChange={() => handleTogglePermission(u.id, 'perm_view_prof_import_btn', u.perm_view_prof_import_btn)}
-                                            />
-                                        </td>
-                                        <td className="text-center" style={{ verticalAlign: 'middle' }}>
-                                            <Form.Check 
-                                                type="switch"
-                                                checked={u.perm_recycle_restore_btn}
-                                                onChange={() => handleTogglePermission(u.id, 'perm_recycle_restore_btn', u.perm_recycle_restore_btn)}
-                                            />
-                                        </td>
-                                        <td className="text-center" style={{ verticalAlign: 'middle' }}>
-                                            <Form.Check 
-                                                type="switch"
-                                                checked={u.perm_recycle_delete_btn}
-                                                onChange={() => handleTogglePermission(u.id, 'perm_recycle_delete_btn', u.perm_recycle_delete_btn)}
-                                            />
-                                        </td>
-                                        <td className="text-center" style={{ verticalAlign: 'middle' }}>
-                                            <Form.Check 
-                                                type="switch"
-                                                checked={u.perm_view_professors_load}
-                                                onChange={() => handleTogglePermission(u.id, 'perm_view_professors_load', u.perm_view_professors_load)}
-                                            />
-                                        </td>
-                                    </tr>
-                                ))}
-                                {users.length === 0 && (
-                                    <tr style={{ height: '100px' }}>
-                                        <td colSpan="15" className="text-muted text-center" style={{ verticalAlign: 'middle' }}>
-                                            لا يوجد مسؤولي كليات حالياً.
-                                        </td>
-                                    </tr>
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('workload-limits')}
+                    className={`btn d-flex align-items-center gap-2 px-4 py-2 fw-bold rounded-3 transition-all ${
+                        activeTab === 'workload-limits' ? 'btn-success shadow-sm' : 'btn-light text-secondary border-0'
+                    }`}
+                    style={{ fontSize: '0.95rem' }}
+                >
+                    <FaBalanceScale />
+                    <span>قواعد الأعباء التدريسية</span>
+                </button>
+
+                {user?.role === 'admin' && (
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('academic-years')}
+                        className={`btn d-flex align-items-center gap-2 px-4 py-2 fw-bold rounded-3 transition-all ${
+                            activeTab === 'academic-years' ? 'btn-success shadow-sm' : 'btn-light text-secondary border-0'
+                        }`}
+                        style={{ fontSize: '0.95rem' }}
+                    >
+                        <i className="bi bi-calendar3"></i>
+                        <span>توزيع أسابيع الأعوام الجامعية</span>
+                        <Badge bg={activeTab === 'academic-years' ? 'light' : 'secondary'} text={activeTab === 'academic-years' ? 'dark' : 'white'} className="ms-1 rounded-pill">
+                            {academicYears.length}
+                        </Badge>
+                    </button>
+                )}
+            </div>
+
+            {/* TAB 1: صلاحيات مسؤولي الكليات */}
+            {activeTab === 'permissions' && (
+                <Card className="shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+                    <Card.Header className="bg-white border-bottom p-4">
+                        <div className="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                            <div>
+                                <h4 style={{ color: '#166534', fontWeight: 'bold', margin: 0 }}>
+                                    مصفوفة صلاحيات مسؤولي الكليات
+                                </h4>
+                                <small className="text-muted">
+                                    تفعيل أو تعطيل الأزرار والإجراءات الحساسة لكل مسؤول كلية بدقة
+                                </small>
+                            </div>
+
+                            {/* Search & Faculty Filter Controls */}
+                            <div className="d-flex flex-wrap align-items-center gap-2">
+                                <InputGroup style={{ width: '260px' }}>
+                                    <InputGroup.Text className="bg-white border-end-0">
+                                        <FaSearch className="text-muted" />
+                                    </InputGroup.Text>
+                                    <Form.Control
+                                        type="text"
+                                        placeholder="بحث باسم المستخدم..."
+                                        value={permissionSearch}
+                                        onChange={(e) => setPermissionSearch(e.target.value)}
+                                        className="border-start-0 ps-2"
+                                        style={{ fontSize: '0.9rem' }}
+                                    />
+                                    {permissionSearch && (
+                                        <Button variant="outline-secondary" size="sm" onClick={() => setPermissionSearch('')}>
+                                            <FaTimes size={12} />
+                                        </Button>
+                                    )}
+                                </InputGroup>
+
+                                <Form.Select
+                                    value={permissionFacultyFilter}
+                                    onChange={(e) => setPermissionFacultyFilter(e.target.value)}
+                                    style={{ width: '220px', fontSize: '0.9rem' }}
+                                >
+                                    <option value="">جميع الكليات والمسؤولين</option>
+                                    <option value="all">كل من لديه وصول لجميع الكليات</option>
+                                    {faculties.map(f => (
+                                        <option key={f.id} value={f.id}>{f.name}</option>
+                                    ))}
+                                </Form.Select>
+
+                                {(permissionSearch || permissionFacultyFilter) && (
+                                    <Button 
+                                        variant="outline-secondary" 
+                                        size="sm" 
+                                        onClick={() => { setPermissionSearch(''); setPermissionFacultyFilter(''); }}
+                                        title="إلغاء التصفية"
+                                    >
+                                        إلغاء الفلتر
+                                    </Button>
                                 )}
-                            </tbody>
-                        </Table>
-                    </div>
-                </Card.Body>
-            </Card>
+                            </div>
+                        </div>
+                    </Card.Header>
 
-            {/* Card لإدارة إخفاء الصفحات عن المستخدمين من القائمة الجانبية */}
-            <Card className="shadow-sm border-0 mt-5" style={{ width: '100%', borderRadius: '16px', overflow: 'hidden' }}>
-                <Card.Header className="bg-white border-0 pt-4 pb-3 px-4">
-                    <div className="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <Card.Body className="p-0">
+                        <style>
+                            {`
+                            .sticky-col-1 { position: sticky; right: 0; z-index: 2; width: 190px; min-width: 190px; border-left: 2px solid #dee2e6; }
+                            .sticky-col-2 { position: sticky; right: 190px; z-index: 2; width: 300px; min-width: 300px; border-left: 2px solid #dee2e6; }
+                            thead .sticky-col-1, thead .sticky-col-2 { z-index: 3; }
+                            tbody .sticky-col-1, tbody .sticky-col-2 { background-color: #fff; }
+                            .table-striped > tbody > tr:nth-of-type(odd) > .sticky-col-1,
+                            .table-striped > tbody > tr:nth-of-type(odd) > .sticky-col-2 {
+                                background-color: #f8fafc;
+                            }
+                            .table-hover > tbody > tr:hover > .sticky-col-1,
+                            .table-hover > tbody > tr:hover > .sticky-col-2 {
+                                background-color: #f1f5f9;
+                            }
+                            .perm-header-group {
+                                font-weight: bold;
+                                font-size: 0.92rem;
+                                padding: 8px 12px;
+                                text-align: center;
+                                letter-spacing: 0.2px;
+                            }
+                            `}
+                        </style>
+                        <div className="table-responsive" style={{ width: '100%', overflowX: 'auto', margin: 0 }}>
+                            <Table responsive striped bordered hover className="mb-0 text-center align-middle" style={{ width: 'max-content', minWidth: '100%' }}>
+                                <thead>
+                                    {/* Level 1 Grouped Headers */}
+                                    <tr>
+                                        <th rowSpan="2" className="sticky-col-1 bg-dark text-white" style={{ verticalAlign: 'middle', fontSize: '0.95rem' }}>
+                                            اسم المستخدم
+                                        </th>
+                                        <th rowSpan="2" className="sticky-col-2 bg-dark text-white" style={{ verticalAlign: 'middle', fontSize: '0.95rem' }}>
+                                            الكلية المخصصة
+                                        </th>
+                                        <th colSpan="6" className="perm-header-group" style={{ backgroundColor: '#15803d', color: '#ffffff' }}>
+                                            📗 الخطة الدراسية والاعتماد (6 صلاحيات)
+                                        </th>
+                                        <th colSpan="4" className="perm-header-group" style={{ backgroundColor: '#0284c7', color: '#ffffff' }}>
+                                            📘 أعضاء هيئة التدريس (4 صلاحيات)
+                                        </th>
+                                        <th colSpan="2" className="perm-header-group" style={{ backgroundColor: '#ea580c', color: '#ffffff' }}>
+                                            📙 سلة المحذوفات (صلاحيتان)
+                                        </th>
+                                        <th colSpan="1" className="perm-header-group" style={{ backgroundColor: '#7c3aed', color: '#ffffff' }}>
+                                            📕 الأعباء
+                                        </th>
+                                    </tr>
+
+                                    {/* Level 2 Sub-Headers */}
+                                    <tr style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
+                                        {/* الخطة الدراسية */}
+                                        <th style={{ backgroundColor: '#f0fdf4', color: '#166534', minWidth: '105px' }}>جدول الأساتذة</th>
+                                        <th style={{ backgroundColor: '#f0fdf4', color: '#166534', minWidth: '105px' }}>بيانات الأساتذة</th>
+                                        <th style={{ backgroundColor: '#f0fdf4', color: '#166534', minWidth: '95px' }}>إنهاء الخطة</th>
+                                        <th style={{ backgroundColor: '#f0fdf4', color: '#166534', minWidth: '95px' }}>مراجعة أولى</th>
+                                        <th style={{ backgroundColor: '#f0fdf4', color: '#166534', minWidth: '95px' }}>مراجعة ثانية</th>
+                                        <th style={{ backgroundColor: '#f0fdf4', color: '#166534', minWidth: '95px' }}>اعتماد الخطة</th>
+
+                                        {/* هيئة التدريس */}
+                                        <th style={{ backgroundColor: '#f0f9ff', color: '#0369a1', minWidth: '85px' }}>الحذف</th>
+                                        <th style={{ backgroundColor: '#f0f9ff', color: '#0369a1', minWidth: '85px' }}>الرؤية</th>
+                                        <th style={{ backgroundColor: '#f0f9ff', color: '#0369a1', minWidth: '85px' }}>التصدير</th>
+                                        <th style={{ backgroundColor: '#f0f9ff', color: '#0369a1', minWidth: '85px' }}>الاستيراد</th>
+
+                                        {/* المحذوفات */}
+                                        <th style={{ backgroundColor: '#fff7ed', color: '#c2410c', minWidth: '110px' }}>استرجاع المحذوف</th>
+                                        <th style={{ backgroundColor: '#fff7ed', color: '#c2410c', minWidth: '105px' }}>الحذف النهائي</th>
+
+                                        {/* الأعباء */}
+                                        <th style={{ backgroundColor: '#faf5ff', color: '#6b21a8', minWidth: '105px' }}>تعديل الأعباء</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredPermissionsUsers.map((u) => (
+                                        <tr key={u.id} style={{ height: '62px', whiteSpace: 'nowrap' }}>
+                                            <td className="fw-bold text-center sticky-col-1">
+                                                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', color: '#0f172a' }}>
+                                                    {u.username.split('@')[0]}
+                                                </div>
+                                                {(() => {
+                                                    const jobTitle = u.job_title || (
+                                                        u.role === 'admin' ? 'مدير عام (Super Admin)' :
+                                                        u.role === 'manager' ? 'مدير' :
+                                                        u.role === 'student_affairs' ? 'مدير شؤون الطلاب' :
+                                                        u.role === 'reviewer' ? 'المراجع' :
+                                                        u.role === 'faculty_professor' ? 'مدير برنامج' :
+                                                        'مسؤول كلية'
+                                                    );
+                                                    
+                                                    let badgeBg = 'bg-secondary text-white';
+                                                    let badgeStyle = { fontSize: '10.5px', padding: '3px 8px', fontWeight: 'bold' };
+
+                                                    if (u.role === 'admin' || jobTitle.includes('Super Admin') || jobTitle.includes('مدير عام')) {
+                                                        badgeBg = 'bg-danger text-white';
+                                                    } else if (u.role === 'manager' || jobTitle.includes('عميد') || jobTitle.includes('نائب') || jobTitle.includes('مدير إدارة')) {
+                                                        badgeBg = 'text-white';
+                                                        badgeStyle.backgroundColor = '#0d9488';
+                                                    } else if (u.role === 'student_affairs') {
+                                                        badgeBg = 'bg-warning text-dark';
+                                                    } else if (u.role === 'reviewer' || jobTitle.includes('المراجع')) {
+                                                        badgeBg = 'text-white';
+                                                        badgeStyle.backgroundColor = '#8b5cf6';
+                                                    } else if (jobTitle.includes('هيئة تدريس') || u.role === 'faculty_professor') {
+                                                        badgeBg = 'text-white';
+                                                        badgeStyle.backgroundColor = '#16a34a';
+                                                    } else {
+                                                        badgeBg = 'bg-info text-white';
+                                                    }
+
+                                                    return (
+                                                        <div className="mt-1">
+                                                            <span className={`badge ${badgeBg}`} style={badgeStyle}>
+                                                                {jobTitle}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </td>
+                                            <td className="sticky-col-2" style={{ whiteSpace: 'normal', padding: '8px' }}>
+                                                <div className="fw-bold" style={{ color: '#1e293b', fontSize: '12.5px', lineHeight: '1.4' }}>
+                                                    {u.all_faculties_access || u.role === 'admin' || u.role === 'student_affairs' ? (
+                                                        <span className="text-success fw-bold">جميع الكليات بالجامعة</span>
+                                                    ) : u.assigned_faculties && u.assigned_faculties.length > 0 ? (
+                                                        <div className="d-flex flex-wrap gap-1 justify-content-center align-items-center w-100">
+                                                            {u.assigned_faculties.map(f => (
+                                                                <span key={f.id} className="badge bg-light text-dark border px-2 py-1" style={{ fontSize: '11px' }}>
+                                                                    {f.name}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        u.faculty_id ? getFacultyName(u.faculty_id) : "غير محدد"
+                                                    )}
+                                                </div>
+                                            </td>
+
+                                            {/* الخطة الدراسية (6 switches) */}
+                                            <td style={{ backgroundColor: '#f0fdf4' }}>
+                                                <Form.Check 
+                                                    type="switch"
+                                                    className="d-inline-block"
+                                                    checked={u.perm_view_prof_study_plan}
+                                                    onChange={() => handleTogglePermission(u.id, 'perm_view_prof_study_plan', u.perm_view_prof_study_plan)}
+                                                />
+                                            </td>
+                                            <td style={{ backgroundColor: '#f0fdf4' }}>
+                                                <Form.Check 
+                                                    type="switch"
+                                                    className="d-inline-block"
+                                                    checked={u.perm_view_prof_data_btn}
+                                                    onChange={() => handleTogglePermission(u.id, 'perm_view_prof_data_btn', u.perm_view_prof_data_btn)}
+                                                />
+                                            </td>
+                                            <td style={{ backgroundColor: '#f0fdf4' }}>
+                                                <Form.Check 
+                                                    type="switch"
+                                                    className="d-inline-block"
+                                                    checked={u.perm_finish_plan}
+                                                    onChange={() => handleTogglePermission(u.id, 'perm_finish_plan', u.perm_finish_plan)}
+                                                />
+                                            </td>
+                                            <td style={{ backgroundColor: '#f0fdf4' }}>
+                                                <Form.Check 
+                                                    type="switch"
+                                                    className="d-inline-block"
+                                                    checked={u.perm_review_1}
+                                                    onChange={() => handleTogglePermission(u.id, 'perm_review_1', u.perm_review_1)}
+                                                />
+                                            </td>
+                                            <td style={{ backgroundColor: '#f0fdf4' }}>
+                                                <Form.Check 
+                                                    type="switch"
+                                                    className="d-inline-block"
+                                                    checked={u.perm_review_2}
+                                                    onChange={() => handleTogglePermission(u.id, 'perm_review_2', u.perm_review_2)}
+                                                />
+                                            </td>
+                                            <td style={{ backgroundColor: '#f0fdf4' }}>
+                                                <Form.Check 
+                                                    type="switch"
+                                                    className="d-inline-block"
+                                                    checked={u.perm_approve_plan}
+                                                    onChange={() => handleTogglePermission(u.id, 'perm_approve_plan', u.perm_approve_plan)}
+                                                />
+                                            </td>
+
+                                            {/* هيئة التدريس (4 switches) */}
+                                            <td style={{ backgroundColor: '#f0f9ff' }}>
+                                                <Form.Check 
+                                                    type="switch"
+                                                    className="d-inline-block"
+                                                    checked={u.perm_view_prof_delete_btn}
+                                                    onChange={() => handleTogglePermission(u.id, 'perm_view_prof_delete_btn', u.perm_view_prof_delete_btn)}
+                                                />
+                                            </td>
+                                            <td style={{ backgroundColor: '#f0f9ff' }}>
+                                                <Form.Check 
+                                                    type="switch"
+                                                    className="d-inline-block"
+                                                    checked={u.perm_view_prof_view_btn}
+                                                    onChange={() => handleTogglePermission(u.id, 'perm_view_prof_view_btn', u.perm_view_prof_view_btn)}
+                                                />
+                                            </td>
+                                            <td style={{ backgroundColor: '#f0f9ff' }}>
+                                                <Form.Check 
+                                                    type="switch"
+                                                    className="d-inline-block"
+                                                    checked={u.perm_view_prof_print_btn}
+                                                    onChange={() => handleTogglePermission(u.id, 'perm_view_prof_print_btn', u.perm_view_prof_print_btn)}
+                                                />
+                                            </td>
+                                            <td style={{ backgroundColor: '#f0f9ff' }}>
+                                                <Form.Check 
+                                                    type="switch"
+                                                    className="d-inline-block"
+                                                    checked={u.perm_view_prof_import_btn}
+                                                    onChange={() => handleTogglePermission(u.id, 'perm_view_prof_import_btn', u.perm_view_prof_import_btn)}
+                                                />
+                                            </td>
+
+                                            {/* المحذوفات (2 switches) */}
+                                            <td style={{ backgroundColor: '#fff7ed' }}>
+                                                <Form.Check 
+                                                    type="switch"
+                                                    className="d-inline-block"
+                                                    checked={u.perm_recycle_restore_btn}
+                                                    onChange={() => handleTogglePermission(u.id, 'perm_recycle_restore_btn', u.perm_recycle_restore_btn)}
+                                                />
+                                            </td>
+                                            <td style={{ backgroundColor: '#fff7ed' }}>
+                                                <Form.Check 
+                                                    type="switch"
+                                                    className="d-inline-block"
+                                                    checked={u.perm_recycle_delete_btn}
+                                                    onChange={() => handleTogglePermission(u.id, 'perm_recycle_delete_btn', u.perm_recycle_delete_btn)}
+                                                />
+                                            </td>
+
+                                            {/* الأعباء (1 switch) */}
+                                            <td style={{ backgroundColor: '#faf5ff' }}>
+                                                <Form.Check 
+                                                    type="switch"
+                                                    className="d-inline-block"
+                                                    checked={u.perm_view_professors_load}
+                                                    onChange={() => handleTogglePermission(u.id, 'perm_view_professors_load', u.perm_view_professors_load)}
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {filteredPermissionsUsers.length === 0 && (
+                                        <tr style={{ height: '100px' }}>
+                                            <td colSpan="15" className="text-muted text-center py-4">
+                                                لا توجد نتائج مطابقة لبحث الصلاحيات.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </Table>
+                        </div>
+                    </Card.Body>
+                </Card>
+            )}
+
+            {/* TAB 2: إدارة إخفاء الصفحات عن المستخدمين */}
+            {activeTab === 'hidden-pages' && (
+                <Card className="shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+                    <Card.Header className="bg-white border-bottom p-4">
                         <div className="d-flex align-items-center gap-3">
                             <div style={{
                                 width: '45px',
@@ -1221,315 +1411,335 @@ const ControlPanelPage = () => {
                                 <FaEyeSlash />
                             </div>
                             <div>
-                                <h4 style={{ margin: 0, fontWeight: 'bold', color: '#2e7d32' }}>
+                                <h4 style={{ margin: 0, fontWeight: 'bold', color: '#166534' }}>
                                     إدارة إخفاء الصفحات عن المستخدمين (القائمة الجانبية)
                                 </h4>
                                 <small className="text-muted">
-                                    اختر المستخدم (مع إمكانية البحث بالاسم)، ثم حدد الصفحة المراد إخفاؤها من القائمة الجانبية الخاصة به
+                                    حدد المستخدمين والصفحات المراد حجبها من القائمة الجانبية لديهم، أو اضغط على الشارة لإلغاء الحجب مباشرة
                                 </small>
                             </div>
                         </div>
-                    </div>
-                </Card.Header>
+                    </Card.Header>
 
-                <Card.Body className="px-4 pb-4 pt-2">
-                    {/* فورم اختيار المستخدم والصفحة */}
-                    <div className="p-4 rounded-3 mb-4" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                        <Row className="g-3 align-items-end">
-                            {/* البحث واختيار المستخدم */}
-                            <Col lg={5} md={6} xs={12}>
-                                <Form.Group>
-                                    <Form.Label className="fw-bold mb-2 d-flex align-items-center gap-2" style={{ color: '#1e293b' }}>
-                                        <FaUser className="text-success" />
-                                        <span>اختر المستخدم (ابحث بالاسم):</span>
-                                    </Form.Label>
-                                    <Select
-                                        isMulti
-                                        options={userSelectOptions}
-                                        value={userSelectOptions.filter(opt => selectedUserIds.includes(opt.value))}
-                                        onChange={(opts) => {
-                                            setSelectedUserIds(opts ? opts.map(o => o.value) : []);
-                                            setSelectedPageToHide([]);
+                    <Card.Body className="p-4">
+                        {/* فورم اختيار المستخدم والصفحة */}
+                        <div className="p-4 rounded-3 mb-4" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                            <Row className="g-3 align-items-end">
+                                {/* البحث واختيار المستخدم */}
+                                <Col lg={5} md={6} xs={12}>
+                                    <Form.Group>
+                                        <Form.Label className="fw-bold mb-2 d-flex align-items-center gap-2" style={{ color: '#1e293b' }}>
+                                            <FaUser className="text-success" />
+                                            <span>اختر المستخدم (ابحث بالاسم):</span>
+                                        </Form.Label>
+                                        <Select
+                                            isMulti
+                                            options={userSelectOptions}
+                                            value={userSelectOptions.filter(opt => selectedUserIds.includes(opt.value))}
+                                            onChange={(opts) => {
+                                                setSelectedUserIds(opts ? opts.map(o => o.value) : []);
+                                                setSelectedPageToHide([]);
+                                            }}
+                                            placeholder="ابحث باسم المستخدم أو وظيفته أو كليته..."
+                                            isClearable
+                                            isSearchable
+                                            closeMenuOnSelect={false}
+                                            noOptionsMessage={() => "لا يوجد مستخدم مطابق"}
+                                            styles={{
+                                                ...customSelectStyles,
+                                                multiValue: (base) => ({ ...base, backgroundColor: '#e8f5e9', borderRadius: '6px' }),
+                                                multiValueLabel: (base) => ({ ...base, color: '#2e7d32', fontWeight: '600', fontSize: '0.85rem' }),
+                                                multiValueRemove: (base) => ({ ...base, color: '#c62828', ':hover': { backgroundColor: '#ffebee', color: '#c62828' } }),
+                                            }}
+                                        />
+                                    </Form.Group>
+                                </Col>
+
+                                {/* اختيار الصفحات من الـ Sidebar */}
+                                <Col lg={4} md={6} xs={12}>
+                                    <Form.Group>
+                                        <Form.Label className="fw-bold mb-2 d-flex align-items-center gap-2" style={{ color: '#1e293b' }}>
+                                            <FaListUl className="text-primary" />
+                                            <span>اختر الصفحة في القائمة الجانبية:</span>
+                                        </Form.Label>
+                                        <Select
+                                            isMulti
+                                            isDisabled={selectedUserIds.length === 0}
+                                            value={selectedPageToHide}
+                                            onChange={(opts) => setSelectedPageToHide(opts || [])}
+                                            options={availablePagesToHide.map(p => ({ value: p.id, label: `${p.icon} ${p.label}` }))}
+                                            placeholder="-- اختر صفحة أو أكثر لإخفائها --"
+                                            noOptionsMessage={() => "لا توجد صفحات متاحة للإخفاء"}
+                                            closeMenuOnSelect={false}
+                                            styles={{
+                                                control: (base, state) => ({
+                                                    ...base,
+                                                    minHeight: '44px',
+                                                    borderRadius: '10px',
+                                                    borderColor: state.isFocused ? '#66bb6a' : '#ced4da',
+                                                    boxShadow: state.isFocused ? '0 0 0 0.2rem rgba(102,187,106,0.25)' : 'none',
+                                                    fontSize: '0.92rem',
+                                                    fontWeight: '500',
+                                                    direction: 'rtl',
+                                                }),
+                                                menu: (base) => ({ ...base, zIndex: 9999, direction: 'rtl', textAlign: 'right' }),
+                                                placeholder: (base) => ({ ...base, color: '#6c757d' }),
+                                                multiValue: (base) => ({ ...base, backgroundColor: '#e8f5e9', borderRadius: '6px' }),
+                                                multiValueLabel: (base) => ({ ...base, color: '#2e7d32', fontWeight: '600' }),
+                                                multiValueRemove: (base) => ({ ...base, color: '#c62828', ':hover': { backgroundColor: '#ffebee', color: '#c62828' } }),
+                                                option: (base, state) => ({
+                                                    ...base,
+                                                    backgroundColor: state.isSelected ? '#388e3c' : state.isFocused ? '#e8f5e9' : 'white',
+                                                    color: state.isSelected ? 'white' : '#1e293b',
+                                                    textAlign: 'right',
+                                                    direction: 'rtl',
+                                                }),
+                                            }}
+                                        />
+                                    </Form.Group>
+                                </Col>
+
+                                {/* زر إخفاء الصفحة */}
+                                <Col lg={3} md={12} xs={12}>
+                                    <Button
+                                        variant="danger"
+                                        onClick={handleHidePage}
+                                        disabled={selectedUserIds.length === 0 || selectedPageToHide.length === 0 || hidingActionLoading}
+                                        className="w-100 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                                        style={{
+                                            minHeight: '44px',
+                                            borderRadius: '10px',
+                                            fontSize: '0.95rem',
+                                            transition: 'all 0.2s'
                                         }}
-                                        placeholder="ابحث باسم المستخدم أو وظيفته أو كليته..."
-                                        isClearable
-                                        isSearchable
-                                        closeMenuOnSelect={false}
-                                        noOptionsMessage={() => "لا يوجد مستخدم مطابق"}
-                                        styles={{
-                                            ...customSelectStyles,
-                                            multiValue: (base) => ({ ...base, backgroundColor: '#e8f5e9', borderRadius: '6px' }),
-                                            multiValueLabel: (base) => ({ ...base, color: '#2e7d32', fontWeight: '600', fontSize: '0.85rem' }),
-                                            multiValueRemove: (base) => ({ ...base, color: '#c62828', ':hover': { backgroundColor: '#ffebee', color: '#c62828' } }),
-                                        }}
-                                    />
-                                </Form.Group>
-                            </Col>
+                                    >
+                                        {hidingActionLoading ? (
+                                            <Spinner size="sm" animation="border" />
+                                        ) : (
+                                            <>
+                                                <FaEyeSlash />
+                                                <span>{selectedPageToHide.length > 1 ? `إخفاء ${selectedPageToHide.length} صفحات` : 'إخفاء الصفحة للمستخدم'}</span>
+                                            </>
+                                        )}
+                                    </Button>
+                                </Col>
+                            </Row>
+                        </div>
 
-                            {/* اختيار الصفحات من الـ Sidebar - multi-select */}
-                            <Col lg={4} md={6} xs={12}>
-                                <Form.Group>
-                                    <Form.Label className="fw-bold mb-2 d-flex align-items-center gap-2" style={{ color: '#1e293b' }}>
-                                        <FaListUl className="text-primary" />
-                                        <span>اختر الصفحة في القائمة الجانبية:</span>
-                                    </Form.Label>
-                                    <Select
-                                        isMulti
-                                        isDisabled={selectedUserIds.length === 0}
-                                        value={selectedPageToHide}
-                                        onChange={(opts) => setSelectedPageToHide(opts || [])}
-                                        options={availablePagesToHide.map(p => ({ value: p.id, label: `${p.icon} ${p.label}` }))}
-                                        placeholder="-- اختر صفحة أو أكثر لإخفائها --"
-                                        noOptionsMessage={() => "لا توجد صفحات متاحة للإخفاء"}
-                                        closeMenuOnSelect={false}
-                                        styles={{
-                                            control: (base, state) => ({
-                                                ...base,
-                                                minHeight: '44px',
-                                                borderRadius: '10px',
-                                                borderColor: state.isFocused ? '#66bb6a' : '#ced4da',
-                                                boxShadow: state.isFocused ? '0 0 0 0.2rem rgba(102,187,106,0.25)' : 'none',
-                                                fontSize: '0.92rem',
-                                                fontWeight: '500',
-                                                direction: 'rtl',
-                                            }),
-                                            menu: (base) => ({ ...base, zIndex: 9999, direction: 'rtl', textAlign: 'right' }),
-                                            placeholder: (base) => ({ ...base, color: '#6c757d' }),
-                                            multiValue: (base) => ({ ...base, backgroundColor: '#e8f5e9', borderRadius: '6px' }),
-                                            multiValueLabel: (base) => ({ ...base, color: '#2e7d32', fontWeight: '600' }),
-                                            multiValueRemove: (base) => ({ ...base, color: '#c62828', ':hover': { backgroundColor: '#ffebee', color: '#c62828' } }),
-                                            option: (base, state) => ({
-                                                ...base,
-                                                backgroundColor: state.isSelected ? '#388e3c' : state.isFocused ? '#e8f5e9' : 'white',
-                                                color: state.isSelected ? 'white' : '#1e293b',
-                                                textAlign: 'right',
-                                                direction: 'rtl',
-                                            }),
-                                        }}
-                                    />
-                                </Form.Group>
-                            </Col>
-
-                            {/* زر إخفاء الصفحة */}
-                            <Col lg={3} md={12} xs={12}>
-                                <Button
-                                    variant="danger"
-                                    onClick={handleHidePage}
-                                    disabled={selectedUserIds.length === 0 || selectedPageToHide.length === 0 || hidingActionLoading}
-                                    className="w-100 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm"
-                                    style={{
-                                        minHeight: '44px',
-                                        borderRadius: '10px',
-                                        fontSize: '0.95rem',
-                                        transition: 'all 0.2s'
-                                    }}
-                                >
-                                    {hidingActionLoading ? (
-                                        <Spinner size="sm" animation="border" />
-                                    ) : (
-                                        <>
-                                            <FaEyeSlash />
-                                            <span>{selectedPageToHide.length > 1 ? `إخفاء ${selectedPageToHide.length} صفحات` : 'إخفاء الصفحة للمستخدم'}</span>
-                                        </>
-                                    )}
-                                </Button>
-                            </Col>
-                        </Row>
-                    </div>
-
-                    {/* حالة المستخدمين المختارين والصفحات المخفية عنهم */}
-                    {selectedUserObjs.length > 0 && (
-                        <div className="p-3 mb-4 rounded-3 border" style={{ backgroundColor: '#ffffff' }}>
-                            {selectedUserObjs.map(userObj => {
-                                const userHiddenPages = parseHiddenPages(userObj);
-                                return (
-                                    <div key={userObj.id} className={`${selectedUserObjs.length > 1 ? 'mb-3 pb-3 border-bottom' : ''}`}>
-                                        <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom">
-                                            <div className="d-flex align-items-center gap-2">
-                                                <span className="badge bg-success px-3 py-2 fs-6 fw-bold rounded-pill">
-                                                    المستخدم: {userObj.username}
-                                                </span>
-                                                <span className="badge bg-light text-dark border px-3 py-2 fs-6">
-                                                    {userObj.job_title || userObj.role}
-                                                </span>
-                                                {userObj.faculty_id && (
-                                                    <span className="badge bg-light text-secondary border px-3 py-2 fs-6">
-                                                        {getFacultyName(userObj.faculty_id)}
+                        {/* حالة المستخدمين المختارين والصفحات المخفية عنهم */}
+                        {selectedUserObjs.length > 0 && (
+                            <div className="p-3 mb-4 rounded-3 border" style={{ backgroundColor: '#ffffff' }}>
+                                {selectedUserObjs.map(userObj => {
+                                    const userHiddenPages = parseHiddenPages(userObj);
+                                    return (
+                                        <div key={userObj.id} className={`${selectedUserObjs.length > 1 ? 'mb-3 pb-3 border-bottom' : ''}`}>
+                                            <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                                <div className="d-flex align-items-center gap-2">
+                                                    <span className="badge bg-success px-3 py-2 fs-6 fw-bold rounded-pill">
+                                                        المستخدم: {userObj.username}
                                                     </span>
+                                                    <span className="badge bg-light text-dark border px-3 py-2 fs-6">
+                                                        {userObj.job_title || userObj.role}
+                                                    </span>
+                                                    {userObj.faculty_id && (
+                                                        <span className="badge bg-light text-secondary border px-3 py-2 fs-6">
+                                                            {getFacultyName(userObj.faculty_id)}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {userHiddenPages.length > 0 && (
+                                                    <Button
+                                                        variant="outline-secondary"
+                                                        size="sm"
+                                                        onClick={() => handleUnhideAllForUser(userObj.id)}
+                                                        disabled={hidingActionLoading}
+                                                        className="d-flex align-items-center gap-1 rounded-pill px-3"
+                                                    >
+                                                        <FaUndo size={12} />
+                                                        <span>إظهار جميع الصفحات</span>
+                                                    </Button>
                                                 )}
                                             </div>
-                                            {userHiddenPages.length > 0 && (
-                                                <Button
-                                                    variant="outline-secondary"
-                                                    size="sm"
-                                                    onClick={() => handleUnhideAllForUser(userObj.id)}
-                                                    disabled={hidingActionLoading}
-                                                    className="d-flex align-items-center gap-1 rounded-pill px-3"
-                                                >
-                                                    <FaUndo size={12} />
-                                                    <span>إظهار جميع الصفحات</span>
-                                                </Button>
-                                            )}
-                                        </div>
 
-                                        <div>
-                                            <h6 className="fw-bold text-muted mb-3 d-flex align-items-center gap-2">
-                                                <span>الصفحات المخفية حالياً من القائمة الجانبية:</span>
-                                                <Badge bg={userHiddenPages.length > 0 ? "warning" : "success"} text={userHiddenPages.length > 0 ? "dark" : "white"}>
-                                                    {userHiddenPages.length}
-                                                </Badge>
-                                            </h6>
+                                            <div>
+                                                <h6 className="fw-bold text-muted mb-3 d-flex align-items-center gap-2">
+                                                    <span>الصفحات المخفية حالياً من القائمة الجانبية:</span>
+                                                    <Badge bg={userHiddenPages.length > 0 ? "warning" : "success"} text={userHiddenPages.length > 0 ? "dark" : "white"}>
+                                                        {userHiddenPages.length}
+                                                    </Badge>
+                                                </h6>
 
-                                            {userHiddenPages.length === 0 ? (
-                                                <div className="alert alert-success d-flex align-items-center gap-2 mb-0 py-2 px-3" role="alert">
-                                                    <FaCheckCircle className="text-success fs-5 flex-shrink-0" />
-                                                    <div>
-                                                        <strong>جميع صفحات القائمة الجانبية ظاهرة</strong> لهذا المستخدم حالياً ولا توجد أي صفحات مخفية عنه.
+                                                {userHiddenPages.length === 0 ? (
+                                                    <div className="alert alert-success d-flex align-items-center gap-2 mb-0 py-2 px-3" role="alert">
+                                                        <FaCheckCircle className="text-success fs-5 flex-shrink-0" />
+                                                        <div>
+                                                            <strong>جميع صفحات القائمة الجانبية ظاهرة</strong> لهذا المستخدم حالياً ولا توجد أي صفحات مخفية عنه.
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ) : (
-                                                <div className="d-flex flex-wrap gap-2">
-                                                    {userHiddenPages.map(pageId => {
-                                                        const pageObj = SIDEBAR_PAGES.find(p => p.id === pageId);
-                                                        const pageName = pageObj ? pageObj.label : pageId;
-                                                        const pageIcon = pageObj ? pageObj.icon : '📄';
-                                                        return (
-                                                            <div 
-                                                                key={pageId}
-                                                                className="d-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill shadow-sm"
-                                                                style={{
-                                                                    backgroundColor: '#fef2f2',
-                                                                    border: '1px solid #fecaca',
-                                                                    color: '#991b1b',
-                                                                    fontSize: '0.9rem',
-                                                                    fontWeight: '600'
-                                                                }}
-                                                            >
-                                                                <span>{pageIcon}</span>
-                                                                <span>{pageName}</span>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleUnhidePage(pageId, userObj.id)}
-                                                                    disabled={hidingActionLoading}
-                                                                    title={`إلغاء إخفاء صفحة ${pageName}`}
-                                                                    className="btn btn-sm p-0 ms-1 d-flex align-items-center justify-content-center text-danger"
+                                                ) : (
+                                                    <div className="d-flex flex-wrap gap-2">
+                                                        {userHiddenPages.map(pageId => {
+                                                            const pageObj = SIDEBAR_PAGES.find(p => p.id === pageId);
+                                                            const pageName = pageObj ? pageObj.label : pageId;
+                                                            const pageIcon = pageObj ? pageObj.icon : '📄';
+                                                            return (
+                                                                <div 
+                                                                    key={pageId} 
+                                                                    className="d-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill shadow-sm"
                                                                     style={{
-                                                                        width: '20px',
-                                                                        height: '20px',
-                                                                        borderRadius: '50%',
-                                                                        backgroundColor: '#fee2e2',
-                                                                        border: 'none',
-                                                                        cursor: 'pointer'
+                                                                        backgroundColor: '#fef2f2',
+                                                                        border: '1px solid #fecaca',
+                                                                        color: '#991b1b',
+                                                                        fontSize: '0.9rem',
+                                                                        fontWeight: '600'
                                                                     }}
                                                                 >
-                                                                    <FaTimes size={11} />
-                                                                </button>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-
-                    {/* جدول ملخص لجميع المستخدمين الذين لديهم صفحات مخفية */}
-                    <div className="mt-4">
-                        <div className="d-flex align-items-center justify-content-between mb-2">
-                            <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                                <FaEyeSlash className="text-danger" />
-                                <span>سجل المستخدمين الذين لديهم صفحات مخفية</span>
-                            </h6>
-                            <span className="text-muted small">
-                                إجمالي: {allUsers.filter(u => {
-                                    const role = (u.role || '').toLowerCase();
-                                    return role !== 'admin' && role !== 'super_admin' && !u.is_super_admin && !u.is_superuser && parseHiddenPages(u).length > 0;
-                                }).length} مستخدم
-                            </span>
-                        </div>
-                        <div className="table-responsive rounded-3 border">
-                            <Table hover className="mb-0 align-middle text-center">
-                                <thead className="bg-light">
-                                    <tr style={{ borderBottom: '2px solid #e2e8f0', fontSize: '0.9rem' }}>
-                                        <th style={{ width: '50px' }}>#</th>
-                                        <th style={{ textAlign: 'right', paddingRight: '15px' }}>المستخدم</th>
-                                        <th>الوظيفة / الصفة</th>
-                                        <th>الكلية</th>
-                                        <th>الصفحات المخفية</th>
-                                        <th style={{ width: '130px' }}>إجراء سريع</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {allUsers.filter(u => {
-                                        const role = (u.role || '').toLowerCase();
-                                        return role !== 'admin' && role !== 'super_admin' && !u.is_super_admin && !u.is_superuser && parseHiddenPages(u).length > 0;
-                                    }).map((u, index) => {
-                                        const hiddenList = parseHiddenPages(u);
-                                        return (
-                                            <tr key={u.id}>
-                                                <td className="fw-bold" style={{ color: '#64748b' }}>{index + 1}</td>
-                                                <td className="fw-bold text-end pe-3" style={{ color: '#1e293b' }}>
-                                                    {u.username}
-                                                </td>
-                                                <td>
-                                                    <span className="badge bg-light text-dark border">
-                                                        {u.job_title || u.role}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <small className="text-muted">{getFacultyName(u.faculty_id)}</small>
-                                                </td>
-                                                <td>
-                                                    <div className="d-flex flex-wrap justify-content-center gap-1">
-                                                        {hiddenList.map(pId => {
-                                                            const pObj = SIDEBAR_PAGES.find(p => p.id === pId);
-                                                            return (
-                                                                <span 
-                                                                    key={pId} 
-                                                                    className="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1"
-                                                                    style={{ fontSize: '0.78rem' }}
-                                                                >
-                                                                    {pObj ? pObj.label : pId}
-                                                                </span>
+                                                                    <span>{pageIcon}</span>
+                                                                    <span>{pageName}</span>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleUnhidePage(pageId, userObj.id)}
+                                                                        disabled={hidingActionLoading}
+                                                                        title={`إلغاء إخفاء صفحة ${pageName}`}
+                                                                        className="btn btn-sm p-0 ms-1 d-flex align-items-center justify-content-center text-danger"
+                                                                        style={{
+                                                                            width: '20px',
+                                                                            height: '20px',
+                                                                            borderRadius: '50%',
+                                                                            backgroundColor: '#fee2e2',
+                                                                            border: 'none',
+                                                                            cursor: 'pointer'
+                                                                        }}
+                                                                    >
+                                                                        <FaTimes size={11} />
+                                                                    </button>
+                                                                </div>
                                                             );
                                                         })}
                                                     </div>
-                                                </td>
-                                                <td>
-                                                    <Button
-                                                        variant="outline-success"
-                                                        size="sm"
-                                                        onClick={() => handleUnhideAllForUser(u.id)}
-                                                        disabled={hidingActionLoading}
-                                                        className="d-flex align-items-center gap-1 mx-auto py-1 px-2"
-                                                        style={{ fontSize: '0.8rem' }}
-                                                    >
-                                                        <FaEye size={12} />
-                                                        <span>إظهار الكل</span>
-                                                    </Button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {/* جدول ملخص لجميع المستخدمين الذين لديهم صفحات مخفية */}
+                        <div className="mt-4">
+                            <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+                                <div>
+                                    <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                                        <FaEyeSlash className="text-danger" />
+                                        <span>سجل المستخدمين الذين لديهم صفحات مخفية</span>
+                                    </h6>
+                                    <small className="text-muted">اضغط على علامة (×) بجوار أي صفحة لإظهارها فوراً للمستخدم</small>
+                                </div>
+                                <div className="d-flex align-items-center gap-2">
+                                    <InputGroup style={{ width: '250px' }}>
+                                        <InputGroup.Text className="bg-white border-end-0">
+                                            <FaSearch className="text-muted" />
+                                        </InputGroup.Text>
+                                        <Form.Control
+                                            type="text"
+                                            placeholder="بحث في السجل..."
+                                            value={hiddenPagesSearch}
+                                            onChange={(e) => setHiddenPagesSearch(e.target.value)}
+                                            className="border-start-0 ps-2"
+                                            style={{ fontSize: '0.88rem' }}
+                                        />
+                                    </InputGroup>
+                                    <Badge bg="secondary" className="px-3 py-2 fs-6">
+                                        {filteredHiddenPagesUsers.length} مستخدم
+                                    </Badge>
+                                </div>
+                            </div>
+                            <div className="table-responsive rounded-3 border">
+                                <Table hover className="mb-0 align-middle text-center">
+                                    <thead className="bg-light">
+                                        <tr style={{ borderBottom: '2px solid #e2e8f0', fontSize: '0.9rem' }}>
+                                            <th style={{ width: '50px' }}>#</th>
+                                            <th style={{ textAlign: 'right', paddingRight: '15px' }}>المستخدم</th>
+                                            <th>الوظيفة / الصفة</th>
+                                            <th>الكلية</th>
+                                            <th>الصفحات المخفية (اضغط × للحذف السريع)</th>
+                                            <th style={{ width: '130px' }}>إجراء شامل</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredHiddenPagesUsers.map((u, index) => {
+                                            const hiddenList = parseHiddenPages(u);
+                                            return (
+                                                <tr key={u.id}>
+                                                    <td className="fw-bold" style={{ color: '#64748b' }}>{index + 1}</td>
+                                                    <td className="fw-bold text-end pe-3" style={{ color: '#1e293b' }}>
+                                                        {u.username}
+                                                    </td>
+                                                    <td>
+                                                        <span className="badge bg-light text-dark border">
+                                                            {u.job_title || u.role}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <small className="text-muted">{getFacultyName(u.faculty_id)}</small>
+                                                    </td>
+                                                    <td>
+                                                        <div className="d-flex flex-wrap justify-content-center gap-1">
+                                                            {hiddenList.map(pId => {
+                                                                const pObj = SIDEBAR_PAGES.find(p => p.id === pId);
+                                                                return (
+                                                                    <span 
+                                                                        key={pId} 
+                                                                        className="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1 d-inline-flex align-items-center gap-1"
+                                                                        style={{ fontSize: '0.8rem' }}
+                                                                    >
+                                                                        <span>{pObj ? pObj.label : pId}</span>
+                                                                        <span 
+                                                                            onClick={() => handleUnhidePage(pId, u.id)}
+                                                                            title={`إظهار صفحة ${pObj ? pObj.label : pId}`}
+                                                                            style={{ cursor: 'pointer', fontWeight: 'bold', marginRight: '3px' }}
+                                                                            className="text-danger"
+                                                                        >
+                                                                            &times;
+                                                                        </span>
+                                                                    </span>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <Button
+                                                            variant="outline-success"
+                                                            size="sm"
+                                                            onClick={() => handleUnhideAllForUser(u.id)}
+                                                            disabled={hidingActionLoading}
+                                                            className="d-flex align-items-center gap-1 mx-auto py-1 px-2"
+                                                            style={{ fontSize: '0.8rem' }}
+                                                        >
+                                                            <FaEye size={12} />
+                                                            <span>إظهار الكل</span>
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                        {filteredHiddenPagesUsers.length === 0 && (
+                                            <tr>
+                                                <td colSpan="6" className="text-center text-muted py-4">
+                                                    لا توجد صفحات مخفية مطابقة للبحث حالياً.
                                                 </td>
                                             </tr>
-                                        );
-                                    })}
-                                    {allUsers.filter(u => parseHiddenPages(u).length > 0).length === 0 && (
-                                        <tr>
-                                            <td colSpan="6" className="text-center text-muted py-4">
-                                                لا توجد صفحات مخفية عن أي مستخدم حالياً.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </Table>
+                                        )}
+                                    </tbody>
+                                </Table>
+                            </div>
                         </div>
-                    </div>
-                </Card.Body>
-            </Card>
-
-            {/* بطاقة حدود ساعات العمل في اليوم وضوابط الانتداب */}
-            <Card className="shadow-sm border-0 mt-5" style={{ width: '100%', borderRadius: '16px', overflow: 'hidden' }}>
+                    </Card.Body>
+                </Card>
+            )}
+            {/* TAB 3: بطاقة حدود ساعات العمل في اليوم وضوابط الانتداب */}
+            {activeTab === 'workload-limits' && (
+            <Card className="shadow-sm border-0 mt-2" style={{ width: '100%', borderRadius: '16px', overflow: 'hidden' }}>
                 <Card.Header className="bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <div>
                         <div className="d-flex align-items-center gap-2 text-success">
@@ -2209,9 +2419,10 @@ const ControlPanelPage = () => {
                     )}
                 </Card.Body>
             </Card>
+            )}
 
-            {user?.role === 'admin' && (
-                <Card className="shadow-sm border-0 mt-5" style={{ width: '100%', borderRadius: '16px', overflow: 'hidden' }}>
+            {activeTab === 'academic-years' && user?.role === 'admin' && (
+                <Card className="shadow-sm border-0 mt-2" style={{ width: '100%', borderRadius: '16px', overflow: 'hidden' }}>
                     <Card.Header className="bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center">
                         <div>
                             <h4 style={{ color: '#2e7d32', fontWeight: 'bold', margin: 0 }}>إدارة الأعوام الجامعية (توزيع أسابيع الفصول الدراسية)</h4>
