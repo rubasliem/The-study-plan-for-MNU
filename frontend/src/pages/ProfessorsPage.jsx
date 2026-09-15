@@ -5028,524 +5028,291 @@ ${renderProfSignaturesHTML(fids)}
 
 
             {/* حقل العام الجامعي وتوزيع أسابيع الحضور لكل عام جامعي */}
-
             <div style={{ marginBottom: '20px', padding: '16px 18px', border: '1.5px solid #c8e6c9', borderRadius: '10px', backgroundColor: '#f9fcf9' }}>
-
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
-
                 <label style={{ fontWeight: 'bold', color: '#1b5e20', fontSize: '16px', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-
                   <i className="bi bi-calendar3 ms-1" style={{ fontSize: '18px' }}></i> أسابيع حضور عضو هيئة التدريس لكل عام جامعي:
-
                 </label>
-
                 {modalMode !== 'view' && (
-
                   <span style={{ fontSize: '13px', color: '#2e7d32', backgroundColor: '#e8f5e9', padding: '4px 10px', borderRadius: '6px', fontWeight: '500' }}>
-
-                    اختر العام الجامعي ثم حدد عدد الأسابيع لكل فصل
-
+                    اختر العام الجامعي من القائمة ثم حدد عدد الأسابيع لكل فصل
                   </span>
-
                 )}
-
               </div>
 
-
-
               {modalMode !== 'view' ? (
-
                 <>
-
-                  {/* تبويبات اختيار العام الجامعي */}
-
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
-
-                    {academicYears.map((ay) => {
-
-                      const isSelected = (modalActiveYear || formData.academic_year || academicYears[0]?.name) === ay.name;
-
-                      const hasCustom = formData.academic_year_weeks?.[ay.name];
-
-                      return (
-
-                        <button
-
-                          key={ay.id || ay.name}
-
-                          type="button"
-
-                          onClick={() => setModalActiveYear(ay.name)}
-
-                          style={{
-
-                            padding: '7px 16px',
-
-                            fontSize: '14.5px',
-
-                            fontWeight: isSelected ? 'bold' : '600',
-
-                            borderRadius: '8px',
-
-                            border: isSelected ? '2px solid #2e7d32' : '1px solid #ced4da',
-
-                            backgroundColor: isSelected ? '#2e7d32' : '#ffffff',
-
-                            color: isSelected ? '#ffffff' : '#333333',
-
-                            cursor: 'pointer',
-
-                            display: 'flex',
-
-                            alignItems: 'center',
-
-                            gap: '6px',
-
-                            boxShadow: isSelected ? '0 2px 5px rgba(46,125,50,0.25)' : 'none',
-
-                            transition: 'all 0.2s ease'
-
-                          }}
-
-                        >
-
-                          <span>{ay.name}</span>
-
-                          {hasCustom && (
-
-                            <span style={{
-
-                              fontSize: '11.5px',
-
-                              backgroundColor: isSelected ? '#ffffff' : '#2e7d32',
-
-                              color: isSelected ? '#2e7d32' : '#ffffff',
-
-                              borderRadius: '50%',
-
-                              width: '18px',
-
-                              height: '18px',
-
-                              display: 'inline-flex',
-
-                              alignItems: 'center',
-
-                              justifyContent: 'center',
-
-                              fontWeight: 'bold'
-
-                            }}>
-
-                              ✓
-
-                            </span>
-
-                          )}
-
-                        </button>
-
-                      );
-
-                    })}
-
+                  {/* قائمة منسدلة لاختيار العام الجامعي في وضع الإضافة / التعديل */}
+                  <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', backgroundColor: '#ffffff', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
+                    <label style={{ fontWeight: 'bold', fontSize: '14.5px', color: '#1b5e20', minWidth: '130px', margin: 0 }}>
+                      📅 العام الجامعي المراد تعديله:
+                    </label>
+                    <select
+                      value={modalActiveYear || formData.academic_year || academicYears[0]?.name || ""}
+                      onChange={(e) => {
+                        const selectedYear = e.target.value;
+                        setModalActiveYear(selectedYear);
+                        setFormData(prev => ({
+                          ...prev,
+                          academic_year: selectedYear,
+                          semester1_weeks: prev.academic_year_weeks?.[selectedYear]?.semester1_weeks ?? '',
+                          semester2_weeks: prev.academic_year_weeks?.[selectedYear]?.semester2_weeks ?? '',
+                          summer_weeks: prev.academic_year_weeks?.[selectedYear]?.summer_weeks ?? ''
+                        }));
+                      }}
+                      style={{
+                        flex: '1',
+                        maxWidth: '320px',
+                        padding: '8px 14px',
+                        fontSize: '15px',
+                        fontWeight: 'bold',
+                        color: '#1b5e20',
+                        border: '2px solid #2e7d32',
+                        borderRadius: '8px',
+                        backgroundColor: '#ffffff',
+                        cursor: 'pointer',
+                        outline: 'none'
+                      }}
+                    >
+                      {academicYears.map((ay) => {
+                        const hasCustom = formData.academic_year_weeks?.[ay.name];
+                        return (
+                          <option key={ay.id || ay.name} value={ay.name}>
+                            {ay.name} {hasCustom ? " (مخصص ✓)" : " (افتراضي)"}
+                          </option>
+                        );
+                      })}
+                    </select>
                   </div>
 
-
-
                   {/* خيارات الفصول الدراسية للعام المحدد حالياً */}
-
                   {(() => {
-
                     const activeYear = modalActiveYear || formData.academic_year || academicYears[0]?.name || "2026/2027";
-
                     const currentYearObj = academicYears.find(y => y.name === activeYear) || academicYears[0] || {};
-
                     const isProfMed = (formData.faculties || []).some(f => isMedicineFacultyName(typeof f === 'string' ? f : f.name || f.name_ar));
-                    const s1Max = 20;
-                    const s2Max = 20;
-                    const summerMax = 15;
+                    const isProfGeneral = (formData.faculties || []).some(f => !isMedicineFacultyName(typeof f === 'string' ? f : f.name || f.name_ar));
 
+                    const defS1 = (isProfMed && !isProfGeneral) ? (currentYearObj.med_semester1_weeks ?? currentYearObj.semester1_weeks ?? 15) : (currentYearObj.semester1_weeks ?? 15);
+                    const defS2 = (isProfMed && !isProfGeneral) ? (currentYearObj.med_semester2_weeks ?? currentYearObj.semester2_weeks ?? 14) : (currentYearObj.semester2_weeks ?? 14);
+                    const defSummer = (isProfMed && !isProfGeneral) ? (currentYearObj.med_summer_weeks ?? currentYearObj.summer_weeks ?? 7) : (currentYearObj.summer_weeks ?? 7);
 
+                    const s1Max = Math.max(25, defS1 + 5);
+                    const s2Max = Math.max(25, defS2 + 5);
+                    const summerMax = Math.max(15, defSummer + 5);
 
                     const currentYearData = formData.academic_year_weeks?.[activeYear] || {};
 
-
-
                     const renderWeekOptions = (maxWeeks) => {
-
                       const opts = [];
-
                       for (let i = 1; i <= maxWeeks; i++) {
-
                         opts.push(
-
                           <option key={i} value={i}>
-
                             {formatWeekCountText(i)}
-
                           </option>
-
                         );
-
                       }
-
                       return opts;
-
                     };
-
-
 
                     const updateYearWeeks = (field, val) => {
-
                       const numVal = val ? Number(val) : "";
-
                       const updatedObj = {
-
                         ...(formData.academic_year_weeks || {}),
-
                         [activeYear]: {
-
                           ...(formData.academic_year_weeks?.[activeYear] || {}),
-
                           [field]: numVal
-
                         }
-
                       };
-
                       setFormData({
-
                         ...formData,
-
                         academic_year_weeks: updatedObj,
-
                         ...(activeYear === formData.academic_year ? { [field]: numVal } : {})
-
                       });
-
                     };
 
-
-
                     return (
-
                       <div style={{ backgroundColor: '#ffffff', padding: '15px 16px', borderRadius: '8px', border: '1px solid #dcdcdc' }}>
-
                         <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#1b5e20', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-
                           <i className="bi bi-clock-history" style={{ fontSize: '16px' }}></i>
-
                           تحديد أسابيع الحضور للعام الجامعي: <span style={{ color: '#2e7d32' }}>{activeYear}</span>
-
                         </div>
-
-
 
                         <div className="row g-3">
-
                           {/* الفصل الدراسي الأول */}
-
                           <div className="col-12 col-md-4">
-
                             <label style={{ fontSize: '14px', fontWeight: 'bold', color: '#111', marginBottom: '6px', display: 'block' }}>
-
-                              الفصل الأول <span style={{ fontSize: '12px', fontWeight: '600', color: '#2b2b2b' }}>(الحد الأقصى: {formatWeekCountText(s1Max)})</span>:
-
+                              الفصل الأول <span style={{ fontSize: '12px', fontWeight: 'normal', color: '#666' }}>(الافتراضي: {defS1} أسبوع)</span>:
                             </label>
-
                             <select
-
                               value={currentYearData.semester1_weeks || ""}
-
                               onChange={(e) => updateYearWeeks('semester1_weeks', e.target.value)}
-
                               style={{ ...inputStyle, padding: '9px 12px', fontSize: '14px', borderRadius: '6px' }}
-
                             >
-
-                              <option value="">اختر عدد الأسابيع...</option>
-
+                              <option value="">افتراضي من إدارة الأعوام ({defS1} أسبوع)</option>
                               {renderWeekOptions(s1Max)}
-
                             </select>
-
                           </div>
-
-
 
                           {/* الفصل الدراسي الثاني */}
-
                           <div className="col-12 col-md-4">
-
                             <label style={{ fontSize: '14px', fontWeight: 'bold', color: '#111', marginBottom: '6px', display: 'block' }}>
-
-                              الفصل الثاني <span style={{ fontSize: '12px', fontWeight: '600', color: '#2b2b2b' }}>(الحد الأقصى: {formatWeekCountText(s2Max)})</span>:
-
+                              الفصل الثاني <span style={{ fontSize: '12px', fontWeight: 'normal', color: '#666' }}>(الافتراضي: {defS2} أسبوع)</span>:
                             </label>
-
                             <select
-
                               value={currentYearData.semester2_weeks || ""}
-
                               onChange={(e) => updateYearWeeks('semester2_weeks', e.target.value)}
-
                               style={{ ...inputStyle, padding: '9px 12px', fontSize: '14px', borderRadius: '6px' }}
-
                             >
-
-                              <option value="">اختر عدد الأسابيع...</option>
-
+                              <option value="">افتراضي من إدارة الأعوام ({defS2} أسبوع)</option>
                               {renderWeekOptions(s2Max)}
-
                             </select>
-
                           </div>
-
-
 
                           {/* الفصل الدراسي الصيفي */}
-
                           <div className="col-12 col-md-4">
-
                             <label style={{ fontSize: '14px', fontWeight: 'bold', color: '#111', marginBottom: '6px', display: 'block' }}>
-
-                              الفصل الصيفي <span style={{ fontSize: '12px', fontWeight: '600', color: '#2b2b2b' }}>(الحد الأقصى: {formatWeekCountText(summerMax)})</span>:
-
+                              الفصل الصيفي <span style={{ fontSize: '12px', fontWeight: 'normal', color: '#666' }}>(الافتراضي: {defSummer} أسبوع)</span>:
                             </label>
-
                             <select
-
                               value={currentYearData.summer_weeks || ""}
-
                               onChange={(e) => updateYearWeeks('summer_weeks', e.target.value)}
-
                               style={{ ...inputStyle, padding: '9px 12px', fontSize: '14px', borderRadius: '6px' }}
-
                             >
-
-                              <option value="">اختر عدد الأسابيع...</option>
-
+                              <option value="">افتراضي من إدارة الأعوام ({defSummer} أسبوع)</option>
                               {renderWeekOptions(summerMax)}
-
                             </select>
-
                           </div>
-
                         </div>
-
                       </div>
-
                     );
-
                   })()}
 
-
-
                   {/* جدول ملخص في وضع الإضافة / التعديل */}
-
                   {academicYears.length > 0 && (
-
                     <div style={{ marginTop: '15px', overflowX: 'auto' }}>
-
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px', textAlign: 'center', backgroundColor: '#fff', border: '1px solid #dee2e6' }}>
-
                         <thead>
-
                           <tr style={{ backgroundColor: '#f1f8e9', color: '#1b5e20', fontWeight: 'bold' }}>
-
                             <th style={{ padding: '8px 10px', border: '1px solid #dee2e6' }}>العام الجامعي</th>
-
                             <th style={{ padding: '8px 10px', border: '1px solid #dee2e6' }}>الفصل الدراسي الأول</th>
-
                             <th style={{ padding: '8px 10px', border: '1px solid #dee2e6' }}>الفصل الدراسي الثاني</th>
-
                             <th style={{ padding: '8px 10px', border: '1px solid #dee2e6' }}>الفصل الصيفي</th>
-
                             <th style={{ padding: '8px 10px', border: '1px solid #dee2e6', width: '75px' }}>الحالة</th>
-
                           </tr>
-
                         </thead>
-
                         <tbody>
-
                           {academicYears.map((ay) => {
-
                             const yData = formData.academic_year_weeks?.[ay.name] || {};
-
                             const isCurrentActive = (modalActiveYear || formData.academic_year || academicYears[0]?.name) === ay.name;
-
                             return (
-
                               <tr
-
                                 key={ay.id || ay.name}
-
-                                onClick={() => setModalActiveYear(ay.name)}
-
-                                style={{
-
-                                  backgroundColor: isCurrentActive ? '#e8f5e9' : 'transparent',
-
-                                  cursor: 'pointer',
-
-                                  fontWeight: isCurrentActive ? 'bold' : 'normal',
-
-                                  transition: 'background-color 0.15s ease'
-
+                                onClick={() => {
+                                  setModalActiveYear(ay.name);
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    academic_year: ay.name,
+                                    semester1_weeks: prev.academic_year_weeks?.[ay.name]?.semester1_weeks ?? '',
+                                    semester2_weeks: prev.academic_year_weeks?.[ay.name]?.semester2_weeks ?? '',
+                                    summer_weeks: prev.academic_year_weeks?.[ay.name]?.summer_weeks ?? ''
+                                  }));
                                 }}
-
+                                style={{
+                                  backgroundColor: isCurrentActive ? '#e8f5e9' : 'transparent',
+                                  cursor: 'pointer',
+                                  fontWeight: isCurrentActive ? 'bold' : 'normal',
+                                  transition: 'background-color 0.15s ease'
+                                }}
                               >
-
                                 <td style={{ padding: '7px 10px', border: '1px solid #dee2e6', fontWeight: '600' }}>{ay.name}</td>
-
                                 <td style={{ padding: '7px 10px', border: '1px solid #dee2e6' }}>
                                   {(() => {
                                     const d = getProfDisplayTermWeeks('semester1_weeks', 'med_semester1_weeks', 15, 15, ay, yData, formData.faculties);
                                     return <span style={{ color: d.isCustom ? '#1b5e20' : '#777', fontWeight: d.isCustom ? 'bold' : 'normal' }}>{d.text}</span>;
                                   })()}
                                 </td>
-
                                 <td style={{ padding: '7px 10px', border: '1px solid #dee2e6' }}>
                                   {(() => {
                                     const d = getProfDisplayTermWeeks('semester2_weeks', 'med_semester2_weeks', 14, 14, ay, yData, formData.faculties);
                                     return <span style={{ color: d.isCustom ? '#1b5e20' : '#777', fontWeight: d.isCustom ? 'bold' : 'normal' }}>{d.text}</span>;
                                   })()}
                                 </td>
-
                                 <td style={{ padding: '7px 10px', border: '1px solid #dee2e6' }}>
                                   {(() => {
                                     const d = getProfDisplayTermWeeks('summer_weeks', 'med_summer_weeks', 7, 7, ay, yData, formData.faculties);
                                     return <span style={{ color: d.isCustom ? '#1b5e20' : '#777', fontWeight: d.isCustom ? 'bold' : 'normal' }}>{d.text}</span>;
                                   })()}
                                 </td>
-
                                 <td style={{ padding: '7px 10px', border: '1px solid #dee2e6' }}>
-
                                   <span style={{
-
                                     fontSize: '12px',
-
                                     padding: '3px 8px',
-
                                     borderRadius: '5px',
-
                                     backgroundColor: isCurrentActive ? '#2e7d32' : '#e9ecef',
-
                                     color: isCurrentActive ? '#ffffff' : '#495057',
-
                                     fontWeight: 'bold'
-
                                   }}>
-
                                     {isCurrentActive ? "محدد" : "تعديل"}
-
                                   </span>
-
                                 </td>
-
                               </tr>
-
                             );
-
                           })}
-
                         </tbody>
-
                       </table>
-
                     </div>
-
                   )}
-
                 </>
-
               ) : (
-
-                /* وضع الرؤية فقط (View Mode): جدول نظيف ومباشر لجميع الأعوام */
-
+                /* وضع الرؤية فقط (View Mode): يظهر العام المحدد أو جميع الأعوام */
                 academicYears.length > 0 && (
-
                   <div style={{ overflowX: 'auto' }}>
-
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', textAlign: 'center', backgroundColor: '#fff', border: '1.5px solid #c8e6c9', borderRadius: '6px' }}>
-
                       <thead>
-
                         <tr style={{ backgroundColor: '#e8f5e9', color: '#1b5e20', fontWeight: 'bold' }}>
-
                           <th style={{ padding: '10px 12px', border: '1px solid #c8e6c9', fontSize: '14.5px' }}>العام الجامعي</th>
-
                           <th style={{ padding: '10px 12px', border: '1px solid #c8e6c9', fontSize: '14.5px' }}>الفصل الدراسي الأول</th>
-
                           <th style={{ padding: '10px 12px', border: '1px solid #c8e6c9', fontSize: '14.5px' }}>الفصل الدراسي الثاني</th>
-
                           <th style={{ padding: '10px 12px', border: '1px solid #c8e6c9', fontSize: '14.5px' }}>الفصل الصيفي</th>
-
                         </tr>
-
                       </thead>
-
                       <tbody>
-
-                        {academicYears.map((ay) => {
-
-                          const yData = formData.academic_year_weeks?.[ay.name] || {};
-
-                          return (
-
-                            <tr
-
-                              key={ay.id || ay.name}
-
-                              style={{
-
-                                borderBottom: '1px solid #dee2e6'
-
-                              }}
-
-                            >
-
-                              <td style={{ padding: '9px 12px', border: '1px solid #e0e0e0', fontWeight: 'bold', color: '#333' }}>{ay.name}</td>
-
-                              <td style={{ padding: '9px 12px', border: '1px solid #e0e0e0' }}>
-                                {(() => {
-                                  const d = getProfDisplayTermWeeks('semester1_weeks', 'med_semester1_weeks', 15, 15, ay, yData, formData.faculties);
-                                  return <span style={{ color: d.isCustom ? '#1b5e20' : '#444', fontWeight: d.isCustom ? 'bold' : 'normal' }}>{d.text}</span>;
-                                })()}
-                              </td>
-
-                              <td style={{ padding: '9px 12px', border: '1px solid #e0e0e0' }}>
-                                {(() => {
-                                  const d = getProfDisplayTermWeeks('semester2_weeks', 'med_semester2_weeks', 14, 14, ay, yData, formData.faculties);
-                                  return <span style={{ color: d.isCustom ? '#1b5e20' : '#444', fontWeight: d.isCustom ? 'bold' : 'normal' }}>{d.text}</span>;
-                                })()}
-                              </td>
-
-                              <td style={{ padding: '9px 12px', border: '1px solid #e0e0e0' }}>
-                                {(() => {
-                                  const d = getProfDisplayTermWeeks('summer_weeks', 'med_summer_weeks', 7, 7, ay, yData, formData.faculties);
-                                  return <span style={{ color: d.isCustom ? '#1b5e20' : '#444', fontWeight: d.isCustom ? 'bold' : 'normal' }}>{d.text}</span>;
-                                })()}
-                              </td>
-
-                            </tr>
-
-                          );
-
-                        })}
-
+                        {academicYears
+                          .filter(ay => !modalActiveYear || modalActiveYear === "جميع الأعوام" || ay.name === modalActiveYear)
+                          .map((ay) => {
+                            const yData = formData.academic_year_weeks?.[ay.name] || {};
+                            return (
+                              <tr
+                                key={ay.id || ay.name}
+                                style={{ borderBottom: '1px solid #dee2e6' }}
+                              >
+                                <td style={{ padding: '9px 12px', border: '1px solid #e0e0e0', fontWeight: 'bold', color: '#1b5e20' }}>{ay.name}</td>
+                                <td style={{ padding: '9px 12px', border: '1px solid #e0e0e0' }}>
+                                  {(() => {
+                                    const d = getProfDisplayTermWeeks('semester1_weeks', 'med_semester1_weeks', 15, 15, ay, yData, formData.faculties);
+                                    return <span style={{ color: d.isCustom ? '#1b5e20' : '#444', fontWeight: d.isCustom ? 'bold' : 'normal' }}>{d.text}</span>;
+                                  })()}
+                                </td>
+                                <td style={{ padding: '9px 12px', border: '1px solid #e0e0e0' }}>
+                                  {(() => {
+                                    const d = getProfDisplayTermWeeks('semester2_weeks', 'med_semester2_weeks', 14, 14, ay, yData, formData.faculties);
+                                    return <span style={{ color: d.isCustom ? '#1b5e20' : '#444', fontWeight: d.isCustom ? 'bold' : 'normal' }}>{d.text}</span>;
+                                  })()}
+                                </td>
+                                <td style={{ padding: '9px 12px', border: '1px solid #e0e0e0' }}>
+                                  {(() => {
+                                    const d = getProfDisplayTermWeeks('summer_weeks', 'med_summer_weeks', 7, 7, ay, yData, formData.faculties);
+                                    return <span style={{ color: d.isCustom ? '#1b5e20' : '#444', fontWeight: d.isCustom ? 'bold' : 'normal' }}>{d.text}</span>;
+                                  })()}
+                                </td>
+                              </tr>
+                            );
+                          })}
                       </tbody>
-
                     </table>
-
                   </div>
-
                 )
-
               )}
-
             </div>
 
 
@@ -5591,119 +5358,124 @@ ${renderProfSignaturesHTML(fids)}
 
 
               {modalMode === 'view' && (
-
                 <div style={{ marginTop: '20px' }}>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px' }}>
-
-                    <h5 style={{ margin: 0, fontWeight: 'bold', color: '#2e7d32' }}>المقررات المكلف بها (من الخطة الدراسية)</h5>
-
+                  {/* قائمة منسدلة لاختيار العام الجامعي في وضع العرض */}
+                  <div style={{
+                    marginBottom: '16px',
+                    padding: '12px 18px',
+                    backgroundColor: '#f0fdf4',
+                    border: '1.5px solid #86efac',
+                    borderRadius: '10px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <i className="bi bi-calendar2-range text-success" style={{ fontSize: '20px' }}></i>
+                      <div>
+                        <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#166534' }}>
+                          العام الجامعي المعروض:
+                        </div>
+                        <small style={{ color: '#15803d' }}>
+                          اختر عاماً محدداً لعرض أسابيعه ومقرراته فقط، أو اختر "جميع الأعوام"
+                        </small>
+                      </div>
+                    </div>
+                    <select
+                      value={modalActiveYear || "جميع الأعوام"}
+                      onChange={(e) => setModalActiveYear(e.target.value)}
+                      style={{
+                        minWidth: '240px',
+                        padding: '8px 16px',
+                        fontSize: '15px',
+                        fontWeight: 'bold',
+                        color: '#166534',
+                        border: '2px solid #22c55e',
+                        borderRadius: '8px',
+                        backgroundColor: '#ffffff',
+                        cursor: 'pointer',
+                        outline: 'none',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                      }}
+                    >
+                      <option value="جميع الأعوام">🌟 جميع الأعوام الجامعية</option>
+                      {academicYears.map((ay) => (
+                        <option key={ay.id || ay.name} value={ay.name}>
+                          📅 العام الجامعي: {ay.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
-
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px' }}>
+                    <h5 style={{ margin: 0, fontWeight: 'bold', color: '#2e7d32' }}>
+                      المقررات المكلف بها (من الخطة الدراسية) {modalActiveYear && modalActiveYear !== "جميع الأعوام" ? `- للعام الجامعي: ${modalActiveYear}` : ''}
+                    </h5>
+                  </div>
 
                   {(() => {
-
                     const assignmentsByYear = professorAssignments.reduce((acc, curr) => {
-
                       if (!acc[curr.academic_year]) acc[curr.academic_year] = [];
-
                       acc[curr.academic_year].push(curr);
-
                       return acc;
-
                     }, {});
 
-
-
-                    const sortedYears = Object.keys(assignmentsByYear).sort().reverse();
-
+                    const allSortedYears = Object.keys(assignmentsByYear).sort().reverse();
                     
+                    const isAllYears = !modalActiveYear || modalActiveYear === "جميع الأعوام";
+                    const displayedYears = isAllYears 
+                      ? allSortedYears 
+                      : (assignmentsByYear[modalActiveYear] ? [modalActiveYear] : []);
 
-                    if (sortedYears.length === 0) {
-
-                      return <div className="text-center text-muted py-3">لا توجد تكليفات لعضو هيئة التدريس</div>;
-
+                    if (displayedYears.length === 0) {
+                      return (
+                        <div className="text-center text-muted py-4 bg-light rounded-3 border">
+                          <i className="bi bi-info-circle text-success fs-4 d-block mb-2"></i>
+                          {isAllYears ? "لا توجد تكليفات لعضو هيئة التدريس في أي عام جامعي" : `لا توجد تكليفات لعضو هيئة التدريس في الخطة الدراسية للعام الجامعي: ${modalActiveYear}`}
+                        </div>
+                      );
                     }
 
-
-
-                    const allYearsHtml = sortedYears.map(year => (
-
+                    const allYearsHtml = displayedYears.map(year => (
                       <div key={year} style={{ marginBottom: '25px' }}>
-
-                        <h6 style={{ fontWeight: 'bold', backgroundColor: '#e9ecef', padding: '8px', borderRadius: '5px' }}>
-
-                          للعام الجامعي: {year}
-
+                        <h6 style={{ fontWeight: 'bold', backgroundColor: '#e9ecef', padding: '8px 12px', borderRadius: '5px', color: '#166534', borderRight: '4px solid #2e7d32' }}>
+                          📅 للعام الجامعي: {year}
                         </h6>
-
                         <Table responsive bordered hover striped size="sm" style={{ textAlign: 'center' }}>
-
                           <thead>
-
                             <tr style={{ backgroundColor: '#2e7d32', color: 'white' }}>
-
                               <th>الكلية</th>
-
                               <th>البرنامج</th>
-
                               <th>اسم المقرر</th>
-
                               <th>المستوى</th>
-
                               <th>الفصل الدراسي</th>
-
                               <th>ساعات التدريس كل اسبوع</th>
-
                               <th>الساعات المنتقصة</th>
-
                               <th>إجمالي الساعات الفعلية في الترم للمقرر</th>
-
                             </tr>
-
                           </thead>
-
                           <tbody>
-
                             {(() => {
-
                               const yearAssignments = assignmentsByYear[year];
-
                               const facultySpans = [];
-
                               let i = 0;
-
                               while (i < yearAssignments.length) {
-
                                 const currentFac = yearAssignments[i].faculty_name;
-
                                 let count = 1;
-
                                 while (i + count < yearAssignments.length && yearAssignments[i + count].faculty_name === currentFac) {
-
                                   count++;
-
                                 }
-
                                 facultySpans.push({ index: i, count: count, name: currentFac });
-
                                 i += count;
-
                               }
-
-
 
                               const yearDeductions = (professorDeductions || []).filter(d => d.academic_year === year);
 
-
-
                               return yearAssignments.map((assignment, idx) => {
-
                                 const spanObj = facultySpans.find(s => s.index === idx);
-
                                 const termHours = getTermTotalHours(assignment.hours, assignment.course_semester, assignment.academic_year || year, formData, assignment.faculty_name);
-
                                 const courseDeds = getCourseDeductions(assignment, yearDeductions, yearAssignments);
 
                                 const courseDeductedHours = courseDeds.reduce((sum, d) => sum + (d.deducted_hours || 0), 0);
