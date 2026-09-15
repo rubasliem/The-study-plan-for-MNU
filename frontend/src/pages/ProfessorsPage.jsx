@@ -2633,43 +2633,47 @@ const ProfessorsPage = () => {
           </table>
           <div style="padding: 0;">
           
-          <div class="section-title">البيانات الشخصية والمهنية</div>
+          <div class="section-title">البيانات الشخصية وبيانات التواصل</div>
           <div class="info-grid">
             <div class="info-item">
-              <span class="info-label">الاسم</span>
+              <span class="info-label">الاسم:</span>
               <span class="info-value">${formData.name_ar}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">الرقم القومي</span>
+              <span class="info-label">الرقم القومي:</span>
               <span class="info-value">${formData.national_id || "-"}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">الدرجة العلمية</span>
-              <span class="info-value">${jobTitleFull || "-"}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">الكليات التابع لها</span>
-              <span class="info-value">${profFacultiesStr}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">طبيعة العمل بجامعة المنوفية الأهلية</span>
-              <span class="info-value">${formData.mnu_job_title || "-"}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">نوع التعاقد والأيام</span>
-              <span class="info-value">${formData.contract_type ? `تعاقد ${formData.contract_type} ${formData.work_days && formData.contract_type !== 'بالساعة' ? `- ${formData.work_days}` : ''}` : "غير محدد"}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">جهة القدوم</span>
-              <span class="info-value">${formData.original_workplace || "-"}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">رقم الهاتف</span>
+              <span class="info-label">رقم الهاتف:</span>
               <span class="info-value">${formData.phone || "-"}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">الإيميل</span>
+              <span class="info-label">البريد الإلكتروني:</span>
               <span class="info-value">${formData.email || "-"}</span>
+            </div>
+          </div>
+          
+          <div class="section-title">البيانات الأكاديمية والتدريس</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">الدرجة العلمية:</span>
+              <span class="info-value">${jobTitleFull || "-"}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">جهة القدوم / العمل الأصلي:</span>
+              <span class="info-value">${formData.original_workplace || "-"}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">طبيعة العمل بجامعة المنوفية الأهلية:</span>
+              <span class="info-value">${formData.mnu_job_title || "-"}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">نوع التعاقد والأيام:</span>
+              <span class="info-value">${formData.contract_type ? `تعاقد ${formData.contract_type} ${formData.work_days && formData.contract_type !== 'بالساعة' ? `- ${formData.work_days}` : ''}` : "غير محدد"}</span>
+            </div>
+            <div class="info-item" style="grid-column: span 2;">
+              <span class="info-label">الكليات التابع لها:</span>
+              <span class="info-value">${profFacultiesStr}</span>
             </div>
           </div>
           
@@ -2962,43 +2966,47 @@ ${renderProfSignaturesHTML(fids)}
       </tr>
     </table>
 
-      <div class="section-title">البيانات الشخصية والمهنية</div>
+      <div class="section-title">البيانات الشخصية وبيانات التواصل</div>
       <div class="info-grid">
         <div class="info-item">
-          <span class="info-label">الاسم</span>
+          <span class="info-label">الاسم:</span>
           <span class="info-value">${formData.name_ar}</span>
         </div>
         <div class="info-item">
-          <span class="info-label">الرقم القومي</span>
+          <span class="info-label">الرقم القومي:</span>
           <span class="info-value">${formData.national_id || "-"}</span>
         </div>
         <div class="info-item">
-          <span class="info-label">الدرجة العلمية</span>
-          <span class="info-value">${jobTitleFull || "-"}</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">الكليات التابع لها</span>
-          <span class="info-value">${profFacultiesStr}</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">طبيعة العمل بجامعة المنوفية الأهلية</span>
-          <span class="info-value">${formData.mnu_job_title || "-"}</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">نوع التعاقد والأيام</span>
-          <span class="info-value">${formData.contract_type ? `تعاقد ${formData.contract_type} ${formData.work_days && formData.contract_type !== 'بالساعة' ? `- ${formData.work_days}` : ''}` : "غير محدد"}</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">جهة القدوم</span>
-          <span class="info-value">${formData.original_workplace || "-"}</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">رقم الهاتف</span>
+          <span class="info-label">رقم الهاتف:</span>
           <span class="info-value">${formData.phone || "-"}</span>
         </div>
         <div class="info-item">
-          <span class="info-label">الإيميل</span>
+          <span class="info-label">البريد الإلكتروني:</span>
           <span class="info-value">${formData.email || "-"}</span>
+        </div>
+      </div>
+
+      <div class="section-title">البيانات الأكاديمية والتدريس</div>
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="info-label">الدرجة العلمية:</span>
+          <span class="info-value">${jobTitleFull || "-"}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">جهة القدوم / العمل الأصلي:</span>
+          <span class="info-value">${formData.original_workplace || "-"}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">طبيعة العمل بجامعة المنوفية الأهلية:</span>
+          <span class="info-value">${formData.mnu_job_title || "-"}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">نوع التعاقد والأيام:</span>
+          <span class="info-value">${formData.contract_type ? `تعاقد ${formData.contract_type} ${formData.work_days && formData.contract_type !== 'بالساعة' ? `- ${formData.work_days}` : ''}` : "غير محدد"}</span>
+        </div>
+        <div class="info-item" style="grid-column: span 2;">
+          <span class="info-label">الكليات التابع لها:</span>
+          <span class="info-value">${profFacultiesStr}</span>
         </div>
       </div>
 
@@ -5067,7 +5075,7 @@ ${renderProfSignaturesHTML(fids)}
                   <option value="جميع الأعوام">🌟 جميع الأعوام الجامعية</option>
                   {academicYears.map((ay) => (
                     <option key={ay.id || ay.name} value={ay.name}>
-                      📅 العام الجامعي: {ay.name}
+                     العام الجامعي: {ay.name}
                     </option>
                   ))}
                 </select>
@@ -5092,7 +5100,7 @@ ${renderProfSignaturesHTML(fids)}
                   {/* قائمة منسدلة لاختيار العام الجامعي في وضع الإضافة / التعديل */}
                   <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', backgroundColor: '#ffffff', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
                     <label style={{ fontWeight: 'bold', fontSize: '14.5px', color: '#1b5e20', minWidth: '130px', margin: 0 }}>
-                      📅 العام الجامعي المراد تعديله:
+                      العام الجامعي المراد تعديله:
                     </label>
                     <select
                       value={modalActiveYear || formData.academic_year || academicYears[0]?.name || ""}
@@ -5399,7 +5407,7 @@ ${renderProfSignaturesHTML(fids)}
                     const allYearsHtml = displayedYears.map(year => (
                       <div key={year} style={{ marginBottom: '25px' }}>
                         <h6 style={{ fontWeight: 'bold', backgroundColor: '#e9ecef', padding: '8px 12px', borderRadius: '5px', color: '#166534', borderRight: '4px solid #2e7d32' }}>
-                          📅 للعام الجامعي: {year}
+                          العام الجامعي: {year}
                         </h6>
                         <Table responsive bordered hover striped size="sm" style={{ textAlign: 'center' }}>
                           <thead>
