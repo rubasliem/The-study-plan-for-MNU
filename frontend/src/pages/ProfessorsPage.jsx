@@ -4691,23 +4691,21 @@ ${renderProfSignaturesHTML(fids)}
                       <i className="bi bi-mortarboard-fill"></i>
                       {getFullJobTitle(formData.job_title)}
                     </span>
-                    {formData.contract_type && (
-                      <span style={{
-                        backgroundColor: formData.contract_type === 'كلي' ? '#dbeafe' : (formData.contract_type === 'جزئي' ? '#fef3c7' : '#f3e8ff'),
-                        color: formData.contract_type === 'كلي' ? '#1e40af' : (formData.contract_type === 'جزئي' ? '#92400e' : '#6b21a8'),
-                        border: `1px solid ${formData.contract_type === 'كلي' ? '#93c5fd' : (formData.contract_type === 'جزئي' ? '#fcd34d' : '#d8b4fe')}`,
-                        padding: '6px 14px',
-                        borderRadius: '20px',
-                        fontSize: '13px',
-                        fontWeight: 'bold',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px'
-                      }}>
-                        <i className="bi bi-file-earmark-text-fill"></i>
-                        تعاقد {formData.contract_type}
-                      </span>
-                    )}
+                    <span style={{
+                      backgroundColor: formData.contract_type === 'كلي' ? '#dbeafe' : (formData.contract_type === 'جزئي' ? '#fef3c7' : (formData.contract_type === 'بالساعة' ? '#f3e8ff' : '#f1f5f9')),
+                      color: formData.contract_type === 'كلي' ? '#1e40af' : (formData.contract_type === 'جزئي' ? '#92400e' : (formData.contract_type === 'بالساعة' ? '#6b21a8' : '#475569')),
+                      border: `1px solid ${formData.contract_type === 'كلي' ? '#93c5fd' : (formData.contract_type === 'جزئي' ? '#fcd34d' : (formData.contract_type === 'بالساعة' ? '#d8b4fe' : '#cbd5e1'))}`,
+                      padding: '6px 14px',
+                      borderRadius: '20px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}>
+                      <i className="bi bi-file-earmark-text-fill"></i>
+                      نوع التعاقد: {formData.contract_type ? `تعاقد ${formData.contract_type}` : 'غير محدد'}
+                    </span>
                   </div>
                 </div>
 
@@ -4773,14 +4771,26 @@ ${renderProfSignaturesHTML(fids)}
                     </div>
                   </div>
 
+                  {/* نوع التعاقد */}
+                  <div className="col-12 col-md-6">
+                    <div style={{ backgroundColor: '#f8fafc', padding: '12px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', height: '100%' }}>
+                      <span style={{ fontSize: '13px', color: '#475569', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                        <i className="bi bi-file-earmark-text text-success ms-1" style={{ fontSize: '15px' }}></i> نوع التعاقد:
+                      </span>
+                      <span style={{ fontSize: '15px', color: '#0f172a', fontWeight: '800' }}>
+                        {formData.contract_type ? `تعاقد ${formData.contract_type}` : "غير محدد"}
+                      </span>
+                    </div>
+                  </div>
+
                   {/* عدد أيام العمل */}
-                  <div className="col-12">
-                    <div style={{ backgroundColor: '#f8fafc', padding: '11px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-                      <span style={{ fontSize: '13px', color: '#475569', fontWeight: '700' }}>
+                  <div className="col-12 col-md-6">
+                    <div style={{ backgroundColor: '#f8fafc', padding: '12px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', height: '100%' }}>
+                      <span style={{ fontSize: '13px', color: '#475569', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
                         <i className="bi bi-calendar-check text-success ms-1" style={{ fontSize: '15px' }}></i> عدد أيام العمل في الأسبوع:
                       </span>
-                      <span style={{ fontSize: '14.5px', color: '#0f172a', fontWeight: '800', backgroundColor: '#ffffff', padding: '3px 12px', borderRadius: '12px', border: '1px solid #cbd5e1' }}>
-                        {formData.work_days || (formData.contract_type === 'كلي' ? '5 أيام في الأسبوع' : (formData.contract_type === 'بالساعة' ? 'بالساعة' : '-'))}
+                      <span style={{ fontSize: '15px', color: '#0f172a', fontWeight: '800' }}>
+                        {formData.work_days || (formData.contract_type === 'كلي' ? '5 أيام في الأسبوع' : (formData.contract_type === 'بالساعة' ? 'بالساعة' : 'غير محدد'))}
                       </span>
                     </div>
                   </div>
