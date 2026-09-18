@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { Table, Button, Modal, Form, Card, Row, Col } from 'react-bootstrap';
-import { FaPlus, FaEdit, FaTrash, FaGripLines } from 'react-icons/fa';
+import { Table, Button, Modal, Form, Card, Row, Col, Badge, Spinner } from 'react-bootstrap';
+import { FaPlus, FaEdit, FaTrash, FaGripLines, FaEye, FaBuilding } from 'react-icons/fa';
 import { FaPenNib } from 'react-icons/fa6';
 import { confirmAction } from '../utils/confirmAlert';
 import Select from 'react-select';
@@ -24,6 +24,41 @@ const SignaturesPage = () => {
     const [formErrors, setFormErrors] = useState({});
     const [draggedIndex, setDraggedIndex] = useState(null);
     const [reportTypeFilter, setReportTypeFilter] = useState("الخطة الدراسية");
+
+    // All Faculties Signatures Preview State
+    const [allSignatures, setAllSignatures] = useState([]);
+    const [viewAllFaculties, setViewAllFaculties] = useState(false);
+    const [loadingAllSignatures, setLoadingAllSignatures] = useState(false);
+
+    const fetchAllSignatures = async (reportType) => {
+        setLoadingAllSignatures(true);
+        try {
+            const res = await axios.get(`${API}/api/signatures?report_type=${encodeURIComponent(reportType)}`);
+            setAllSignatures(res.data || []);
+        } catch (err) {
+            console.error("Error fetching all signatures", err);
+        } finally {
+            setLoadingAllSignatures(false);
+        }
+    };
+
+    const signaturesByFaculty = useMemo(() => {
+        const grouped = {};
+        allSignatures.forEach(sig => {
+            if (!grouped[sig.faculty_id]) grouped[sig.faculty_id] = [];
+            grouped[sig.faculty_id].push(sig);
+        });
+        Object.keys(grouped).forEach(fId => {
+            grouped[fId].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+        });
+        return grouped;
+    }, [allSignatures]);
+
+    useEffect(() => {
+        if (viewAllFaculties) {
+            fetchAllSignatures(reportTypeFilter);
+        }
+    }, [reportTypeFilter, viewAllFaculties]);
 
     const handleDragStart = (e, index) => {
         setDraggedIndex(index);
@@ -51,6 +86,9 @@ const SignaturesPage = () => {
                 order_index: idx
             }));
             await axios.post(`${API}/api/signatures/reorder`, reorderData);
+            if (viewAllFaculties) {
+                fetchAllSignatures(reportTypeFilter);
+            }
         } catch (err) {
             console.error("Error saving new signatures order:", err);
             toast.error("حدث خطأ أثناء حفظ الترتيب الجديد");
@@ -131,6 +169,7 @@ const SignaturesPage = () => {
             }
             setShowModal(false);
             fetchSignatures(selectedFaculty, reportTypeFilter);
+            if (viewAllFaculties) fetchAllSignatures(reportTypeFilter);
             toast.success("تم الحفظ بنجاح");
         } catch (err) {
             console.error("Error saving signature", err);
@@ -143,6 +182,7 @@ const SignaturesPage = () => {
             try {
                 await axios.delete(`${API}/api/signatures/${id}`);
                 fetchSignatures(selectedFaculty, reportTypeFilter);
+                if (viewAllFaculties) fetchAllSignatures(reportTypeFilter);
                 toast.success("تم الحذف بنجاح");
             } catch (err) {
                 console.error("Error deleting signature", err);
@@ -262,6 +302,190 @@ const SignaturesPage = () => {
                 </tbody>
             </Table>
 
+            {/* معاينة شريط التوقيعات المعتمدة كما تظهر في أسفل صفحة الجدول الرئيسي */}
+            <div className="mt-5 pt-4 border-top">
+                <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                    <div>
+                        <h4 className="fw-bold text-success mb-1 d-flex align-items-center gap-2">
+                            <span>التوقيعات المحددة للكلية كاملة</span>
+                        </h4>
+                        <p className="text-muted small mb-0">
+                            ترتيب ومسميات التوقيعات المعتمدة لكافة مسؤولي الكلية كما تظهر في نهاية الصفحات والتقارير
+                        </p>
+                    </div>
+                    <div className="d-flex gap-2">
+                        <Button
+                            variant={!viewAllFaculties ? "success" : "outline-success"}
+                            size="sm"
+                            className="fw-bold px-3 d-flex align-items-center gap-2 shadow-sm"
+                            onClick={() => setViewAllFaculties(false)}
+                        >
+                            <span>🏛️</span>
+                            <span>الكلية المحددة ({faculties.find(f => String(f.id) === String(selectedFaculty))?.name || "المختارة"})</span>
+                        </Button>
+                        <Button
+                            variant={viewAllFaculties ? "success" : "outline-success"}
+                            size="sm"
+                            className="fw-bold px-3 d-flex align-items-center gap-2 shadow-sm"
+                            onClick={() => {
+                                setViewAllFaculties(true);
+                                fetchAllSignatures(reportTypeFilter);
+                            }}
+                        >
+                            <FaBuilding />
+                            <span>عرض توقيعات كل كلية على حدة ({faculties.length} كليات)</span>
+                        </Button>
+                    </div>
+                </div>
+
+                {!viewAllFaculties ? (
+                    // عرض توقيعات الكلية المحددة
+                    <div className="card shadow-sm border-0 rounded-4 overflow-hidden mb-4" style={{ borderTop: '4px solid #2e7d32' }}>
+                        <div className="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center border-bottom">
+                            <span className="fw-bold text-dark fs-6 d-flex align-items-center gap-2">
+                                <span style={{ fontSize: '1.2rem' }}>🏛️</span>
+                                <span>{faculties.find(f => String(f.id) === String(selectedFaculty))?.name || "الكلية المحددة"}</span>
+                            </span>
+                            <Badge bg="success" className="px-3 py-2 fw-bold">
+                                {signatures.length} توقيعات معتمدة
+                            </Badge>
+                        </div>
+                        <div className="card-body p-3 bg-light">
+                            {signatures.length === 0 ? (
+                                <div className="text-center py-4 text-muted">
+                                    لا توجد توقيعات مضافة لهذه الكلية حتى الآن في ({reportTypeFilter}).
+                                </div>
+                            ) : (
+                                <div 
+                                    className="py-4 px-3 bg-white rounded-3 border d-flex justify-content-between align-items-start shadow-sm" 
+                                    style={{ 
+                                        borderColor: '#e2e8f0', 
+                                        flexWrap: 'nowrap',
+                                        overflowX: 'auto',
+                                        gap: '14px'
+                                    }}
+                                >
+                                    {signatures.map(sig => (
+                                        <div 
+                                            key={sig.id} 
+                                            className="text-center flex-fill" 
+                                            style={{ 
+                                                minWidth: '110px', 
+                                                padding: '0 6px'
+                                            }}
+                                        >
+                                            <div 
+                                                className="fw-bold text-success mb-2" 
+                                                style={{ 
+                                                    fontSize: '1.02rem', 
+                                                    lineHeight: '1.4',
+                                                    borderBottom: '1.5px dashed #86efac', 
+                                                    paddingBottom: '8px',
+                                                    minHeight: '48px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center'
+                                                }}
+                                            >
+                                                {sig.signature_title}
+                                            </div>
+                                            <div 
+                                                className="fw-bold text-dark" 
+                                                style={{ 
+                                                    fontSize: '0.98rem',
+                                                    whiteSpace: 'nowrap'
+                                                }}
+                                            >
+                                                {sig.official_name}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    // عرض توقيعات كل كلية في الجامعة
+                    <div className="d-flex flex-column gap-4">
+                        {loadingAllSignatures ? (
+                            <div className="text-center py-5">
+                                <Spinner animation="border" variant="success" />
+                                <p className="mt-2 text-muted fw-bold">جاري تحميل توقيعات كافة الكليات...</p>
+                            </div>
+                        ) : (
+                            faculties.map(fac => {
+                                const facSigs = signaturesByFaculty[fac.id] || [];
+                                return (
+                                    <div key={fac.id} className="card shadow-sm border-0 rounded-4 overflow-hidden" style={{ borderTop: '4px solid #2e7d32' }}>
+                                        <div className="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center border-bottom">
+                                            <div className="d-flex align-items-center gap-2">
+                                                <span style={{ fontSize: '1.2rem' }}>🏛️</span>
+                                                <span className="fw-bold text-dark fs-6">{fac.name}</span>
+                                            </div>
+                                            <Badge bg={facSigs.length > 0 ? "success" : "secondary"} className="px-3 py-2 fw-bold">
+                                                {facSigs.length > 0 ? `${facSigs.length} توقيعات معتمدة` : 'لا توجد توقيعات'}
+                                            </Badge>
+                                        </div>
+                                        <div className="card-body p-3 bg-light">
+                                            {facSigs.length === 0 ? (
+                                                <div className="text-center py-3 text-muted small">
+                                                    لا توجد توقيعات معتمدة لهذه الكلية في ({reportTypeFilter}).
+                                                </div>
+                                            ) : (
+                                                <div 
+                                                    className="py-4 px-3 bg-white rounded-3 border d-flex justify-content-between align-items-start shadow-sm" 
+                                                    style={{ 
+                                                        borderColor: '#e2e8f0', 
+                                                        flexWrap: 'nowrap',
+                                                        overflowX: 'auto',
+                                                        gap: '14px'
+                                                    }}
+                                                >
+                                                    {facSigs.map(sig => (
+                                                        <div 
+                                                            key={sig.id} 
+                                                            className="text-center flex-fill" 
+                                                            style={{ 
+                                                                minWidth: '110px', 
+                                                                padding: '0 6px'
+                                                            }}
+                                                        >
+                                                            <div 
+                                                                className="fw-bold text-success mb-2" 
+                                                                style={{ 
+                                                                    fontSize: '1.02rem', 
+                                                                    lineHeight: '1.4',
+                                                                    borderBottom: '1.5px dashed #86efac', 
+                                                                    paddingBottom: '8px',
+                                                                    minHeight: '48px',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center'
+                                                                }}
+                                                            >
+                                                                {sig.signature_title}
+                                                            </div>
+                                                            <div 
+                                                                className="fw-bold text-dark" 
+                                                                style={{ 
+                                                                    fontSize: '0.98rem',
+                                                                    whiteSpace: 'nowrap'
+                                                                }}
+                                                            >
+                                                                {sig.official_name}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                )}
+            </div>
 
             <Modal show={showModal} onHide={() => setShowModal(false)} dir="rtl" enforceFocus={false} size="lg">
                 <Modal.Header closeButton closeVariant="white" style={{ backgroundColor: modalMode === 'add' ? "#198754" : "#0d6efd" }}>

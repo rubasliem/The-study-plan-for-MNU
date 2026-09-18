@@ -572,7 +572,8 @@ const MainTablePage = () => {
         const notifText = selectedFaculty 
             ? `قام بطباعة الجدول الرئيسي الموحد لكلية ${facName}` 
             : `قام بطباعة الجدول الرئيسي الموحد لجميع الكليات`;
-        logAction(notifText, fids.length > 0 ? fids : null, selectedYear || null, null);
+        const yearForLog = selectedYear || "جميع الأعوام";
+        logAction(notifText, fids.length > 0 ? fids : null, yearForLog, null);
 
         let tableRowsHTML = "";
         rows.forEach((row, idx) => {
@@ -768,7 +769,8 @@ const MainTablePage = () => {
         const notifText = modalFaculty 
             ? `قام بطباعة بيانات أعضاء هيئة التدريس وتوزيع المقرارات بالجدول الرئيسي لكلية ${facName}` 
             : `قام بطباعة بيانات أعضاء هيئة التدريس وتوزيع المقرارات بالجدول الرئيسي لجميع الكليات`;
-        logAction(notifText, fids.length > 0 ? fids : null, modalYear || null, null);
+        const yearForLog = modalYear || "جميع الأعوام";
+        logAction(notifText, fids.length > 0 ? fids : null, yearForLog, null);
 
         const formatHours = (num) => Math.round((num || 0) * 100) / 100;
 

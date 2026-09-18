@@ -265,7 +265,7 @@ const NotificationsPage = () => {
 
             const row = worksheet.addRow({
                 faculty: notif.facultyNames && notif.facultyNames.length > 0 ? notif.facultyNames.join('، ') : "غير محدد",
-                year: notif.academic_year || '—',
+                year: notif.academic_year || (notif.action_text?.includes('الجدول الرئيسي') ? 'جميع الأعوام' : '—'),
                 semester: notif.semester || '—',
                 by: byText,
                 event: cleanActionText(notif.action_text || ''),
@@ -813,16 +813,22 @@ const NotificationsPage = () => {
                                                 </div>
                                             </td>
                                             <td className="col-year text-center">
-                                                {notif.academic_year || notif.semester ? (
-                                                    <div className="d-flex flex-column gap-1 align-items-center">
-                                                        {notif.academic_year && <Badge bg="success" style={{ fontSize: '13px' }}>{notif.academic_year}</Badge>}
-                                                        {notif.semester && <small className="text-muted" style={{ whiteSpace: 'nowrap' }}>{notif.semester}</small>}
-                                                    </div>
-                                                ) : (
-                                                    <div className="text-center">
-                                                        <span className="text-muted small">—</span>
-                                                    </div>
-                                                )}
+                                                {(() => {
+                                                    const yearDisplay = notif.academic_year || (notif.action_text?.includes('الجدول الرئيسي') ? 'جميع الأعوام' : null);
+                                                    if (yearDisplay || notif.semester) {
+                                                        return (
+                                                            <div className="d-flex flex-column gap-1 align-items-center">
+                                                                {yearDisplay && <Badge bg="success" style={{ fontSize: '13px' }}>{yearDisplay}</Badge>}
+                                                                {notif.semester && <small className="text-muted" style={{ whiteSpace: 'nowrap' }}>{notif.semester}</small>}
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <div className="text-center">
+                                                            <span className="text-muted small">—</span>
+                                                        </div>
+                                                    );
+                                                })()}
                                             </td>
                                             <td className="col-by text-center" style={{ whiteSpace: 'nowrap' }}>
                                                 {(() => {

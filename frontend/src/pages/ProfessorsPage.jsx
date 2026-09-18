@@ -1476,7 +1476,7 @@ const ProfessorsPage = () => {
 
             tr { page-break-inside: avoid; }
 
-            th { background-color: #2e7d32 !important; color: white !important; font-weight: bold; font-size: 8.5pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            th { background-color: #66bb6a !important; color: white !important; font-weight: bold; font-size: 8.5pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
             td.prof-name { text-align: right; font-weight: bold; font-size: 8.5pt; }
 
@@ -2607,7 +2607,7 @@ const ProfessorsPage = () => {
             table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 35px; border: 1px solid #777; table-layout: auto; }
             th, td { border: 1px solid #777; padding: 8px 6px; text-align: center; font-size: 12px; line-height: 1.3; }
             th { 
-              background-color: #2e7d32 !important; 
+              background-color: #66bb6a !important; 
               color: white !important; 
               font-weight: bold; 
               font-size: 12px;
@@ -2678,13 +2678,13 @@ const ProfessorsPage = () => {
           </div>
           
           <div class="section-title">أسابيع حضور عضو هيئة التدريس ${modalActiveYear && modalActiveYear !== "جميع الأعوام" ? `للعام الجامعي (${modalActiveYear})` : "لكل عام جامعي"}</div>
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11pt; text-align: center; border: 1px solid #1b5e20;">
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11pt; text-align: center; border: 1px solid #4caf50;">
             <thead>
               <tr style="background-color: transparent; color: #ffffff;">
-                <th style="border: 1px solid #1b5e20; padding: 8px 8px; font-weight: bold; background-color: #2e7d32 !important; color: #ffffff !important;">العام الجامعي</th>
-                <th style="border: 1px solid #1b5e20; padding: 8px 8px; font-weight: bold; background-color: #2e7d32 !important; color: #ffffff !important;">الفصل الدراسي الأول</th>
-                <th style="border: 1px solid #1b5e20; padding: 8px 8px; font-weight: bold; background-color: #2e7d32 !important; color: #ffffff !important;">الفصل الدراسي الثاني</th>
-                <th style="border: 1px solid #1b5e20; padding: 8px 8px; font-weight: bold; background-color: #2e7d32 !important; color: #ffffff !important;">الفصل الصيفي</th>
+                <th style="border: 1px solid #4caf50; padding: 8px 8px; font-weight: bold; background-color: #66bb6a !important; color: #ffffff !important;">العام الجامعي</th>
+                <th style="border: 1px solid #4caf50; padding: 8px 8px; font-weight: bold; background-color: #66bb6a !important; color: #ffffff !important;">الفصل الدراسي الأول</th>
+                <th style="border: 1px solid #4caf50; padding: 8px 8px; font-weight: bold; background-color: #66bb6a !important; color: #ffffff !important;">الفصل الدراسي الثاني</th>
+                <th style="border: 1px solid #4caf50; padding: 8px 8px; font-weight: bold; background-color: #66bb6a !important; color: #ffffff !important;">الفصل الصيفي</th>
               </tr>
             </thead>
             <tbody>
@@ -2697,10 +2697,10 @@ const ProfessorsPage = () => {
                 const sum = getProfDisplayTermWeeks('summer_weeks', 'med_summer_weeks', 7, 7, ay, yData, formData.faculties).text;
                 return `
                   <tr>
-                    <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: bold; color: #222; font-size: 10pt; background-color: transparent;">${ay.name}</td>
-                    <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: normal; color: #222; font-size: 10pt; background-color: transparent;">${sem1}</td>
-                    <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: normal; color: #222; font-size: 10pt; background-color: transparent;">${sem2}</td>
-                    <td style="border: 1px solid #1b5e20; padding: 6px 8px; font-weight: normal; color: #222; font-size: 10pt; background-color: transparent;">${sum}</td>
+                    <td style="border: 1px solid #81c784; padding: 6px 8px; font-weight: bold; color: #222; font-size: 10pt; background-color: transparent;">${ay.name}</td>
+                    <td style="border: 1px solid #81c784; padding: 6px 8px; font-weight: normal; color: #222; font-size: 10pt; background-color: transparent;">${sem1}</td>
+                    <td style="border: 1px solid #81c784; padding: 6px 8px; font-weight: normal; color: #222; font-size: 10pt; background-color: transparent;">${sem2}</td>
+                    <td style="border: 1px solid #81c784; padding: 6px 8px; font-weight: normal; color: #222; font-size: 10pt; background-color: transparent;">${sum}</td>
                   </tr>
                 `;
               }).join('')}
@@ -2835,11 +2835,7 @@ const ProfessorsPage = () => {
             return html;
           })()}
 
-                </td>
-
-              </tr>
-
-            <div style="margin-top: 30px; page-break-inside: avoid;">
+            <div style="margin-top: 10px; page-break-inside: avoid;">
 ${renderProfSignaturesHTML(fids)}
 </div>
 
@@ -2945,8 +2941,8 @@ ${renderProfSignaturesHTML(fids)}
         table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 35px; border: 1px solid #777; table-layout: auto; }
         th, td { border: 1px solid #777; padding: 8px 6px; text-align: center; font-size: 12px; line-height: 1.3; }
         th { 
-          background-color: transparent; 
-          color: white; 
+          background-color: #66bb6a !important; 
+          color: white !important; 
           font-weight: bold; 
           text-align: center;
         }
@@ -3020,13 +3016,13 @@ ${renderProfSignaturesHTML(fids)}
 
           <tr style="background-color: transparent; color: #ffffff;">
 
-            <th style="border: 1px solid #1b5e20; padding: 8px 8px; font-weight: bold; background-color: #2e7d32 !important; color: #ffffff !important;">العام الجامعي</th>
+            <th style="border: 1px solid #388e3c; padding: 8px 8px; font-weight: bold; background-color: #66bb6a !important; color: #ffffff !important;">العام الجامعي</th>
 
-            <th style="border: 1px solid #1b5e20; padding: 8px 8px; font-weight: bold; background-color: #2e7d32 !important; color: #ffffff !important;">الفصل الدراسي الأول</th>
+            <th style="border: 1px solid #388e3c; padding: 8px 8px; font-weight: bold; background-color: #66bb6a !important; color: #ffffff !important;">الفصل الدراسي الأول</th>
 
-            <th style="border: 1px solid #1b5e20; padding: 8px 8px; font-weight: bold; background-color: #2e7d32 !important; color: #ffffff !important;">الفصل الدراسي الثاني</th>
+            <th style="border: 1px solid #388e3c; padding: 8px 8px; font-weight: bold; background-color: #66bb6a !important; color: #ffffff !important;">الفصل الدراسي الثاني</th>
 
-            <th style="border: 1px solid #1b5e20; padding: 8px 8px; font-weight: bold; background-color: #2e7d32 !important; color: #ffffff !important;">الفصل الصيفي</th>
+            <th style="border: 1px solid #388e3c; padding: 8px 8px; font-weight: bold; background-color: #66bb6a !important; color: #ffffff !important;">الفصل الصيفي</th>
 
           </tr>
 
@@ -3322,7 +3318,7 @@ ${renderProfSignaturesHTML(fids)}
 
         const opt = {
 
-          margin:       15,
+          margin:       [4, 8, 6, 8],
 
           filename:     `بيانات_عضو_هيئة_التدريس_${formData.name_ar.replace(/\\s+/g, "_")}.pdf`,
 

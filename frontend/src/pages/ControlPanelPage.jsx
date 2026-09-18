@@ -3,7 +3,7 @@ import axios from 'axios';
 import Select from 'react-select';
 import { AuthContext } from '../context/AuthContext';
 import { Container, Card, Table, Form, Spinner, Button, InputGroup, Modal, Row, Col, Badge, Dropdown } from 'react-bootstrap';
-import { FaShieldAlt, FaEyeSlash, FaEye, FaSearch, FaUser, FaTimes, FaUndo, FaListUl, FaCheckCircle, FaBalanceScale, FaSave, FaClock, FaRedo, FaPlus, FaTrash } from 'react-icons/fa';
+import { FaShieldAlt, FaEyeSlash, FaEye, FaSearch, FaUser, FaTimes, FaUndo, FaListUl, FaCheckCircle, FaBalanceScale, FaSave, FaClock, FaRedo, FaPlus, FaTrash, FaEdit } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { confirmAction } from '../utils/confirmAlert';
 import { 
@@ -26,11 +26,14 @@ const SIDEBAR_PAGES = [
     { id: 'notifications', label: 'الإشعارات', icon: '🔔' },
     { id: 'recycle-bin', label: 'استرجاع المحذوف', icon: '🗑️' },
     { id: 'workload', label: 'تحديد الأعباء', icon: '⚖️' },
+    { id: 'professor-workloads', label: 'أعباء أعضاء هيئة التدريس', icon: '📋' },
     { id: 'guidelines', label: 'الإرشادات', icon: 'ℹ️' },
     { id: 'control-panel', label: 'لوحة التحكم', icon: '⚙️' },
     { id: 'logs', label: 'العمليات (Logs)', icon: '📋' },
     { id: 'admin', label: 'إدارة المسؤولين', icon: '🛡️' },
 ];
+
+const API = "";
 
 const ControlPanelPage = () => {
     const { user, setUser } = useContext(AuthContext);
@@ -54,7 +57,123 @@ const ControlPanelPage = () => {
     const [draggedYearIndex, setDraggedYearIndex] = useState(null);
 
     // Navigation Tabs State
-    const [activeTab, setActiveTab] = useState('permissions'); // 'permissions' | 'hidden-pages' | 'workload-limits' | 'academic-years'
+    const [activeTab, setActiveTab] = useState('permissions'); // 'permissions' | 'hidden-pages' | 'workload-limits' | 'academic-years' | 'assigned-tasks'
+
+    // Dynamic Assigned Tasks Definitions State
+    const [assignedTasksList, setAssignedTasksList] = useState([]);
+    const [loadingTasks, setLoadingTasks] = useState(false);
+    const [newTaskName, setNewTaskName] = useState('');
+    const [newTaskHours, setNewTaskHours] = useState('');
+    const [newTaskDesc, setNewTaskDesc] = useState('');
+    const [showEditTaskModal, setShowEditTaskModal] = useState(false);
+    const [editingTask, setEditingTask] = useState(null);
+    const [editTaskName, setEditTaskName] = useState('');
+    const [editTaskHours, setEditTaskHours] = useState('');
+    const [editTaskDesc, setEditTaskDesc] = useState('');
+    const [taskSubmitting, setTaskSubmitting] = useState(false);
+
+    const fetchAssignedTasks = async () => {
+        setLoadingTasks(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get(`${API}/api/assigned-tasks/definitions`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setAssignedTasksList(res.data || []);
+        } catch (err) {
+            console.error("Error fetching assigned tasks", err);
+        } finally {
+            setLoadingTasks(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchAssignedTasks();
+    }, []);
+
+    const handleCreateTask = async (e) => {
+        e.preventDefault();
+        if (!newTaskName.trim()) {
+            toast.error("يرجى إدخال اسم المهمة");
+            return;
+        }
+        setTaskSubmitting(true);
+        try {
+            const token = localStorage.getItem('token');
+            await axios.post(`${API}/api/assigned-tasks/definitions`, {
+                name: newTaskName.trim(),
+                default_hours: parseFloat(newTaskHours) || 0.0,
+                description: newTaskDesc.trim() || null
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.success("تم إضافة المهمة بنجاح");
+            setNewTaskName('');
+            setNewTaskHours('');
+            setNewTaskDesc('');
+            fetchAssignedTasks();
+        } catch (err) {
+            console.error("Error creating task", err);
+            toast.error(err.response?.data?.detail || "حدث خطأ أثناء إضافة المهمة");
+        } finally {
+            setTaskSubmitting(false);
+        }
+    };
+
+    const handleOpenEditTask = (task) => {
+        setEditingTask(task);
+        setEditTaskName(task.name);
+        setEditTaskHours(String(task.default_hours || 0));
+        setEditTaskDesc(task.description || '');
+        setShowEditTaskModal(true);
+    };
+
+    const handleSaveEditTask = async (e) => {
+        e.preventDefault();
+        if (!editingTask || !editTaskName.trim()) return;
+        setTaskSubmitting(true);
+        try {
+            const token = localStorage.getItem('token');
+            await axios.put(`${API}/api/assigned-tasks/definitions/${editingTask.id}`, {
+                name: editTaskName.trim(),
+                default_hours: parseFloat(editTaskHours) || 0.0,
+                description: editTaskDesc.trim() || null
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.success("تم تحديث المهمة بنجاح");
+            setShowEditTaskModal(false);
+            setEditingTask(null);
+            fetchAssignedTasks();
+        } catch (err) {
+            console.error("Error updating task", err);
+            toast.error(err.response?.data?.detail || "حدث خطأ أثناء تحديث المهمة");
+        } finally {
+            setTaskSubmitting(false);
+        }
+    };
+
+    const handleDeleteTask = (task) => {
+        confirmAction({
+            title: 'حذف المهمة',
+            message: `هل أنت متأكد من حذف مهمة "${task.name}"؟`,
+            confirmButtonText: 'نعم، احذف',
+            confirmButtonColor: '#dc3545',
+            onConfirm: async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    const res = await axios.delete(`${API}/api/assigned-tasks/definitions/${task.id}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    toast.success(res.data?.message || "تم حذف المهمة بنجاح");
+                    fetchAssignedTasks();
+                } catch (err) {
+                    console.error("Error deleting task", err);
+                    toast.error(err.response?.data?.detail || "حدث خطأ أثناء حذف المهمة");
+                }
+            }
+        });
+    };
     const [permissionSearch, setPermissionSearch] = useState('');
     const [permissionFacultyFilter, setPermissionFacultyFilter] = useState('');
     const [hiddenPagesSearch, setHiddenPagesSearch] = useState('');
@@ -96,7 +215,6 @@ const ControlPanelPage = () => {
         max_field_hours_per_course: ''
     });
 
-    const API = "";
 
     useEffect(() => {
         fetchData();
@@ -1065,6 +1183,21 @@ const ControlPanelPage = () => {
                         </Badge>
                     </button>
                 )}
+
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('assigned-tasks')}
+                    className={`btn d-flex align-items-center gap-2 px-4 py-2 fw-bold rounded-3 transition-all ${
+                        activeTab === 'assigned-tasks' ? 'btn-success shadow-sm' : 'btn-light text-secondary border-0'
+                    }`}
+                    style={{ fontSize: '0.95rem' }}
+                >
+                    <FaListUl />
+                    <span>المهام المسندة لعضو هيئة التدريس</span>
+                    <Badge bg={activeTab === 'assigned-tasks' ? 'light' : 'success'} text={activeTab === 'assigned-tasks' ? 'dark' : 'white'} className="ms-1 rounded-pill">
+                        {assignedTasksList.length}
+                    </Badge>
+                </button>
             </div>
 
             {/* TAB 1: صلاحيات مسؤولي الكليات */}
@@ -2433,7 +2566,7 @@ const ControlPanelPage = () => {
                         {/* بوكس إضافة عام جامعي جديد */}
                         <div className="p-4 rounded-3 mb-4" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
                             <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom">
-                                <h6 className="fw-bold text-success mb-0 d-flex align-items-center gap-2" style={{ fontSize: '1rem' }}>
+                                <h6 className="fw-bold text-success mb-0 d-flex align-items-center gap-2" style={{ fontSize: '1.25rem' }}>
                                     <i className="bi bi-calendar-plus"></i>
                                     <span>إضافة عام جامعي جديد</span>
                                 </h6>
@@ -2567,6 +2700,37 @@ const ControlPanelPage = () => {
                             </Row>
                         </div>
 
+                        {/* ملاحظة توضيحية: آلية عمل النجمة */}
+                        <div className="alert mb-4 d-flex align-items-start gap-3 rounded-3" style={{
+                            backgroundColor: '#fffbeb',
+                            border: '1.5px solid #fcd34d',
+                            padding: '14px 18px'
+                        }}>
+                            <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>💡</span>
+                            <div>
+                                <div className="fw-bold mb-2" style={{ color: '#92400e', fontSize: '0.95rem' }}>
+                                    كيفية تغيير العام والفصل الافتراضي عبر النجمة ⭐
+                                </div>
+                                <div style={{ color: '#78350f', fontSize: '0.88rem', lineHeight: '1.8' }}>
+                                    <div className="d-flex align-items-center gap-2 mb-1">
+                                        <span className="badge" style={{ backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', minWidth: '24px' }}>1</span>
+                                        <span>الضغطة الأولى على ☆ (النجمة الرمادية) → يُعيَّن ذلك العام كـ <strong>عام افتراضي</strong> مع <strong>الفصل الدراسي الأول</strong></span>
+                                    </div>
+                                    <div className="d-flex align-items-center gap-2 mb-1">
+                                        <span className="badge" style={{ backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', minWidth: '24px' }}>2</span>
+                                        <span>الضغطة الثانية على ⭐ (النجمة الذهبية) → يتغير الفصل الافتراضي إلى <strong>الفصل الدراسي الثاني</strong></span>
+                                    </div>
+                                    <div className="d-flex align-items-center gap-2">
+                                        <span className="badge" style={{ backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', minWidth: '24px' }}>3</span>
+                                        <span>الضغطة الثالثة على ⭐ → يتغير الفصل الافتراضي إلى <strong>الفصل الدراسي الصيفي</strong></span>
+                                    </div>
+                                </div>
+                                <div className="mt-2 pt-2 border-top" style={{ borderColor: '#fcd34d', color: '#a16207', fontSize: '0.82rem' }}>
+                                    🔁 تكرار الضغط يدور بين الفصول الثلاثة. هذا الإعداد يؤثر على العرض الافتراضي في جميع صفحات النظام.
+                                </div>
+                            </div>
+                        </div>
+
                         {/* جدول الأعوام الجامعية بتنسيق مقسم */}
                         <div className="table-responsive rounded-3 border">
                             <Table responsive bordered hover className="mb-0 text-center align-middle">
@@ -2658,7 +2822,7 @@ const ControlPanelPage = () => {
                                                             toast.success(`تم تغيير الفصل الافتراضي إلى: ${next}`, { icon: '⭐' });
                                                         }}
                                                     >
-                                                        {defaultSemester === 'الفصل الدراسي الأول' ? 'الفصل الأول' : defaultSemester === 'الفصل الدراسي الثاني' ? 'الفصل الثاني' : 'الفصل الصيفي'}
+                                                        {defaultSemester === 'الفصل الدراسي الأول' ? 'الفصل الدراسي الأول' : defaultSemester === 'الفصل الدراسي الثاني' ? 'الفصل الدراسي الثاني' : 'الفصل الدراسي الصيفي'}
                                                     </Badge>
                                                 )}
                                             </td>
@@ -2693,6 +2857,223 @@ const ControlPanelPage = () => {
                         </div>
                     </Card.Body>
                 </Card>
+            )}
+
+            {/* TAB 5: المهام المسندة لعضو هيئة التدريس */}
+            {activeTab === 'assigned-tasks' && (
+                <div className="d-flex flex-column gap-4 mb-4">
+                    <Card className="shadow-sm border-0 rounded-4 overflow-hidden" style={{ borderTop: '4px solid #2e7d32' }}>
+                        <Card.Header className="bg-white border-bottom p-4">
+                            <h5 className="fw-bold text-success mb-1 d-flex align-items-center gap-2">
+                                <FaPlus />
+                                <span>إضافة مهمة جديدة</span>
+                            </h5>
+                            <p className="text-muted mb-0 small">
+                                يمكنك تعريف مهام إضافية جديدة (مثل: أعمال الكنترول، الإرشاد الأكاديمي، اللجان والامتحانات) لتظهر تلقائياً في صفحة "أعباء أعضاء هيئة التدريس".
+                            </p>
+                        </Card.Header>
+                        <Card.Body className="p-4">
+                            <Form onSubmit={handleCreateTask}>
+                                <Row className="g-3">
+                                    <Col md={5}>
+                                        <Form.Group>
+                                            <Form.Label className="fw-bold text-dark mb-1">اسم المهمة <span className="text-danger">*</span></Form.Label>
+                                            <Form.Control
+                                                type="text"
+                                                placeholder="مثال: أعمال الكنترول / الإرشاد الأكاديمي..."
+                                                value={newTaskName}
+                                                onChange={(e) => setNewTaskName(e.target.value)}
+                                                required
+                                                style={{ height: '42px', borderRadius: '8px' }}
+                                            />
+                                        </Form.Group>
+                                    </Col>
+                                    <Col md={3}>
+                                        <Form.Group>
+                                            <Form.Label className="fw-bold text-dark mb-1">الساعات الافتراضية</Form.Label>
+                                            <div className="input-group">
+                                                <Form.Control
+                                                    type="number"
+                                                    step="0.5"
+                                                    min="0"
+                                                    placeholder="مثال: 4"
+                                                    value={newTaskHours}
+                                                    onChange={(e) => setNewTaskHours(e.target.value)}
+                                                    style={{ height: '42px', borderRadius: '0 8px 8px 0' }}
+                                                />
+                                                <span className="input-group-text bg-light text-muted">ساعة</span>
+                                            </div>
+                                        </Form.Group>
+                                    </Col>
+                                    <Col md={4}>
+                                        <Form.Group>
+                                            <Form.Label className="fw-bold text-dark mb-1">وصف المهمة (اختياري)</Form.Label>
+                                            <Form.Control
+                                                type="text"
+                                                placeholder="توصيف موجز للمهمة..."
+                                                value={newTaskDesc}
+                                                onChange={(e) => setNewTaskDesc(e.target.value)}
+                                                style={{ height: '42px', borderRadius: '8px' }}
+                                            />
+                                        </Form.Group>
+                                    </Col>
+                                    <Col md={12} className="d-flex justify-content-end">
+                                        <Button
+                                            type="submit"
+                                            variant="success"
+                                            className="px-4 py-2 fw-bold rounded-3 shadow-sm d-flex align-items-center gap-2"
+                                            disabled={taskSubmitting || !newTaskName.trim()}
+                                        >
+                                            <FaPlus />
+                                            <span>{taskSubmitting ? "جاري الإضافة..." : "إضافة المهمة"}</span>
+                                        </Button>
+                                    </Col>
+                                </Row>
+                            </Form>
+                        </Card.Body>
+                    </Card>
+
+                    {/* Table of Defined Tasks */}
+                    <Card className="shadow-sm border-0 rounded-4 overflow-hidden">
+                        <Card.Header className="bg-white border-bottom p-4 d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 className="fw-bold text-dark mb-1">قائمة المهام المعرفة في النظام</h5>
+                                <p className="text-muted mb-0 small">المهام المتاحة حالياً للإسناد لأعضاء هيئة التدريس في جميع كليات الجامعة</p>
+                            </div>
+                            <Badge bg="success" className="px-3 py-2 fw-bold" style={{ fontSize: '0.85rem' }}>
+                                عدد المهام: {assignedTasksList.length}
+                            </Badge>
+                        </Card.Header>
+                        <Card.Body className="p-0">
+                            {loadingTasks ? (
+                                <div className="text-center py-5">
+                                    <Spinner animation="border" variant="success" />
+                                    <p className="mt-2 text-muted fw-bold">جاري تحميل المهام...</p>
+                                </div>
+                            ) : assignedTasksList.length === 0 ? (
+                                <div className="text-center py-5 text-muted">
+                                    <FaListUl size={35} className="mb-2 text-muted" />
+                                    <p className="fw-bold mb-0">لا توجد مهام مسجلة حتى الآن. أضف مهمة جديدة من النموذج أعلاه.</p>
+                                </div>
+                            ) : (
+                                <div className="table-responsive">
+                                    <Table hover className="align-middle mb-0 text-center">
+                                        <thead className="table-light text-secondary" style={{ fontSize: '0.9rem' }}>
+                                            <tr>
+                                                <th style={{ width: '60px' }}>#</th>
+                                                <th className="text-end" style={{ width: '300px' }}>اسم المهمة</th>
+                                                <th style={{ width: '180px' }}>الساعات الافتراضية</th>
+                                                <th>الوصف والتفاصيل</th>
+                                                <th style={{ width: '150px' }}>الحالة</th>
+                                                <th style={{ width: '140px' }}>إجراءات</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody style={{ fontSize: '0.95rem' }}>
+                                            {assignedTasksList.map((t, idx) => (
+                                                <tr key={t.id}>
+                                                    <td className="text-muted fw-bold">{idx + 1}</td>
+                                                    <td className="text-end fw-bold text-dark">
+                                                        <div className="d-flex align-items-center gap-2">
+                                                            <span className="badge bg-success-subtle text-success p-2 rounded-circle">📋</span>
+                                                            <span>{t.name}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span className="badge bg-light text-dark border px-3 py-1 fw-bold fs-6">
+                                                            {t.default_hours || 0} ساعة
+                                                        </span>
+                                                    </td>
+                                                    <td className="text-muted">
+                                                        {t.description || "-"}
+                                                    </td>
+                                                    <td>
+                                                        <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                                            نشط
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <div className="d-flex justify-content-center gap-2">
+                                                            <Button
+                                                                variant="outline-primary"
+                                                                size="sm"
+                                                                className="p-1 px-2 rounded-2"
+                                                                title="تعديل المهمة"
+                                                                onClick={() => handleOpenEditTask(t)}
+                                                            >
+                                                                <FaEdit size={14} />
+                                                            </Button>
+                                                            <Button
+                                                                variant="outline-danger"
+                                                                size="sm"
+                                                                className="p-1 px-2 rounded-2"
+                                                                title="حذف المهمة"
+                                                                onClick={() => handleDeleteTask(t)}
+                                                            >
+                                                                <FaTrash size={14} />
+                                                            </Button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </Table>
+                                </div>
+                            )}
+                        </Card.Body>
+                    </Card>
+
+                    {/* Edit Task Modal */}
+                    <Modal show={showEditTaskModal} onHide={() => setShowEditTaskModal(false)} centered dir="rtl">
+                        <Modal.Header closeButton className="border-0 pb-0">
+                            <Modal.Title className="fw-bold text-success fs-5">
+                                تعديل بيانات المهمة
+                            </Modal.Title>
+                        </Modal.Header>
+                        <Form onSubmit={handleSaveEditTask}>
+                            <Modal.Body className="pt-2">
+                                <Form.Group className="mb-3">
+                                    <Form.Label className="fw-bold">اسم المهمة <span className="text-danger">*</span></Form.Label>
+                                    <Form.Control
+                                        type="text"
+                                        value={editTaskName}
+                                        onChange={(e) => setEditTaskName(e.target.value)}
+                                        required
+                                    />
+                                </Form.Group>
+                                <Form.Group className="mb-3">
+                                    <Form.Label className="fw-bold">الساعات الافتراضية</Form.Label>
+                                    <div className="input-group">
+                                        <Form.Control
+                                            type="number"
+                                            step="0.5"
+                                            min="0"
+                                            value={editTaskHours}
+                                            onChange={(e) => setEditTaskHours(e.target.value)}
+                                        />
+                                        <span className="input-group-text bg-light text-muted">ساعة</span>
+                                    </div>
+                                </Form.Group>
+                                <Form.Group className="mb-2">
+                                    <Form.Label className="fw-bold">وصف المهمة</Form.Label>
+                                    <Form.Control
+                                        type="text"
+                                        value={editTaskDesc}
+                                        onChange={(e) => setEditTaskDesc(e.target.value)}
+                                        placeholder="توصيف المهمة..."
+                                    />
+                                </Form.Group>
+                            </Modal.Body>
+                            <Modal.Footer className="border-0 pt-0">
+                                <Button variant="secondary" onClick={() => setShowEditTaskModal(false)}>
+                                    إلغاء
+                                </Button>
+                                <Button variant="success" type="submit" disabled={taskSubmitting} className="fw-bold">
+                                    {taskSubmitting ? "جاري الحفظ..." : "حفظ التعديلات"}
+                                </Button>
+                            </Modal.Footer>
+                        </Form>
+                    </Modal>
+                </div>
             )}
 
             {/* Edit Academic Year Modal */}

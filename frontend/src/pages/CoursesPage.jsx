@@ -1527,7 +1527,7 @@ const CoursesPage = () => {
 
           <div style="text-align: center; min-width: 100px; margin: 0 5px;">
 
-            <div style="font-size: 14px; font-weight: bold; color: #1b5e20; margin-bottom: 20px;">${sig.signature_title}</div>
+            <div style="font-size: 14px; font-weight: bold; color: #1b5e20; margin-bottom: 10px;">${sig.signature_title}</div>
 
             <div style="font-size: 14px; font-weight: bold;">${sig.official_name}</div>
 
@@ -6583,11 +6583,11 @@ const CoursesPage = () => {
 
                   <option value="">جميع الفصول الدراسية</option>
 
-                  <option value="الفصل الدراسي الأول">الفصل الأول</option>
+                  <option value="الفصل الدراسي الأول">الفصل الدراسي الأول</option>
 
-                  <option value="الفصل الدراسي الثاني">الفصل الثاني</option>
+                  <option value="الفصل الدراسي الثاني">الفصل الدراسي الثاني</option>
 
-                  <option value="الفصل الدراسي الصيفي">الفصل الصيفي</option>
+                  <option value="الفصل الدراسي الصيفي">الفصل الدراسي الصيفي</option>
 
                 </Form.Select>
 

@@ -466,4 +466,39 @@ class CourseWorkloadWeek(Base):
     course = relationship("Course")
     module = relationship("CourseModule")
 
+# ==========================================
+# 16. جدول تعريف المهام المسندة لأعضاء هيئة التدريس (لوحة التحكم)
+# ==========================================
+class FacultyAssignedTask(Base):
+    __tablename__ = "faculty_assigned_tasks"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True, nullable=False) # مثل: الإرشاد الأكاديمي، الكنترول، اللجان والامتحانات
+    default_hours = Column(Float, default=0.0) # ساعات افتراضية للمهمة إن وجدت
+    description = Column(String, nullable=True) # وصف تفصيلي
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    assignments = relationship("ProfessorAssignedTask", back_populates="task", cascade="all, delete-orphan")
 
+
+# ==========================================
+# 17. جدول أعباء ومهام أعضاء هيئة التدريس المسندة (أعباء أعضاء هيئة التدريس)
+# ==========================================
+class ProfessorAssignedTask(Base):
+    __tablename__ = "professor_assigned_tasks"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    professor_id = Column(Integer, ForeignKey("professors.id"), index=True, nullable=False)
+    task_id = Column(Integer, ForeignKey("faculty_assigned_tasks.id"), index=True, nullable=False)
+    faculty_id = Column(Integer, ForeignKey("faculties.id"), index=True, nullable=False)
+    academic_year = Column(String, index=True, nullable=False) # مثل 2026/2027
+    semester = Column(String, index=True, nullable=False) # الفصل الدراسي الأول، الفصل الدراسي الثاني، الفصل الدراسي الصيفي
+    hours = Column(Float, default=0.0) # الساعات المحملة على العضو لهذه المهمة
+    notes = Column(String, nullable=True) # ملاحظات أو توصيف للمهمة
+    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    
+    professor = relationship("Professor")
+    task = relationship("FacultyAssignedTask", back_populates="assignments")
+    faculty = relationship("Faculty")

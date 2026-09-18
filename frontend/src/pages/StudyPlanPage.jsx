@@ -2256,13 +2256,13 @@ ${namesRow}
     if (!signaturesList || signaturesList.length === 0) return "";
     const sorted = [...signaturesList].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
     return `
-<div style="display: flex; justify-content: center; align-items: flex-start; width: 100%; margin: 18px auto 0 auto; padding: 0 10px; box-sizing: border-box; page-break-inside: avoid; border: none !important; gap: 45px;">
+<div style="display: flex; justify-content: center; align-items: flex-start; width: 100%; margin: 10px auto 0 auto; padding: 0 10px 4px 10px; box-sizing: border-box; page-break-inside: avoid; border: none !important; gap: 45px;">
   ${sorted.map(sig => `
     <div style="flex: 0 0 auto; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; border: none !important;">
       <div style="font-weight: bold; font-size: 10.5pt; color: #000000; white-space: nowrap;">
         ${sig.signature_title || ""}
       </div>
-      <div style="height: 34px;"></div>
+      <div style="height: 18px;"></div>
       <div style="font-weight: bold; font-size: 10.5pt; color: #1b5e20; white-space: nowrap;">
         ${sig.official_name || ""}
       </div>
@@ -3045,7 +3045,7 @@ body { font-family: 'Cairo', Arial, sans-serif; direction: rtl; text-align: righ
   z-index: 9999;
 }
 .print-container {
-  padding: 0 14px 10px 14px;
+  padding: 0 14px 24px 14px;
   box-sizing: border-box;
   width: 100%;
 }
@@ -3190,7 +3190,7 @@ ${dataRowsHtml}
 </tbody>
 <tfoot>
   <tr style="border: none !important;">
-    <td colspan="${totalCols}" style="border: none !important; background: transparent !important; padding: 12px 0 0 0;">
+    <td colspan="${totalCols}" style="border: none !important; background: transparent !important; padding: 6px 0 10px 0;">
       ${renderSignaturesPrint(signatures)}
     </td>
   </tr>
@@ -3450,7 +3450,7 @@ ${signaturesHtml}
       z-index: 9999;
     }
     .print-container {
-      padding: 0 14px 10px 14px;
+      padding: 0 14px 24px 14px;
       box-sizing: border-box;
       width: 100%;
     }
@@ -3537,7 +3537,7 @@ ${signaturesHtml}
       <tbody>${dataRowsHtml}</tbody>
       <tfoot>
         <tr style="border: none !important;">
-          <td colspan="${totalCols}" style="border: none !important; background: transparent !important; padding: 12px 0 0 0;">
+          <td colspan="${totalCols}" style="border: none !important; background: transparent !important; padding: 6px 0 10px 0;">
             ${renderSignaturesPrint(signatures)}
           </td>
         </tr>

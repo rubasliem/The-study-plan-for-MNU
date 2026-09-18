@@ -31,4 +31,7 @@ yarn-error.log*
 
 # Database & testing artifacts
 *.sqlite3
+*.db
+backend/*.db
 test_freeze*.xlsx
+

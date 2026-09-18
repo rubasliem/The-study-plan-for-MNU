@@ -5451,31 +5451,134 @@ def get_statistics(faculty_id: int, academic_year: Optional[str] = None, db: Ses
     unique_profs = {row[0] for row in prof_query.all() if row[0]}
     total_professors = len(unique_profs)
     
-    # 3. courses and professors by semester
-    semesters = ["الأول", "الثاني", "الصيفي"]
+    # 3. Total actual unique courses and detection of repeated courses across programs/semesters
+    items_total_q = db.query(models.StudyPlanItem).join(models.StudyPlan).filter(
+        models.StudyPlan.faculty_id == faculty_id,
+        models.StudyPlan.is_deleted == False
+    )
+    if academic_year:
+        items_total_q = items_total_q.filter(models.StudyPlan.academic_year == academic_year)
+
+    all_fac_items = items_total_q.all()
+    courses_map = {}
+    for it in all_fac_items:
+        if not it.course:
+            continue
+        cid = it.course_id
+        cname = (it.course.name_ar or it.course.name_en or "").strip()
+        sem = it.study_plan.semester.strip() if it.study_plan and it.study_plan.semester else ""
+        prog_name = it.program.name.strip() if it.program and it.program.name else ""
+
+        cname_clean = re.sub(r'[-\s*()_]+', '', cname).replace('ی', 'ي').replace('ى', 'ي').replace('ة', 'ه').lower()
+        map_key = cname_clean if cname_clean else f"id_{cid}"
+
+        if map_key not in courses_map:
+            courses_map[map_key] = {
+                "id": cid,
+                "ids": {cid},
+                "name": cname,
+                "semesters": set(),
+                "programs": set()
+            }
+        else:
+            courses_map[map_key]["ids"].add(cid)
+            if not courses_map[map_key]["name"] and cname:
+                courses_map[map_key]["name"] = cname
+
+        if sem:
+            courses_map[map_key]["semesters"].add(sem)
+        if prog_name:
+            courses_map[map_key]["programs"].add(prog_name)
+
+    total_courses = len(courses_map)
+
+    repeated_courses = []
+    repeated_course_ids = set()
+    for map_key, cinfo in courses_map.items():
+        is_rep = False
+        reasons = []
+        if len(cinfo["programs"]) > 1:
+            is_rep = True
+            reasons.append(f"مكرر بين البرامج ({' و '.join(sorted(list(cinfo['programs'])))})")
+        if len(cinfo["semesters"]) > 1:
+            is_rep = True
+            reasons.append(f"مكرر في ({' و '.join(sorted(list(cinfo['semesters'])))})")
+        if is_rep:
+            repeated_course_ids.update(cinfo.get("ids", {cinfo["id"]}))
+            repeated_courses.append({
+                "course_id": cinfo["id"],
+                "course_name": cinfo["name"],
+                "programs": list(cinfo["programs"]),
+                "semesters": list(cinfo["semesters"]),
+                "note": " و ".join(reasons)
+            })
+
+    # 4. courses and professors by semester
+    semesters = [
+        ("الأول", "الفصل الدراسي الأول"),
+        ("الثاني", "الفصل الدراسي الثاني"),
+        ("الصيفي", "الفصل الدراسي الصيفي")
+    ]
     courses_by_semester = []
     assigned_professors_by_semester = []
     
-    for sem in semesters:
-        # Courses count by semester (using course id for accurate unique count)
-        c_query = db.query(models.Course.id).join(
+    for sem_search, sem_title in semesters:
+        # Query all courses in this semester with departments
+        sem_c_query = db.query(
+            models.Course.id,
+            models.Course.name_ar,
+            models.Course.name_en,
+            models.CourseModule.department_name
+        ).join(
             models.StudyPlanItem, models.Course.id == models.StudyPlanItem.course_id
         ).join(
             models.StudyPlan, models.StudyPlanItem.study_plan_id == models.StudyPlan.id
+        ).outerjoin(
+            models.CourseModule, models.StudyPlanItem.module_id == models.CourseModule.id
         ).filter(
             models.StudyPlan.faculty_id == faculty_id,
-            models.StudyPlan.semester.like(f"%{sem}%"),
+            models.StudyPlan.semester.like(f"%{sem_search}%"),
             models.StudyPlan.is_deleted == False
         )
         if academic_year:
-            c_query = c_query.filter(models.StudyPlan.academic_year == academic_year)
-        u_courses = {r[0] for r in c_query.all() if r[0]}
-        courses_by_semester.append({"semester": sem, "count": len(u_courses)})
+            sem_c_query = sem_c_query.filter(models.StudyPlan.academic_year == academic_year)
+            
+        sem_courses_map = {}
+        for row in sem_c_query.all():
+            cid = row[0]
+            name_ar = (row[1] or "").strip()
+            name_en = (row[2] or "").strip()
+            cname = name_ar if name_ar else name_en
+            if not cname:
+                cname = f"مقرر {cid}"
+            dept = (row[3] or "").strip()
+            
+            if cid not in sem_courses_map:
+                sem_courses_map[cid] = {"id": cid, "name": cname, "depts": set()}
+            if dept and dept != "-":
+                sem_courses_map[cid]["depts"].add(dept)
+                
+        sem_courses_list = []
+        for cid, cdata in sem_courses_map.items():
+            depts_str = "، ".join(sorted(list(cdata["depts"]))) if cdata["depts"] else ""
+            is_rep = (cid in repeated_course_ids)
+            sem_courses_list.append({
+                "id": cid,
+                "name": cdata["name"],
+                "depts": depts_str,
+                "is_repeated": is_rep
+            })
+            
+        courses_by_semester.append({
+            "semester": sem_title,
+            "count": len(sem_courses_map),
+            "courses": sem_courses_list
+        })
         
         # Professors and their names grouped by course and department
         items_query = db.query(models.StudyPlanItem).join(models.StudyPlan).filter(
             models.StudyPlan.faculty_id == faculty_id,
-            models.StudyPlan.semester.like(f"%{sem}%"),
+            models.StudyPlan.semester.like(f"%{sem_search}%"),
             models.StudyPlan.is_deleted == False
         )
         if academic_year:
@@ -5487,12 +5590,19 @@ def get_statistics(faculty_id: int, academic_year: Optional[str] = None, db: Ses
         sem_u_profs = set()
         
         for item in sem_items:
-            if not item.course or not item.professor:
+            if not item.course:
                 continue
-            sem_u_profs.add(item.professor_id)
             c_name = (item.course.name_ar or item.course.name_en or "").strip()
             if not c_name:
                 c_name = f"مقرر {item.course.id}"
+                
+            if c_name not in course_professors_dict:
+                course_professors_dict[c_name] = []
+                
+            if not item.professor:
+                continue
+                
+            sem_u_profs.add(item.professor_id)
             p_name = (item.professor.name_ar or item.professor.name_en or "").strip()
             
             d_name = item.module.department_name.strip() if item.module and item.module.department_name else ""
@@ -5501,9 +5611,6 @@ def get_statistics(faculty_id: int, academic_year: Optional[str] = None, db: Ses
             else:
                 prof_entry = f"{p_name}"
             
-            if c_name not in course_professors_dict:
-                course_professors_dict[c_name] = []
-                
             if prof_entry not in course_professors_dict[c_name]:
                 course_professors_dict[c_name].append(prof_entry)
                 
@@ -5513,15 +5620,17 @@ def get_statistics(faculty_id: int, academic_year: Optional[str] = None, db: Ses
             prof_names = [(p.name_ar or p.name_en or "").strip() for p in prof_objs]
         
         assigned_professors_by_semester.append({
-            "semester": sem,
+            "semester": sem_title,
             "count": len(sem_u_profs),
             "professors": prof_names,
             "course_professors": course_professors_dict
         })
-        
+
     return {
         "programs_stats": programs_stats,
         "total_professors": total_professors,
+        "total_courses": total_courses,
+        "repeated_courses": repeated_courses,
         "courses_by_semester": courses_by_semester,
         "assigned_professors_by_semester": assigned_professors_by_semester
     }
@@ -6057,6 +6166,7 @@ def log_notification(data: schemas.NotificationCreate, db: Session = Depends(get
     if getattr(data, 'admin_only', False):
         action_text = f"[ADMIN_ONLY] {action_text}"
     
+    year_val = data.academic_year or ("جميع الأعوام" if "الجدول الرئيسي" in data.action_text else None)
     if data.faculty_ids:
         for fid in data.faculty_ids:
             notif = models.Notification(
@@ -6064,7 +6174,7 @@ def log_notification(data: schemas.NotificationCreate, db: Session = Depends(get
                 action_by=user_action_by_str,
                 action_text=action_text,
                 created_at=datetime.utcnow(),
-                academic_year=data.academic_year,
+                academic_year=year_val,
                 semester=data.semester
             )
             db.add(notif)
@@ -6074,7 +6184,7 @@ def log_notification(data: schemas.NotificationCreate, db: Session = Depends(get
             action_by=user_action_by_str,
             action_text=action_text,
             created_at=datetime.utcnow(),
-            academic_year=data.academic_year,
+            academic_year=year_val,
             semester=data.semester
         )
         db.add(notif)
@@ -6404,3 +6514,276 @@ def delete_academic_year(
     db.delete(db_year)
     db.commit()
     return {"message": "تم الحذف بنجاح"}
+
+
+# ==========================================
+# 16. مسارات المهام المسندة لعضو هيئة التدريس (Assigned Tasks & Workloads)
+# ==========================================
+
+# 1. لوحة التحكم - تعريفات المهام
+@app.get("/api/assigned-tasks/definitions", response_model=List[schemas.FacultyAssignedTaskOut])
+def get_task_definitions(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    return db.query(models.FacultyAssignedTask).filter(models.FacultyAssignedTask.is_active == True).order_by(models.FacultyAssignedTask.id).all()
+
+@app.post("/api/assigned-tasks/definitions", response_model=schemas.FacultyAssignedTaskOut)
+def create_task_definition(
+    task_in: schemas.FacultyAssignedTaskCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if current_user.role not in [models.UserRole.admin, models.UserRole.manager]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بإضافة مهام في لوحة التحكم")
+    
+    clean_name = task_in.name.strip()
+    if not clean_name:
+        raise HTTPException(status_code=400, detail="اسم المهمة مطلوب")
+        
+    existing = db.query(models.FacultyAssignedTask).filter(
+        models.FacultyAssignedTask.name == clean_name
+    ).first()
+    if existing:
+        if not existing.is_active:
+            existing.is_active = True
+            existing.default_hours = task_in.default_hours or 0.0
+            existing.description = task_in.description
+            db.commit()
+            db.refresh(existing)
+            return existing
+        raise HTTPException(status_code=400, detail="هذه المهمة معرفة مسبقاً")
+        
+    task = models.FacultyAssignedTask(
+        name=clean_name,
+        default_hours=task_in.default_hours or 0.0,
+        description=task_in.description,
+        is_active=True
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return task
+
+@app.put("/api/assigned-tasks/definitions/{task_id}", response_model=schemas.FacultyAssignedTaskOut)
+def update_task_definition(
+    task_id: int,
+    task_in: schemas.FacultyAssignedTaskUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if current_user.role not in [models.UserRole.admin, models.UserRole.manager]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بتعديل المهام في لوحة التحكم")
+    
+    task = db.query(models.FacultyAssignedTask).filter(models.FacultyAssignedTask.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="المهمة غير موجودة")
+        
+    if task_in.name is not None:
+        clean_name = task_in.name.strip()
+        if not clean_name:
+            raise HTTPException(status_code=400, detail="اسم المهمة لا يمكن أن يكون فارغاً")
+        dup = db.query(models.FacultyAssignedTask).filter(
+            models.FacultyAssignedTask.name == clean_name,
+            models.FacultyAssignedTask.id != task_id
+        ).first()
+        if dup:
+            raise HTTPException(status_code=400, detail="يوجد مهمة أخرى بنفس هذا الاسم")
+        task.name = clean_name
+        
+    if task_in.default_hours is not None:
+        task.default_hours = task_in.default_hours
+    if task_in.description is not None:
+        task.description = task_in.description
+    if task_in.is_active is not None:
+        task.is_active = task_in.is_active
+        
+    db.commit()
+    db.refresh(task)
+    return task
+
+@app.delete("/api/assigned-tasks/definitions/{task_id}")
+def delete_task_definition(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if current_user.role not in [models.UserRole.admin, models.UserRole.manager]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بحذف المهام في لوحة التحكم")
+    
+    task = db.query(models.FacultyAssignedTask).filter(models.FacultyAssignedTask.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="المهمة غير موجودة")
+        
+    assignments_count = db.query(models.ProfessorAssignedTask).filter(models.ProfessorAssignedTask.task_id == task_id).count()
+    if assignments_count > 0:
+        task.is_active = False
+        db.commit()
+        return {"message": "تم تعطيل المهمة بنجاح (نظراً لوجود أعباء مسندة سابقة مرتبطة بها)", "soft_deleted": True}
+    
+    db.delete(task)
+    db.commit()
+    return {"message": "تم حذف المهمة بنجاح", "soft_deleted": False}
+
+# 2. أعباء ومهام أعضاء هيئة التدريس المسندة
+@app.get("/api/assigned-tasks/professors/{faculty_id}")
+def get_faculty_professors_for_tasks(
+    faculty_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    try:
+        fid = int(faculty_id)
+    except (ValueError, TypeError):
+        return []
+
+    profs = db.query(models.Professor).join(
+        models.professor_faculty_association
+    ).filter(
+        models.professor_faculty_association.c.faculty_id == fid,
+        models.Professor.is_deleted == False
+    ).order_by(models.Professor.name_ar).all()
+    
+    result = []
+    for p in profs:
+        name = (p.name_ar or p.name_en or "").strip()
+        job = (p.job_title or "").strip()
+        workplace = (p.original_workplace or "").strip()
+        result.append({
+            "id": p.id,
+            "name": name,
+            "job_title": job,
+            "original_workplace": workplace,
+            "label": f"{name} ({job})" if job else name
+        })
+    return result
+
+@app.get("/api/assigned-tasks")
+def get_professor_assigned_tasks(
+    faculty_id: str,
+    academic_year: str,
+    semester: str,
+    task_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    try:
+        fid = int(faculty_id)
+    except (ValueError, TypeError):
+        return []
+
+    query = db.query(models.ProfessorAssignedTask).filter(
+        models.ProfessorAssignedTask.faculty_id == fid,
+        models.ProfessorAssignedTask.academic_year == academic_year,
+        models.ProfessorAssignedTask.semester == semester
+    )
+    if task_id:
+        query = query.filter(models.ProfessorAssignedTask.task_id == task_id)
+        
+    records = query.order_by(models.ProfessorAssignedTask.created_at.desc()).all()
+    
+    res_list = []
+    for r in records:
+        prof = r.professor
+        t = r.task
+        res_list.append({
+            "id": r.id,
+            "professor_id": r.professor_id,
+            "professor_name": (prof.name_ar or prof.name_en or "").strip() if prof else "",
+            "professor_job_title": (prof.job_title or "").strip() if prof else "",
+            "professor_workplace": (prof.original_workplace or "").strip() if prof else "",
+            "task_id": r.task_id,
+            "task_name": t.name if t else "",
+            "faculty_id": r.faculty_id,
+            "academic_year": r.academic_year,
+            "semester": r.semester,
+            "hours": r.hours,
+            "notes": r.notes or "",
+            "created_at": r.created_at.isoformat() if r.created_at else None
+        })
+    return res_list
+
+@app.post("/api/assigned-tasks/bulk-assign")
+def bulk_assign_professor_tasks(
+    data: schemas.ProfessorAssignedTaskBulkCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if not data.professor_ids:
+        raise HTTPException(status_code=400, detail="يرجى اختيار عضو هيئة تدريس واحد على الأقل")
+    if not data.task_ids:
+        raise HTTPException(status_code=400, detail="يرجى اختيار مهمة واحدة على الأقل")
+        
+    created_count = 0
+    updated_count = 0
+    
+    for pid in data.professor_ids:
+        for tid in data.task_ids:
+            existing = db.query(models.ProfessorAssignedTask).filter(
+                models.ProfessorAssignedTask.professor_id == pid,
+                models.ProfessorAssignedTask.task_id == tid,
+                models.ProfessorAssignedTask.faculty_id == data.faculty_id,
+                models.ProfessorAssignedTask.academic_year == data.academic_year,
+                models.ProfessorAssignedTask.semester == data.semester
+            ).first()
+            
+            if existing:
+                existing.hours = data.hours
+                if data.notes:
+                    existing.notes = data.notes
+                existing.created_by_user_id = current_user.id
+                updated_count += 1
+            else:
+                new_assign = models.ProfessorAssignedTask(
+                    professor_id=pid,
+                    task_id=tid,
+                    faculty_id=data.faculty_id,
+                    academic_year=data.academic_year,
+                    semester=data.semester,
+                    hours=data.hours,
+                    notes=data.notes,
+                    created_by_user_id=current_user.id
+                )
+                db.add(new_assign)
+                created_count += 1
+                
+    db.commit()
+    return {
+        "message": f"تم إسناد المهام بنجاح (تم إنشاء {created_count} سجل، وتحديث {updated_count} سجل)",
+        "created_count": created_count,
+        "updated_count": updated_count
+    }
+
+@app.put("/api/assigned-tasks/{id}")
+def update_professor_assigned_task(
+    id: int,
+    data: schemas.ProfessorAssignedTaskUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    assign = db.query(models.ProfessorAssignedTask).filter(models.ProfessorAssignedTask.id == id).first()
+    if not assign:
+        raise HTTPException(status_code=404, detail="السجل غير موجود")
+        
+    if data.hours is not None:
+        assign.hours = data.hours
+    if data.notes is not None:
+        assign.notes = data.notes
+        
+    db.commit()
+    db.refresh(assign)
+    return {"message": "تم تحديث الساعات والملاحظات بنجاح", "id": assign.id, "hours": assign.hours, "notes": assign.notes}
+
+@app.delete("/api/assigned-tasks/{id}")
+def delete_professor_assigned_task(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    assign = db.query(models.ProfessorAssignedTask).filter(models.ProfessorAssignedTask.id == id).first()
+    if not assign:
+        raise HTTPException(status_code=404, detail="السجل غير موجود")
+        
+    db.delete(assign)
+    db.commit()
+    return {"message": "تم حذف التكليف بنجاح"}

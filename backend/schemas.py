@@ -578,4 +578,72 @@ class CourseWorkloadWeekOut(CourseWorkloadWeekBase):
     class Config:
         from_attributes = True
 
+# ==========================================
+# 15. Schemas الخاصة بالمهام المسندة لعضو هيئة التدريس
+# ==========================================
+class FacultyAssignedTaskBase(BaseModel):
+    name: str
+    default_hours: Optional[float] = 0.0
+    description: Optional[str] = None
+    is_active: Optional[bool] = True
 
+class FacultyAssignedTaskCreate(FacultyAssignedTaskBase):
+    pass
+
+class FacultyAssignedTaskUpdate(BaseModel):
+    name: Optional[str] = None
+    default_hours: Optional[float] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class FacultyAssignedTaskOut(FacultyAssignedTaskBase):
+    id: int
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class ProfessorAssignedTaskBase(BaseModel):
+    professor_id: int
+    task_id: int
+    faculty_id: int
+    academic_year: str
+    semester: str
+    hours: float = 0.0
+    notes: Optional[str] = None
+
+class ProfessorAssignedTaskCreate(ProfessorAssignedTaskBase):
+    pass
+
+class ProfessorAssignedTaskBulkCreate(BaseModel):
+    faculty_id: int
+    academic_year: str
+    semester: str
+    professor_ids: List[int]
+    task_ids: List[int]
+    hours: float = 0.0
+    notes: Optional[str] = None
+
+class ProfessorAssignedTaskUpdate(BaseModel):
+    hours: Optional[float] = None
+    notes: Optional[str] = None
+
+class ProfessorAssignedTaskOut(BaseModel):
+    id: int
+    professor_id: int
+    task_id: int
+    faculty_id: int
+    academic_year: str
+    semester: str
+    hours: float
+    notes: Optional[str] = None
+    created_at: Optional[datetime] = None
+    
+    # Extra fields for display
+    professor_name: Optional[str] = None
+    professor_job_title: Optional[str] = None
+    professor_workplace: Optional[str] = None
+    task_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
