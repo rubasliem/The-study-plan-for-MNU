@@ -1022,9 +1022,19 @@ const StudyPlanPage = () => {
       return;
     }
     setIsCopyGlowActive(true);
-    const otherYears = (academicYears.length > 0 ? academicYears : YEARS).filter(y => y !== selectedYear);
-    setSourceAcademicYear(otherYears.length > 0 ? otherYears[0] : selectedYear);
-    setSourceSemester(selectedSemester);
+    const availableYears = academicYears.length > 0 ? academicYears : YEARS;
+    const allYears = availableYears.includes(selectedYear) ? availableYears : [selectedYear, ...availableYears];
+    const otherYears = allYears.filter(y => y !== selectedYear);
+    const defaultYear = otherYears.length > 0 ? otherYears[0] : selectedYear;
+    setSourceAcademicYear(defaultYear);
+
+    if (defaultYear === selectedYear) {
+      const otherSemesters = SEMESTERS.filter(s => s !== selectedSemester);
+      setSourceSemester(otherSemesters[0] || "");
+    } else {
+      setSourceSemester(selectedSemester);
+    }
+
     setSelectedSourceCourses([]);
     setTimeout(() => {
       setShowCopyPlanModal(true);
@@ -6706,14 +6716,32 @@ ${signaturesHtml}
             <Form.Select 
               value={sourceAcademicYear} 
               onChange={e => {
-                setSourceAcademicYear(e.target.value);
+                const newYear = e.target.value;
+                setSourceAcademicYear(newYear);
                 setSelectedSourceCourses([]);
+                if (newYear === selectedYear) {
+                  const availableSemesters = SEMESTERS.filter(s => s !== selectedSemester);
+                  if (!availableSemesters.includes(sourceSemester) || sourceSemester === selectedSemester) {
+                    setSourceSemester(availableSemesters[0] || "");
+                  }
+                }
               }}
             >
-              {(academicYears.length > 0 ? academicYears : YEARS).filter(y => y !== selectedYear).map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
+              {(() => {
+                const availableYears = academicYears.length > 0 ? academicYears : YEARS;
+                const allYears = availableYears.includes(selectedYear) ? availableYears : [selectedYear, ...availableYears];
+                return allYears.map(y => (
+                  <option key={y} value={y}>
+                    {y} {y === selectedYear ? "(العام الحالي)" : ""}
+                  </option>
+                ));
+              })()}
             </Form.Select>
+            {sourceAcademicYear === selectedYear && (
+              <Form.Text className="text-muted small">
+                يتم عرض الفصول الدراسية الأخرى فقط للعام الحالي لتجنب النسخ من نفس الفصل.
+              </Form.Text>
+            )}
           </Form.Group>
           <Form.Group className="mb-3">
             <Form.Label className="fw-bold">اختر الفصل الدراسي المصدر:</Form.Label>
@@ -6724,9 +6752,11 @@ ${signaturesHtml}
                 setSelectedSourceCourses([]);
               }}
             >
-              {SEMESTERS.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
+              {SEMESTERS
+                .filter(s => sourceAcademicYear !== selectedYear || s !== selectedSemester)
+                .map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
             </Form.Select>
           </Form.Group>
 
