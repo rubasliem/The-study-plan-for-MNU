@@ -588,6 +588,12 @@ def migrate_db_add_workload_fields():
             if "course_name" not in cols_d:
                 db.execute(text("ALTER TABLE professor_load_deductions ADD COLUMN course_name VARCHAR;"))
                 db.commit()
+            if "is_deleted" not in cols_d:
+                db.execute(text("ALTER TABLE professor_load_deductions ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE;"))
+                db.commit()
+            if "deleted_at" not in cols_d:
+                db.execute(text("ALTER TABLE professor_load_deductions ADD COLUMN deleted_at TIMESTAMP NULL;"))
+                db.commit()
 
         # 3. course_workload_weeks table
         if not inspector.has_table('course_workload_weeks'):
@@ -603,6 +609,8 @@ def migrate_db_add_workload_fields():
                     course_name VARCHAR NOT NULL,
                     course_code VARCHAR,
                     weeks_count INTEGER NOT NULL,
+                    is_deleted BOOLEAN DEFAULT FALSE,
+                    deleted_at TIMESTAMP NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
@@ -610,6 +618,25 @@ def migrate_db_add_workload_fields():
                 CREATE INDEX IF NOT EXISTS ix_course_workload_weeks_key ON course_workload_weeks (course_key);
             """))
             db.commit()
+        else:
+            cols_cw = [c['name'] for c in inspector.get_columns('course_workload_weeks')]
+            if "is_deleted" not in cols_cw:
+                db.execute(text("ALTER TABLE course_workload_weeks ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE;"))
+                db.commit()
+            if "deleted_at" not in cols_cw:
+                db.execute(text("ALTER TABLE course_workload_weeks ADD COLUMN deleted_at TIMESTAMP NULL;"))
+                db.commit()
+
+        # 4. professor_assigned_tasks table
+        if inspector.has_table('professor_assigned_tasks'):
+            cols_pat = [c['name'] for c in inspector.get_columns('professor_assigned_tasks')]
+            if "is_deleted" not in cols_pat:
+                db.execute(text("ALTER TABLE professor_assigned_tasks ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE;"))
+                db.commit()
+            if "deleted_at" not in cols_pat:
+                db.execute(text("ALTER TABLE professor_assigned_tasks ADD COLUMN deleted_at TIMESTAMP NULL;"))
+                db.commit()
+
         print("Successfully verified/added workload fields.")
     except Exception as e:
         print(f"Error checking/adding workload fields: {e}")
@@ -4662,7 +4689,8 @@ def get_workload_professor_courses(
     custom_cw_map = {}
     cw_query = db.query(models.CourseWorkloadWeek).filter(
         models.CourseWorkloadWeek.academic_year == academic_year,
-        models.CourseWorkloadWeek.semester == semester
+        models.CourseWorkloadWeek.semester == semester,
+        or_(models.CourseWorkloadWeek.is_deleted == False, models.CourseWorkloadWeek.is_deleted == None)
     )
     if not is_all_fac:
         try:
@@ -4760,7 +4788,8 @@ def get_workload_professor_courses(
     # Check existing deductions for this professor, year and semester
     ded_query = db.query(models.ProfessorLoadDeduction).filter(
         models.ProfessorLoadDeduction.professor_id == professor_id,
-        models.ProfessorLoadDeduction.academic_year == academic_year
+        models.ProfessorLoadDeduction.academic_year == academic_year,
+        or_(models.ProfessorLoadDeduction.is_deleted == False, models.ProfessorLoadDeduction.is_deleted == None)
     )
     if "الصيفي" in semester or "صيف" in semester:
         ded_query = ded_query.filter(or_(
@@ -4836,7 +4865,9 @@ def get_workload_deductions(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    query = db.query(models.ProfessorLoadDeduction)
+    query = db.query(models.ProfessorLoadDeduction).filter(
+        or_(models.ProfessorLoadDeduction.is_deleted == False, models.ProfessorLoadDeduction.is_deleted == None)
+    )
     if faculty_id and str(faculty_id).lower() != "all":
         try:
             query = query.filter(models.ProfessorLoadDeduction.faculty_id == int(faculty_id))
@@ -4939,6 +4970,8 @@ def save_workload_deduction(
             ded.course_name = data.course_name or ded.course_name
             ded.reason = data.reason
             ded.created_by = user_action_by_str
+            ded.is_deleted = False
+            ded.deleted_at = None
             ded.updated_at = datetime.utcnow()
         else:
             ded = models.ProfessorLoadDeduction(
@@ -5055,9 +5088,10 @@ def delete_workload_deduction(
     action_text = f"قام بإلغاء انقاص الساعات ({ded.deducted_hours} س) للدكتور {prof_name}"
     create_notification(db, ded.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=ded.academic_year, semester=ded.semester)
     
-    db.delete(ded)
+    ded.is_deleted = True
+    ded.deleted_at = datetime.utcnow()
     db.commit()
-    return {"message": "تم إلغاء خصم الساعات بنجاح"}
+    return {"message": "تم إلغاء خصم الساعات ونقله إلى سلة المحذوفات بنجاح"}
 
 # ==========================================
 # مسارات تخصيص عدد أسابيع المقررات الدراسية (Course Workload Weeks)
@@ -5126,7 +5160,8 @@ def get_course_workload_weeks(
     # 3. Get existing custom weeks from DB
     custom_records_query = db.query(models.CourseWorkloadWeek).filter(
         models.CourseWorkloadWeek.academic_year == academic_year,
-        models.CourseWorkloadWeek.semester == semester
+        models.CourseWorkloadWeek.semester == semester,
+        or_(models.CourseWorkloadWeek.is_deleted == False, models.CourseWorkloadWeek.is_deleted == None)
     )
     if not is_all and fac:
         custom_records_query = custom_records_query.filter(models.CourseWorkloadWeek.faculty_id == fac.id)
@@ -5274,6 +5309,8 @@ def save_course_workload_weeks(
         record.course_code = data.course_code or record.course_code
         record.course_id = data.course_id or record.course_id
         record.module_id = data.module_id or record.module_id
+        record.is_deleted = False
+        record.deleted_at = None
         record.updated_at = datetime.utcnow()
     else:
         record = models.CourseWorkloadWeek(
@@ -5327,7 +5364,8 @@ def delete_course_workload_weeks(
     ay = record.academic_year
     sem = record.semester
     
-    db.delete(record)
+    record.is_deleted = True
+    record.deleted_at = datetime.utcnow()
     db.commit()
     
     user_role_str = get_user_role_display(current_user)
@@ -5335,7 +5373,7 @@ def delete_course_workload_weeks(
     create_notification(db, fac_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=ay, semester=sem)
     db.commit()
     
-    return {"message": f"تم استعادة العدد الافتراضي لأسابيع المقرر ({c_name}) بنجاح"}
+    return {"message": f"تم استعادة العدد الافتراضي لأسابيع المقرر ({c_name}) ونقله إلى سلة المحذوفات بنجاح"}
 
 # ==========================================
 
@@ -5923,7 +5961,102 @@ def get_recycle_bin(faculty_id: Optional[int] = None, db: Session = Depends(get_
             "faculty": s.faculty.name if s.faculty else "غير محدد",
             "academic_year": s.academic_year
         })
-        
+
+    # 5. الأعباء الإضافية المسندة للأساتذة
+    task_query = db.query(models.ProfessorAssignedTask).filter(models.ProfessorAssignedTask.is_deleted == True)
+    if current_user.role in [models.UserRole.admin, models.UserRole.student_affairs] or current_user.all_faculties_access:
+        if faculty_id:
+            task_query = task_query.filter(models.ProfessorAssignedTask.faculty_id == faculty_id)
+    elif current_user.assigned_faculties and len(current_user.assigned_faculties) > 0:
+        faculty_ids = [f.id for f in current_user.assigned_faculties]
+        if faculty_id:
+            if faculty_id in faculty_ids:
+                task_query = task_query.filter(models.ProfessorAssignedTask.faculty_id == faculty_id)
+            else:
+                task_query = task_query.filter(models.ProfessorAssignedTask.id == -1)
+        else:
+            task_query = task_query.filter(models.ProfessorAssignedTask.faculty_id.in_(faculty_ids))
+    elif current_user.faculty_id:
+        task_query = task_query.filter(models.ProfessorAssignedTask.faculty_id == current_user.faculty_id)
+    elif faculty_id:
+        task_query = task_query.filter(models.ProfessorAssignedTask.faculty_id == faculty_id)
+
+    for at in task_query.all():
+        prof_name = at.professor.name_ar if at.professor else ""
+        task_name = at.task.name if at.task else ""
+        items.append({
+            "type": "assigned_task",
+            "id": at.id,
+            "name": f"تكليف أعباء: {task_name} - د. {prof_name} ({at.hours:g} س)",
+            "deleted_at": at.deleted_at.isoformat() if at.deleted_at else None,
+            "faculty": at.faculty.name if at.faculty else "غير محدد",
+            "academic_year": at.academic_year,
+            "semester": at.semester
+        })
+
+    # 6. انتقاص ساعات أعضاء هيئة التدريس
+    ded_query_rb = db.query(models.ProfessorLoadDeduction).filter(models.ProfessorLoadDeduction.is_deleted == True)
+    if current_user.role in [models.UserRole.admin, models.UserRole.student_affairs] or current_user.all_faculties_access:
+        if faculty_id:
+            ded_query_rb = ded_query_rb.filter(models.ProfessorLoadDeduction.faculty_id == faculty_id)
+    elif current_user.assigned_faculties and len(current_user.assigned_faculties) > 0:
+        faculty_ids = [f.id for f in current_user.assigned_faculties]
+        if faculty_id:
+            if faculty_id in faculty_ids:
+                ded_query_rb = ded_query_rb.filter(models.ProfessorLoadDeduction.faculty_id == faculty_id)
+            else:
+                ded_query_rb = ded_query_rb.filter(models.ProfessorLoadDeduction.id == -1)
+        else:
+            ded_query_rb = ded_query_rb.filter(models.ProfessorLoadDeduction.faculty_id.in_(faculty_ids))
+    elif current_user.faculty_id:
+        ded_query_rb = ded_query_rb.filter(models.ProfessorLoadDeduction.faculty_id == current_user.faculty_id)
+    elif faculty_id:
+        ded_query_rb = ded_query_rb.filter(models.ProfessorLoadDeduction.faculty_id == faculty_id)
+
+    for d in ded_query_rb.all():
+        prof_name = d.professor.name_ar if d.professor else ""
+        w_name = d.week_name or (f"الأسبوع {d.week_number}" if d.week_number else "عام")
+        c_name = f" - مقرر {d.course_name}" if d.course_name else ""
+        items.append({
+            "type": "load_deduction",
+            "id": d.id,
+            "name": f"انتقاص ساعات: د. {prof_name} ({d.deducted_hours:g} س - {w_name}){c_name}",
+            "deleted_at": d.deleted_at.isoformat() if d.deleted_at else None,
+            "faculty": d.faculty.name if d.faculty else "غير محدد",
+            "academic_year": d.academic_year,
+            "semester": d.semester
+        })
+
+    # 7. تخصيص أسابيع المقررات الدراسية
+    cw_query_rb = db.query(models.CourseWorkloadWeek).filter(models.CourseWorkloadWeek.is_deleted == True)
+    if current_user.role in [models.UserRole.admin, models.UserRole.student_affairs] or current_user.all_faculties_access:
+        if faculty_id:
+            cw_query_rb = cw_query_rb.filter(models.CourseWorkloadWeek.faculty_id == faculty_id)
+    elif current_user.assigned_faculties and len(current_user.assigned_faculties) > 0:
+        faculty_ids = [f.id for f in current_user.assigned_faculties]
+        if faculty_id:
+            if faculty_id in faculty_ids:
+                cw_query_rb = cw_query_rb.filter(models.CourseWorkloadWeek.faculty_id == faculty_id)
+            else:
+                cw_query_rb = cw_query_rb.filter(models.CourseWorkloadWeek.id == -1)
+        else:
+            cw_query_rb = cw_query_rb.filter(models.CourseWorkloadWeek.faculty_id.in_(faculty_ids))
+    elif current_user.faculty_id:
+        cw_query_rb = cw_query_rb.filter(models.CourseWorkloadWeek.faculty_id == current_user.faculty_id)
+    elif faculty_id:
+        cw_query_rb = cw_query_rb.filter(models.CourseWorkloadWeek.faculty_id == faculty_id)
+
+    for cw in cw_query_rb.all():
+        items.append({
+            "type": "course_weeks",
+            "id": cw.id,
+            "name": f"تخصيص أسابيع مقرر: {cw.course_name} ({cw.weeks_count} أسبوع)",
+            "deleted_at": cw.deleted_at.isoformat() if cw.deleted_at else None,
+            "faculty": cw.faculty.name if cw.faculty else "غير محدد",
+            "academic_year": cw.academic_year,
+            "semester": cw.semester
+        })
+
     return items
 
 @app.get("/api/professors-report")
@@ -6089,7 +6222,8 @@ def get_professors_report(
         if courses_t1 or courses_t2 or courses_t3:
             # Query deductions for this professor
             prof_ded_query = db.query(models.ProfessorLoadDeduction).filter(
-                models.ProfessorLoadDeduction.professor_id == prof.id
+                models.ProfessorLoadDeduction.professor_id == prof.id,
+                or_(models.ProfessorLoadDeduction.is_deleted == False, models.ProfessorLoadDeduction.is_deleted == None)
             )
             if academic_year:
                 prof_ded_query = prof_ded_query.filter(models.ProfessorLoadDeduction.academic_year == academic_year)
@@ -6331,9 +6465,27 @@ def restore_recycle_bin(action: schemas.RecycleBinAction, db: Session = Depends(
             if obj:
                 name = f"توقيع: {obj.signature_title}"
                 fids = [obj.faculty_id]
+        elif item.type == "assigned_task":
+            obj = db.query(models.ProfessorAssignedTask).filter(models.ProfessorAssignedTask.id == item.id).first()
+            if obj:
+                prof_name = obj.professor.name_ar if obj.professor else ""
+                t_name = obj.task.name if obj.task else ""
+                name = f"تكليف أعباء: {t_name} لدكتور {prof_name}"
+                fids = [obj.faculty_id]
+        elif item.type == "load_deduction":
+            obj = db.query(models.ProfessorLoadDeduction).filter(models.ProfessorLoadDeduction.id == item.id).first()
+            if obj:
+                prof_name = obj.professor.name_ar if obj.professor else ""
+                name = f"انتقاص ساعات دكتور: {prof_name}"
+                fids = [obj.faculty_id]
+        elif item.type == "course_weeks":
+            obj = db.query(models.CourseWorkloadWeek).filter(models.CourseWorkloadWeek.id == item.id).first()
+            if obj:
+                name = f"تخصيص أسابيع مقرر: {obj.course_name}"
+                fids = [obj.faculty_id]
         else:
             continue
-            
+
         if obj:
             obj.is_deleted = False
             obj.deleted_at = None
@@ -6386,6 +6538,24 @@ def hard_delete_recycle_bin(action: schemas.RecycleBinAction, db: Session = Depe
             obj = db.query(models.Signature).filter(models.Signature.id == item.id).first()
             if obj:
                 name = f"توقيع: {obj.signature_title}"
+                fids = [obj.faculty_id]
+        elif item.type == "assigned_task":
+            obj = db.query(models.ProfessorAssignedTask).filter(models.ProfessorAssignedTask.id == item.id).first()
+            if obj:
+                prof_name = obj.professor.name_ar if obj.professor else ""
+                t_name = obj.task.name if obj.task else ""
+                name = f"تكليف أعباء: {t_name} لدكتور {prof_name}"
+                fids = [obj.faculty_id]
+        elif item.type == "load_deduction":
+            obj = db.query(models.ProfessorLoadDeduction).filter(models.ProfessorLoadDeduction.id == item.id).first()
+            if obj:
+                prof_name = obj.professor.name_ar if obj.professor else ""
+                name = f"انتقاص ساعات دكتور: {prof_name}"
+                fids = [obj.faculty_id]
+        elif item.type == "course_weeks":
+            obj = db.query(models.CourseWorkloadWeek).filter(models.CourseWorkloadWeek.id == item.id).first()
+            if obj:
+                name = f"تخصيص أسابيع مقرر: {obj.course_name}"
                 fids = [obj.faculty_id]
         else:
             continue
@@ -6675,7 +6845,8 @@ def get_professor_assigned_tasks(
     query = db.query(models.ProfessorAssignedTask).filter(
         models.ProfessorAssignedTask.faculty_id == fid,
         models.ProfessorAssignedTask.academic_year == academic_year,
-        models.ProfessorAssignedTask.semester == semester
+        models.ProfessorAssignedTask.semester == semester,
+        or_(models.ProfessorAssignedTask.is_deleted == False, models.ProfessorAssignedTask.is_deleted == None)
     )
     if task_id:
         query = query.filter(models.ProfessorAssignedTask.task_id == task_id)
@@ -6750,6 +6921,8 @@ def bulk_assign_professor_tasks(
                 existing.hours = data.hours
                 if data.notes:
                     existing.notes = data.notes
+                existing.is_deleted = False
+                existing.deleted_at = None
                 existing.created_by_user_id = current_user.id
                 updated_count += 1
             else:
@@ -6803,6 +6976,14 @@ def delete_professor_assigned_task(
     if not assign:
         raise HTTPException(status_code=404, detail="السجل غير موجود")
         
-    db.delete(assign)
+    assign.is_deleted = True
+    assign.deleted_at = datetime.utcnow()
+    
+    prof_name = assign.professor.name_ar if assign.professor else ""
+    task_name = assign.task.name if assign.task else ""
+    user_role_str = get_user_role_display(current_user)
+    action_text = f"قام بحذف تكليف مهمة ({task_name}) لعضو هيئة التدريس {prof_name}"
+    create_notification(db, assign.faculty_id, f"{current_user.username} ({user_role_str})", action_text, academic_year=assign.academic_year, semester=assign.semester)
+    
     db.commit()
-    return {"message": "تم حذف التكليف بنجاح"}
+    return {"message": "تم نقل التكليف إلى سلة المحذوفات بنجاح"}

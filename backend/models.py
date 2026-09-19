@@ -434,6 +434,8 @@ class ProfessorLoadDeduction(Base):
     
     created_by = Column(String, nullable=True)
     is_edited = Column(Boolean, default=False)
+    is_deleted = Column(Boolean, default=False, index=True)
+    deleted_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -458,6 +460,8 @@ class CourseWorkloadWeek(Base):
     course_name = Column(String, nullable=False)
     course_code = Column(String, nullable=True)
     weeks_count = Column(Integer, nullable=False) # عدد الأسابيع الفعلي لتدريس هذا المقرر
+    is_deleted = Column(Boolean, default=False, index=True)
+    deleted_at = Column(DateTime, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -496,6 +500,8 @@ class ProfessorAssignedTask(Base):
     semester = Column(String, index=True, nullable=False) # الفصل الدراسي الأول، الفصل الدراسي الثاني، الفصل الدراسي الصيفي
     hours = Column(Float, default=0.0) # الساعات المحملة على العضو لهذه المهمة
     notes = Column(String, nullable=True) # ملاحظات أو توصيف للمهمة
+    is_deleted = Column(Boolean, default=False, index=True)
+    deleted_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     

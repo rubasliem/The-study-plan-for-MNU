@@ -117,7 +117,23 @@ const RecycleBinPage = () => {
             case 'course': return 'مقرر دراسي';
             case 'study_plan': return 'خطة دراسية';
             case 'signature': return 'توقيع مسؤول';
+            case 'assigned_task': return 'أعباء إضافية (مهمة مسندة)';
+            case 'load_deduction': return 'انتقاص ساعات دكتور';
+            case 'course_weeks': return 'تخصيص أسابيع مقرر';
             default: return 'غير معروف';
+        }
+    };
+
+    const getBadgeClass = (type) => {
+        switch (type) {
+            case 'professor': return 'bg-primary';
+            case 'course': return 'bg-info text-dark';
+            case 'study_plan': return 'bg-warning text-dark';
+            case 'signature': return 'bg-secondary';
+            case 'assigned_task': return 'bg-success';
+            case 'load_deduction': return 'bg-danger';
+            case 'course_weeks': return 'bg-dark';
+            default: return 'bg-secondary';
         }
     };
 
@@ -201,6 +217,9 @@ const RecycleBinPage = () => {
                             <option value="course">المقررات الدراسية</option>
                             <option value="study_plan">الخطط الدراسية</option>
                             <option value="signature">توقيعات المسؤولين</option>
+                            <option value="assigned_task">أعباء إضافية (مهام مسندة)</option>
+                            <option value="load_deduction">انتقاص ساعات دكتور</option>
+                            <option value="course_weeks">تخصيص أسابيع مقرر</option>
                         </Form.Select>
                     </Form.Group>
 
@@ -258,7 +277,7 @@ const RecycleBinPage = () => {
                                                 />
                                             </td>
                                             <td>
-                                                <span className={`badge ${item.type === 'professor' ? 'bg-primary' : item.type === 'course' ? 'bg-info' : item.type === 'signature' ? 'bg-secondary' : 'bg-warning'}`} style={{ fontSize: '0.9rem', padding: '0.5rem 0.8rem' }}>
+                                                <span className={`badge ${getBadgeClass(item.type)}`} style={{ fontSize: '0.9rem', padding: '0.5rem 0.8rem' }}>
                                                     {getTypeName(item.type)}
                                                 </span>
                                             </td>
