@@ -644,6 +644,8 @@ class ProfessorAssignedTaskOut(BaseModel):
     professor_job_title: Optional[str] = None
     professor_workplace: Optional[str] = None
     task_name: Optional[str] = None
+    created_by_name: Optional[str] = None
+    created_by_job: Optional[str] = None
 
     class Config:
         from_attributes = True

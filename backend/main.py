@@ -6686,6 +6686,23 @@ def get_professor_assigned_tasks(
     for r in records:
         prof = r.professor
         t = r.task
+        creator = r.created_by
+        creator_name = (creator.username or "").strip() if creator else ""
+        creator_job = (creator.job_title or "").strip() if creator else ""
+        if creator and not creator_job and creator.role:
+            # Fallback to role name in Arabic if job_title not set
+            role_names = {
+                "admin": "مدير النظام (Admin)",
+                "manager": "مدير عام",
+                "dean": "عميد الكلية",
+                "vice_dean": "وكيل الكلية",
+                "program_coordinator": "منسق البرنامج",
+                "faculty_admin": "مسؤول الكلية",
+                "student_affairs": "شؤون الطلاب",
+                "reviewer": "مراجع"
+            }
+            creator_job = role_names.get(creator.role.value if hasattr(creator.role, 'value') else str(creator.role), "")
+
         res_list.append({
             "id": r.id,
             "professor_id": r.professor_id,
@@ -6699,6 +6716,8 @@ def get_professor_assigned_tasks(
             "semester": r.semester,
             "hours": r.hours,
             "notes": r.notes or "",
+            "created_by_name": creator_name,
+            "created_by_job": creator_job,
             "created_at": r.created_at.isoformat() if r.created_at else None
         })
     return res_list

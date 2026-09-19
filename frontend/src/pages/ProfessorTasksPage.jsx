@@ -337,7 +337,7 @@ const ProfessorTasksPage = () => {
       worksheet.views = [{ rightToLeft: true }];
 
       // Title
-      worksheet.mergeCells('A1:F1');
+      worksheet.mergeCells('A1:G1');
       const titleCell = worksheet.getCell('A1');
       titleCell.value = `كشف أعباء ومهام: ${taskName} - ${selectedSemester} (${selectedYear})`;
       titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -346,7 +346,7 @@ const ProfessorTasksPage = () => {
       worksheet.getRow(1).height = 35;
 
       // Headers
-      const headers = ['م', 'اسم عضو هيئة التدريس', 'الوظيفة / الدرجة', 'جهة العمل الأصلية', 'عدد الساعات المحملة', 'ملاحظات'];
+      const headers = ['م', 'بواسطة', 'اسم عضو هيئة التدريس', 'الوظيفة / الدرجة', 'جهة العمل الأصلية', 'عدد الساعات المحملة', 'ملاحظات'];
       worksheet.addRow(headers);
       const headerRow = worksheet.getRow(2);
       headerRow.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -358,8 +358,10 @@ const ProfessorTasksPage = () => {
       let totalHours = 0;
       taskRecords.forEach((r, idx) => {
         totalHours += (r.hours || 0);
+        const creatorText = r.created_by_name ? (r.created_by_job ? `${r.created_by_name} (${r.created_by_job})` : r.created_by_name) : '-';
         const row = worksheet.addRow([
           idx + 1,
+          creatorText,
           r.professor_name || '-',
           r.professor_job_title || '-',
           r.professor_workplace || '-',
@@ -367,12 +369,12 @@ const ProfessorTasksPage = () => {
           r.notes || '-'
         ]);
         row.alignment = { vertical: 'middle', horizontal: 'center' };
-        row.getCell(2).alignment = { vertical: 'middle', horizontal: 'right' };
+        row.getCell(3).alignment = { vertical: 'middle', horizontal: 'right' };
         row.height = 22;
       });
 
       // Total Row
-      const totalRow = worksheet.addRow(['الإجمالي', '', '', '', totalHours, `إجمالي عدد الأعضاء: ${taskRecords.length}`]);
+      const totalRow = worksheet.addRow(['الإجمالي', '', '', '', '', totalHours, `إجمالي عدد الأعضاء: ${taskRecords.length}`]);
       totalRow.font = { name: 'Arial', size: 11, bold: true };
       totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F5E9' } };
       totalRow.alignment = { vertical: 'middle', horizontal: 'center' };
@@ -380,6 +382,7 @@ const ProfessorTasksPage = () => {
 
       worksheet.columns = [
         { width: 8 },
+        { width: 25 },
         { width: 35 },
         { width: 22 },
         { width: 25 },
@@ -788,19 +791,36 @@ const ProfessorTasksPage = () => {
                       <Table hover className="align-middle mb-0 text-center">
                         <thead className="table-light text-secondary" style={{ fontSize: '0.9rem' }}>
                           <tr>
-                            <th style={{ width: '60px' }}>#</th>
-                            <th className="text-end" style={{ width: '280px' }}>اسم عضو هيئة التدريس</th>
-                            <th style={{ width: '180px' }}>الوظيفة / الدرجة</th>
-                            <th style={{ width: '220px' }}>جهة العمل الأصلية</th>
-                            <th style={{ width: '150px' }}>الساعات المحملة</th>
+                            <th style={{ width: '50px' }}>#</th>
+                            <th style={{ width: '220px' }}>بواسطة</th>
+                            <th className="text-end" style={{ width: '260px' }}>اسم عضو هيئة التدريس</th>
+                            <th style={{ width: '160px' }}>الوظيفة / الدرجة</th>
+                            <th style={{ width: '200px' }}>جهة العمل الأصلية</th>
+                            <th style={{ width: '140px' }}>الساعات المحملة</th>
                             <th>ملاحظات وتفاصيل</th>
-                            <th style={{ width: '120px' }}>إجراءات</th>
+                            <th style={{ width: '110px' }}>إجراءات</th>
                           </tr>
                         </thead>
                         <tbody style={{ fontSize: '0.92rem' }}>
                           {taskRecords.map((r, idx) => (
                             <tr key={r.id}>
                               <td className="text-muted fw-bold">{idx + 1}</td>
+                              <td>
+                                {r.created_by_name ? (
+                                  <div className="d-flex flex-column align-items-center justify-content-center">
+                                    <span className="fw-bold text-dark" style={{ fontSize: '0.9rem' }}>
+                                      {r.created_by_name}
+                                    </span>
+                                    {r.created_by_job && (
+                                      <span className="badge bg-light text-secondary border mt-1" style={{ fontSize: '0.78rem' }}>
+                                        {r.created_by_job}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted">-</span>
+                                )}
+                              </td>
                               <td className="text-end fw-bold text-dark">
                                 <div className="d-flex align-items-center gap-2">
                                   <FaUserTie className="text-success flex-shrink-0" />
@@ -850,7 +870,7 @@ const ProfessorTasksPage = () => {
                         </tbody>
                         <tfoot className="table-light">
                           <tr>
-                            <td colSpan={4} className="text-end fw-bold py-2 px-3 text-success">
+                            <td colSpan={5} className="text-end fw-bold py-2 px-3 text-success">
                               إجمالي ساعات مهمة ({group.task_name}):
                             </td>
                             <td className="fw-bold text-success py-2">

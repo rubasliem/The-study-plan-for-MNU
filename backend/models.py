@@ -502,3 +502,4 @@ class ProfessorAssignedTask(Base):
     professor = relationship("Professor")
     task = relationship("FacultyAssignedTask", back_populates="assignments")
     faculty = relationship("Faculty")
+    created_by = relationship("User")
