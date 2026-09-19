@@ -5,6 +5,8 @@ export const confirmAction = async (optionsOrText) => {
     let html = "";
     let confirmButtonText = "نعم";
     let cancelButtonText = "إلغاء";
+    let confirmButtonClass = "btn btn-outline-danger mx-2 px-4 fw-semibold";
+    let cancelButtonClass = "btn btn-outline-secondary mx-2 px-4 fw-semibold";
     let onConfirm = null;
 
     if (typeof optionsOrText === 'string') {
@@ -14,6 +16,12 @@ export const confirmAction = async (optionsOrText) => {
         html = optionsOrText.message || optionsOrText.html || optionsOrText.text || "";
         confirmButtonText = optionsOrText.confirmButtonText || "نعم";
         cancelButtonText = optionsOrText.cancelButtonText || "إلغاء";
+        if (optionsOrText.confirmButtonClass) {
+            confirmButtonClass = optionsOrText.confirmButtonClass;
+        }
+        if (optionsOrText.cancelButtonClass) {
+            cancelButtonClass = optionsOrText.cancelButtonClass;
+        }
         onConfirm = optionsOrText.onConfirm;
     }
 
@@ -30,8 +38,8 @@ export const confirmAction = async (optionsOrText) => {
         customClass: {
             title: 'fs-5 fw-bold text-dark mb-2',
             htmlContainer: 'fs-6 text-muted mb-3',
-            confirmButton: 'btn btn-danger mx-2 px-4 fw-semibold',
-            cancelButton: 'btn btn-outline-secondary mx-2 px-4 fw-semibold'
+            confirmButton: confirmButtonClass,
+            cancelButton: cancelButtonClass
         }
     });
 

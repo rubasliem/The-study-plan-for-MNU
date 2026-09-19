@@ -272,7 +272,7 @@ const ProfessorTasksPage = () => {
       title: 'حذف التكليف',
       message: `هل أنت متأكد من حذف تكليف الدكتور "${profName}" بمهمة "${taskName}"؟`,
       confirmButtonText: 'نعم، احذف',
-      confirmButtonColor: '#dc3545'
+      confirmButtonClass: 'btn btn-outline-danger mx-2 px-4 fw-semibold'
     });
 
     if (!isConfirmed) return;
