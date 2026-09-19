@@ -268,25 +268,26 @@ const ProfessorTasksPage = () => {
 
   // Delete Assignment
   const handleDeleteAssignment = async (assignId, profName, taskName) => {
-    confirmAction({
+    const isConfirmed = await confirmAction({
       title: 'حذف التكليف',
       message: `هل أنت متأكد من حذف تكليف الدكتور "${profName}" بمهمة "${taskName}"؟`,
       confirmButtonText: 'نعم، احذف',
-      confirmButtonColor: '#dc3545',
-      onConfirm: async () => {
-        try {
-          const token = localStorage.getItem('token');
-          await axios.delete(`${API}/api/assigned-tasks/${assignId}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          toast.success("تم حذف التكليف بنجاح");
-          setAssignments(prev => prev.filter(a => a.id !== assignId));
-        } catch (err) {
-          console.error("Error deleting assignment", err);
-          toast.error("حدث خطأ أثناء حذف التكليف");
-        }
-      }
+      confirmButtonColor: '#dc3545'
     });
+
+    if (!isConfirmed) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API}/api/assigned-tasks/${assignId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success("تم حذف التكليف بنجاح");
+      setAssignments(prev => prev.filter(a => a.id !== assignId));
+    } catch (err) {
+      console.error("Error deleting assignment", err);
+      toast.error(err.response?.data?.detail || "حدث خطأ أثناء حذف التكليف");
+    }
   };
 
   // Open Edit Modal

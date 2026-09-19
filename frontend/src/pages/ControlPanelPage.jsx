@@ -153,26 +153,27 @@ const ControlPanelPage = () => {
         }
     };
 
-    const handleDeleteTask = (task) => {
-        confirmAction({
+    const handleDeleteTask = async (task) => {
+        const isConfirmed = await confirmAction({
             title: 'حذف المهمة',
             message: `هل أنت متأكد من حذف مهمة "${task.name}"؟`,
             confirmButtonText: 'نعم، احذف',
-            confirmButtonColor: '#dc3545',
-            onConfirm: async () => {
-                try {
-                    const token = localStorage.getItem('token');
-                    const res = await axios.delete(`${API}/api/assigned-tasks/definitions/${task.id}`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-                    toast.success(res.data?.message || "تم حذف المهمة بنجاح");
-                    fetchAssignedTasks();
-                } catch (err) {
-                    console.error("Error deleting task", err);
-                    toast.error(err.response?.data?.detail || "حدث خطأ أثناء حذف المهمة");
-                }
-            }
+            confirmButtonColor: '#dc3545'
         });
+
+        if (!isConfirmed) return;
+
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.delete(`${API}/api/assigned-tasks/definitions/${task.id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.success(res.data?.message || "تم حذف المهمة بنجاح");
+            fetchAssignedTasks();
+        } catch (err) {
+            console.error("Error deleting task", err);
+            toast.error(err.response?.data?.detail || "حدث خطأ أثناء حذف المهمة");
+        }
     };
     const [permissionSearch, setPermissionSearch] = useState('');
     const [permissionFacultyFilter, setPermissionFacultyFilter] = useState('');

@@ -1,20 +1,46 @@
 import Swal from 'sweetalert2';
 
-export const confirmAction = async (text) => {
+export const confirmAction = async (optionsOrText) => {
+    let title = "تأكيد الإجراء";
+    let html = "";
+    let confirmButtonText = "نعم";
+    let cancelButtonText = "إلغاء";
+    let onConfirm = null;
+
+    if (typeof optionsOrText === 'string') {
+        title = optionsOrText;
+    } else if (optionsOrText && typeof optionsOrText === 'object') {
+        title = optionsOrText.title || "تأكيد الإجراء";
+        html = optionsOrText.message || optionsOrText.html || optionsOrText.text || "";
+        confirmButtonText = optionsOrText.confirmButtonText || "نعم";
+        cancelButtonText = optionsOrText.cancelButtonText || "إلغاء";
+        onConfirm = optionsOrText.onConfirm;
+    }
+
     const result = await Swal.fire({
-        title: text,
+        title: title,
+        html: html || undefined,
         icon: "warning",
-        width: '600px',
+        width: '560px',
         showCancelButton: true,
-        confirmButtonText: "نعم",
-        cancelButtonText: "إلغاء",
+        confirmButtonText: confirmButtonText,
+        cancelButtonText: cancelButtonText,
         reverseButtons: true,
         buttonsStyling: false,
         customClass: {
-            title: 'fs-4 fw-normal text-success',
-            confirmButton: 'btn btn-outline-danger mx-2 px-4',
-            cancelButton: 'btn btn-outline-primary mx-2 px-4'
+            title: 'fs-5 fw-bold text-dark mb-2',
+            htmlContainer: 'fs-6 text-muted mb-3',
+            confirmButton: 'btn btn-danger mx-2 px-4 fw-semibold',
+            cancelButton: 'btn btn-outline-secondary mx-2 px-4 fw-semibold'
         }
     });
-    return result.isConfirmed;
+
+    if (result.isConfirmed) {
+        if (typeof onConfirm === 'function') {
+            await onConfirm();
+        }
+        return true;
+    }
+    return false;
 };
+
