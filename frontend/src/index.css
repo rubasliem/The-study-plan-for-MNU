@@ -1,8 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap');
 @media print {
-  body {
-    zoom: 1 !important;
-  }
   .no-print,
   .sidebar,
   aside,
@@ -89,7 +86,6 @@
 }
 
 body {
-  zoom: 80%;
   font-family: var(--font-family);
   background-color: var(--bg-main);
   color: var(--text-main);

@@ -106,10 +106,10 @@ const LoginPage = () => {
             {/* Outer Circular Logo Frame */}
             <div 
                 style={{
-                    width: 'min(860px, 120vh, 120vw)',
-                    height: 'min(860px, 120vh, 120vw)',
-                    maxWidth: '140vw',
-                    maxHeight: '140vw',
+                    width: '980px',
+                    height: '980px',
+                    maxWidth: '150vw',
+                    maxHeight: '150vw',
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',
@@ -138,13 +138,13 @@ const LoginPage = () => {
                     }}
                 />
 
-                {/* Inner White Login Circle (Fit within 80% screen height) */}
+                {/* Inner White Login Circle */}
                 <div 
                     style={{
-                        width: 'min(530px, 80vh, 90vw)',
-                        height: 'min(530px, 80vh, 90vw)',
+                        width: '620px',
+                        height: '620px',
                         maxWidth: '92%',
-                        maxHeight: '80vh',
+                        maxHeight: '92%',
                         borderRadius: '50%',
                         backgroundColor: '#ffffff',
                         border: 'none',
@@ -152,30 +152,30 @@ const LoginPage = () => {
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        padding: 'clamp(12px, 2.5vh, 26px) clamp(16px, 3vw, 25px)',
+                        padding: '30px 25px',
                         boxShadow: 'inset 0 0 20px rgba(0,0,0,0.03), 0 12px 35px rgba(0,0,0,0.1)',
                         textAlign: 'center',
                         zIndex: 2
                     }}
                 >
                     {/* Title */}
-                    <h3 className="fw-bold mb-1" style={{ color: '#2e7d32', fontSize: 'clamp(1.35rem, 2.8vh, 1.85rem)', marginTop: '-2px' }}>
+                    <h3 className="fw-bold mb-2" style={{ color: '#2e7d32', fontSize: '2rem', marginTop: '-4px' }}>
                         تسجيل الدخول
                     </h3>
-                    <p className="text-muted mt-0 mb-3" style={{ fontSize: 'clamp(0.72rem, 1.4vh, 0.82rem)', fontWeight: '500', lineHeight: '1.4' }}>
+                    <p className="text-muted  mt-1 mb-4" style={{ fontSize: '0.rem', fontWeight: '500' }}>
                         منظومة إدارة وتوزيع الخطط والأعباء الدراسية <br /> جامعة المنوفية الأهلية
                     </p>
 
                     {error && (
-                        <div className="alert alert-danger py-1 px-3 mb-2 w-100" style={{ fontSize: 'clamp(0.75rem, 1.3vh, 0.85rem)', borderRadius: '15px' }}>
+                        <div className="alert alert-danger py-1 px-3 mb-3 w-100" style={{ fontSize: '0.9rem', borderRadius: '15px' }}>
                             {error}
                         </div>
                     )}
 
                     {/* Form */}
-                    <Form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '320px' }}>
+                    <Form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '350px' }}>
                         {/* Username Input */}
-                        <div className="position-relative mb-2">
+                        <div className="position-relative mb-3">
                             <Form.Control 
                                 type="text" 
                                 placeholder="اسم المستخدم" 
@@ -183,11 +183,11 @@ const LoginPage = () => {
                                 onChange={(e) => setUsername(e.target.value)}
                                 style={{ 
                                     borderRadius: '25px', 
-                                    padding: 'clamp(6px, 1.1vh, 8px) 38px clamp(6px, 1.1vh, 8px) 15px', 
+                                    padding: '9px 38px 9px 15px', 
                                     textAlign: 'right', 
                                     backgroundColor: '#ebf3fc', 
                                     border: '1px solid #d2e3f7',
-                                    fontSize: 'clamp(0.8rem, 1.4vh, 0.86rem)',
+                                    fontSize: '0.88rem',
                                     fontWeight: '500',
                                     color: '#333'
                                 }}
@@ -200,13 +200,13 @@ const LoginPage = () => {
                                     top: '50%', 
                                     transform: 'translateY(-50%)', 
                                     color: '#2e7d32',
-                                    fontSize: '0.9rem'
+                                    fontSize: '0.95rem'
                                 }} 
                             />
                         </div>
 
                         {/* Password Input */}
-                        <div className="position-relative mb-2">
+                        <div className="position-relative mb-3">
                             <Form.Control 
                                 type={showPassword ? 'text' : 'password'} 
                                 placeholder="كلمة المرور" 
@@ -214,11 +214,11 @@ const LoginPage = () => {
                                 onChange={(e) => setPassword(e.target.value)}
                                 style={{ 
                                     borderRadius: '25px', 
-                                    padding: 'clamp(6px, 1.1vh, 8px) 38px clamp(6px, 1.1vh, 8px) 38px', 
+                                    padding: '9px 38px 9px 38px', 
                                     textAlign: 'right', 
                                     backgroundColor: '#ebf3fc', 
                                     border: '1px solid #d2e3f7',
-                                    fontSize: 'clamp(0.8rem, 1.4vh, 0.86rem)',
+                                    fontSize: '0.88rem',
                                     fontWeight: '500',
                                     color: '#333'
                                 }}
@@ -231,7 +231,7 @@ const LoginPage = () => {
                                     top: '50%', 
                                     transform: 'translateY(-50%)', 
                                     color: '#2e7d32',
-                                    fontSize: '0.9rem'
+                                    fontSize: '0.95rem'
                                 }} 
                             />
                             <div 
@@ -243,7 +243,7 @@ const LoginPage = () => {
                                     transform: 'translateY(-50%)', 
                                     cursor: 'pointer',
                                     color: '#2e7d32',
-                                    fontSize: '0.9rem',
+                                    fontSize: '0.95rem',
                                     display: 'flex',
                                     alignItems: 'center'
                                 }}
@@ -258,19 +258,19 @@ const LoginPage = () => {
                             className="w-100 fw-bold text-white shadow-sm login-submit-btn"
                             style={{ 
                                 borderRadius: '25px', 
-                                padding: 'clamp(6px, 1.1vh, 8px)', 
-                                fontSize: 'clamp(0.92rem, 1.8vh, 1.02rem)', 
+                                padding: '9px', 
+                                fontSize: '1.1rem', 
                                 border: 'none' 
                             }}
                         >
                             دخول
                         </Button>
                         {/* Forgot Password Link */}
-                        <div className="text-start mt-1">
+                        <div className="text-start mt-2">
                             <button 
                                 type="button"
                                 className="btn btn-link text-decoration-none p-0" 
-                                style={{ color: '#2e7d32', fontSize: 'clamp(0.72rem, 1.3vh, 0.8rem)' }}
+                                style={{ color: '#2e7d32', fontSize: '0.85rem' }}
                                 onClick={() => {
                                     setShowForgotModal(true);
                                     setForgotStep(1);
@@ -287,7 +287,7 @@ const LoginPage = () => {
                     </Form>
 
                     {/* Footer Copyright */}
-                    <div className="mt-2" style={{ fontSize: 'clamp(0.65rem, 1.2vh, 0.74rem)', color: '#888', lineHeight: '1.4', whiteSpace: 'nowrap' }}>
+                    <div className="mt-4" style={{ fontSize: '0.9rem', color: '#888', lineHeight: '1.8', whiteSpace: 'nowrap' }}>
                         <div>جميع الحقوق محفوظة © 2027/2026</div>
                         <div>صُنِع بواسطة <strong style={{ fontWeight: '700' }}>الفريق الهندسي والتقني</strong> التابع لإدارة <strong style={{ fontWeight: '700' }}>شؤون الطلاب</strong></div>
                     </div>
