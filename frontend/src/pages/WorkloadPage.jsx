@@ -762,10 +762,12 @@ const WorkloadPage = ({ isReadOnly = false }) => {
             <table class="data-table">
               <colgroup>
                 <col style="width: 5%;">
-                <col style="width: 45%;">
-                <col style="width: 15%;">
-                <col style="width: 15%;">
-                <col style="width: 20%;">
+                ${selectedFaculty === "all" ? '<col style="width: 18%;">' : ''}
+                <col style="width: ${selectedFaculty === 'all' ? '27%' : '35%'};">
+                <col style="width: 12%;">
+                <col style="width: 12%;">
+                <col style="width: ${selectedFaculty === 'all' ? '13%' : '18%'};">
+                <col style="width: ${selectedFaculty === 'all' ? '13%' : '18%'};">
               </colgroup>
               <thead>
                 <tr style="border: none !important;">
@@ -774,8 +776,8 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                       <tr style="border: none !important; background: transparent !important;">
                         <td style="width: 22%; text-align: right; vertical-align: top; border: none !important; background: transparent !important; padding: 0; line-height: 1.35; white-space: nowrap;">
                           <div style="font-size: 13.5pt; font-weight: bold; color: #1b5e20;">جامعة المنوفية الأهلية</div>
-                          <div style="font-size: 11pt; font-weight: bold; color: #222; margin-top: 2px;">إدارة شؤون التعليم والطلاب</div>
-                                                <div style="font-size: 10pt; color: #555; margin-top: 2px;">منظومة إدارة وتوزيع الخطط والأعباء الدراسية</div>
+                          <div style="font-size: 11pt; font-weight: bold; color: #222; margin-top: 2px;">منظومة إدارة وتوزيع الخطط والأعباء الدراسية</div>
+                          <div style="font-size: 10pt;  font-weight: bold; color: #555; margin-top: 2px;">إدارة شؤون التعليم والطلاب</div>
                         </td>
                         <td style="width: 56%; text-align: center; vertical-align: top; border: none !important; background: transparent !important; padding: 0; line-height: 1.35;">
                           <div style="font-size: 16pt; font-weight: bold; color: #1b5e20; white-space: nowrap;">بيان المقررات ذات الأسابيع المخصصة (أقل من أسابيع الترم)</div>
@@ -1251,8 +1253,8 @@ const WorkloadPage = ({ isReadOnly = false }) => {
                       <tr style="border: none !important; background: transparent !important;">
                         <td style="width: 22%; text-align: right; vertical-align: top; border: none !important; background: transparent !important; padding: 0; line-height: 1.35; white-space: nowrap;">
                           <div style="font-size: 13.5pt; font-weight: bold; color: #1b5e20;">جامعة المنوفية الأهلية</div>
-                          <div style="font-size: 11pt; font-weight: bold; color: #222; margin-top: 2px;">إدارة شؤون التعليم والطلاب</div>
-                                                <div style="font-size: 10pt; color: #555; margin-top: 2px;">منظومة إدارة وتوزيع الخطط والأعباء الدراسية</div>
+                          <div style="font-size: 11pt; font-weight: bold; color: #222; margin-top: 2px;">منظومة إدارة وتوزيع الخطط والأعباء الدراسية</div>
+                          <div style="font-size: 10pt;  font-weight: bold; color: #555; margin-top: 2px;">إدارة شؤون التعليم والطلاب</div>
                         </td>
                         <td style="width: 56%; text-align: center; vertical-align: top; border: none !important; background: transparent !important; padding: 0; line-height: 1.35;">
                           <div style="font-size: 16pt; font-weight: bold; color: #1b5e20; white-space: nowrap;">بيان استقطاع وتخفيض الساعات التدريسية</div>
@@ -1343,7 +1345,7 @@ const WorkloadPage = ({ isReadOnly = false }) => {
         });
         worksheet.addImage(logoImageId, {
           tl: { col: 0.1, row: 0.2 },
-          ext: { width: 75, height: 75 }
+          ext: { width: 95, height: 95 }
         });
       } catch (e) {
         console.warn('Could not load logo for Excel export', e);
@@ -1356,9 +1358,16 @@ const WorkloadPage = ({ isReadOnly = false }) => {
       titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FF1B5E20' } };
       titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
-      // Subtitle
+      // System Name
       worksheet.mergeCells('B4:G4');
-      const subCell = worksheet.getCell('B4');
+      const sysCell = worksheet.getCell('B4');
+      sysCell.value = 'منظومة إدارة وتوزيع الخطط والأعباء الدراسية - إدارة شؤون الطلاب - جامعة المنوفية الأهلية';
+      sysCell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF1B5E20' } };
+      sysCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+      // Subtitle
+      worksheet.mergeCells('B5:G5');
+      const subCell = worksheet.getCell('B5');
       subCell.value = `العام الجامعي: ${selectedAcademicYear}   |   الفصل الدراسي: ${selectedSemester}   |   تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}`;
       subCell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF555555' } };
       subCell.alignment = { vertical: 'middle', horizontal: 'center' };
@@ -1377,8 +1386,8 @@ const WorkloadPage = ({ isReadOnly = false }) => {
         { key: 'created_by', width: 20 }
       ];
 
-      // Header Row (Row 6)
-      const headerRowIndex = 6;
+      // Header Row (Row 7)
+      const headerRowIndex = 7;
       const headerRow = worksheet.getRow(headerRowIndex);
       headerRow.values = ['#', 'اسم الأستاذ', ...(isAll ? ['الكلية'] : []), 'اسم المقرر', 'الأسبوع المستقطع منه', 'نوع الساعات', 'الساعات المنتقصة', 'سبب الانتقاص', 'سُجل بواسطة'];
       headerRow.font = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };

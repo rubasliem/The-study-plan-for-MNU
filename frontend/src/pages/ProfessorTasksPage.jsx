@@ -9,6 +9,7 @@ import {
 } from 'react-icons/fa';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import logo from '../assets/logo.png';
 import toast from 'react-hot-toast';
 import { confirmAction } from '../utils/confirmAlert';
 
@@ -72,6 +73,26 @@ const customSelectStyles = {
 
 const ProfessorTasksPage = () => {
   const { user } = useContext(AuthContext);
+
+  // Mapping from abbreviation to full academic title
+  const jobTitleMap = {
+    'أ.د': 'أستاذ',
+    'أ.م.د': 'أستاذ مساعد',
+    'أ.م': 'أستاذ',
+    'د': 'مدرس',
+    'م.م': 'مدرس مساعد',
+    'م': 'مدرس',
+    'م.ع': 'معيد',
+    'معيد': 'معيد',
+    'أخصائي': 'أخصائي',
+    'أ': 'أستاذ',
+    'ط': 'طبيب',
+    'ص': 'صيدلي'
+  };
+  const getFullJobTitle = (abbr) => {
+    if (!abbr || !abbr.trim()) return '-';
+    return jobTitleMap[abbr.trim()] || abbr;
+  };
 
   // Filters State
   const [faculties, setFaculties] = useState([]);
@@ -328,71 +349,153 @@ const ProfessorTasksPage = () => {
     }
   };
 
-  // Export Task Table to Excel
+  // Export Task Table to Excel (matching deductions format)
   const handleExportTaskExcel = async (taskName, taskRecords) => {
     try {
       const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet(taskName.substring(0, 31));
+      const worksheet = workbook.addWorksheet(taskName.substring(0, 31), { views: [{ rightToLeft: true }] });
+      const facultyName = currentFacultyName || "كلية غير محددة";
+      const totalHours = taskRecords.reduce((sum, r) => sum + (r.hours || 0), 0);
 
-      worksheet.views = [{ rightToLeft: true }];
+      // Add Logo if available
+      try {
+        const response = await fetch(logo);
+        const blob = await response.blob();
+        const arrayBuffer = await blob.arrayBuffer();
+        const logoImageId = workbook.addImage({
+          buffer: arrayBuffer,
+          extension: 'png',
+        });
+        worksheet.addImage(logoImageId, {
+          tl: { col: 0.1, row: 0.2 },
+          ext: { width: 95, height: 95 }
+        });
+      } catch (e) {
+        console.warn('Could not load logo for Excel export', e);
+      }
 
-      // Title
-      worksheet.mergeCells('A1:G1');
-      const titleCell = worksheet.getCell('A1');
-      titleCell.value = `كشف أعباء ومهام: ${taskName} - ${selectedSemester} (${selectedYear})`;
-      titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
-      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1B5E20' } };
+      // Title Banner
+      worksheet.mergeCells('B2:G3');
+      const titleCell = worksheet.getCell('B2');
+      titleCell.value = `كشف أعباء ومهام: ${taskName} - ${facultyName}`;
+      titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FF1B5E20' } };
       titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-      worksheet.getRow(1).height = 35;
 
-      // Headers
-      const headers = ['م', 'بواسطة', 'اسم عضو هيئة التدريس', 'الوظيفة / الدرجة', 'جهة العمل الأصلية', 'عدد الساعات المحملة', 'ملاحظات'];
-      worksheet.addRow(headers);
-      const headerRow = worksheet.getRow(2);
-      headerRow.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
-      headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2E7D32' } };
+      // System Name
+      worksheet.mergeCells('B4:G4');
+      const sysCell = worksheet.getCell('B4');
+      sysCell.value = 'منظومة إدارة وتوزيع الخطط والأعباء الدراسية - إدارة شؤون الطلاب - جامعة المنوفية الأهلية';
+      sysCell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF1B5E20' } };
+      sysCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+      // Subtitle
+      worksheet.mergeCells('B5:G5');
+      const subCell = worksheet.getCell('B5');
+      subCell.value = `العام الجامعي: ${selectedYear}   |   الفصل الدراسي: ${selectedSemester}   |   تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}`;
+      subCell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF555555' } };
+      subCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+      // Columns Setup
+      worksheet.columns = [
+        { key: 'index', width: 8 },
+        { key: 'prof_name', width: 30 },
+        { key: 'job_title', width: 22 },
+        { key: 'workplace', width: 28 },
+        { key: 'hours', width: 18 },
+        { key: 'notes', width: 30 },
+        { key: 'created_by', width: 25 }
+      ];
+
+      // Header Row (Row 7)
+      const headerRowIndex = 7;
+      const headerRow = worksheet.getRow(headerRowIndex);
+      headerRow.values = ['#', 'اسم عضو هيئة التدريس', 'الدرجة العلمية', 'جهة العمل الأصلية', 'عدد الساعات المحملة', 'ملاحظات', 'سُجل بواسطة'];
+      headerRow.font = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
       headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-      headerRow.height = 25;
+      headerRow.height = 28;
 
-      // Rows
-      let totalHours = 0;
+      headerRow.eachCell((cell) => {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF2E7D32' }
+        };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF1B5E20' } },
+          left: { style: 'thin', color: { argb: 'FF1B5E20' } },
+          bottom: { style: 'medium', color: { argb: 'FF1B5E20' } },
+          right: { style: 'thin', color: { argb: 'FF1B5E20' } }
+        };
+      });
+
+      // Data Rows
       taskRecords.forEach((r, idx) => {
-        totalHours += (r.hours || 0);
         const creatorText = r.created_by_name ? (r.created_by_job ? `${r.created_by_name} (${r.created_by_job})` : r.created_by_name) : '-';
-        const row = worksheet.addRow([
-          idx + 1,
-          creatorText,
-          r.professor_name || '-',
-          r.professor_job_title || '-',
-          r.professor_workplace || '-',
-          r.hours,
-          r.notes || '-'
-        ]);
-        row.alignment = { vertical: 'middle', horizontal: 'center' };
-        row.getCell(3).alignment = { vertical: 'middle', horizontal: 'right' };
+        const abbr = (r.professor_job_title || '').trim();
+        const profDisplayName = abbr ? `${abbr}/ ${r.professor_name || 'غير محدد'}` : (r.professor_name || 'غير محدد');
+        const row = worksheet.addRow({
+          index: idx + 1,
+          prof_name: profDisplayName,
+          job_title: getFullJobTitle(r.professor_job_title),
+          workplace: r.professor_workplace || '-',
+          hours: r.hours,
+          notes: r.notes || '-',
+          created_by: creatorText
+        });
+
         row.height = 22;
+        row.eachCell((cell, colNumber) => {
+          cell.font = { name: 'Arial', size: 10 };
+          cell.alignment = { vertical: 'middle', horizontal: colNumber === 2 ? 'right' : 'center', wrapText: true };
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+            left: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+            bottom: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+            right: { style: 'thin', color: { argb: 'FFDDDDDD' } }
+          };
+          // Highlight hours column
+          if (colNumber === 5) {
+            cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF1B5E20' } };
+          }
+        });
       });
 
       // Total Row
-      const totalRow = worksheet.addRow(['الإجمالي', '', '', '', '', totalHours, `إجمالي عدد الأعضاء: ${taskRecords.length}`]);
-      totalRow.font = { name: 'Arial', size: 11, bold: true };
-      totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F5E9' } };
-      totalRow.alignment = { vertical: 'middle', horizontal: 'center' };
-      totalRow.height = 25;
+      const totalRow = worksheet.addRow({
+        index: '',
+        prof_name: `إجمالي عدد الأعضاء: ${taskRecords.length}`,
+        job_title: '',
+        workplace: '',
+        hours: totalHours,
+        notes: '',
+        created_by: ''
+      });
+      totalRow.height = 26;
+      worksheet.mergeCells(`B${totalRow.number}:D${totalRow.number}`);
 
-      worksheet.columns = [
-        { width: 8 },
-        { width: 25 },
-        { width: 35 },
-        { width: 22 },
-        { width: 25 },
-        { width: 18 },
-        { width: 30 }
-      ];
+      totalRow.eachCell((cell, colNumber) => {
+        cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FF1B5E20' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE8F5E9' }
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'medium', color: { argb: 'FF2E7D32' } },
+          bottom: { style: 'medium', color: { argb: 'FF2E7D32' } },
+          left: { style: 'thin', color: { argb: 'FF2E7D32' } },
+          right: { style: 'thin', color: { argb: 'FF2E7D32' } }
+        };
+        if (colNumber === 5) {
+          cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FF2E7D32' } };
+        }
+      });
 
       const buffer = await workbook.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      saveAs(blob, `كشف_${taskName}_${selectedYear.replace('/', '-')}_${selectedSemester}.xlsx`);
+      const safeFacName = facultyName.replace(/[\/\\:*?"<>|]/g, '_');
+      const safeTaskName = taskName.replace(/[\/\\:*?"<>|]/g, '_');
+      saveAs(new Blob([buffer]), `كشف_${safeTaskName}_${safeFacName}_${selectedYear.replace('/', '-')}_${selectedSemester}.xlsx`);
       toast.success("تم تصدير ملف Excel بنجاح!");
     } catch (err) {
       console.error("Excel export error", err);
@@ -794,7 +897,7 @@ const ProfessorTasksPage = () => {
                             <th style={{ width: '50px' }}>#</th>
                             <th style={{ width: '220px' }}>بواسطة</th>
                             <th className="text-end" style={{ width: '260px' }}>اسم عضو هيئة التدريس</th>
-                            <th style={{ width: '160px' }}>الوظيفة / الدرجة</th>
+                            <th style={{ width: '160px' }}>الدرجة العلمية</th>
                             <th style={{ width: '200px' }}>جهة العمل الأصلية</th>
                             <th style={{ width: '140px' }}>الساعات المحملة</th>
                             <th>ملاحظات وتفاصيل</th>
@@ -824,12 +927,12 @@ const ProfessorTasksPage = () => {
                               <td className="text-end fw-bold text-dark">
                                 <div className="d-flex align-items-center gap-2">
                                   <FaUserTie className="text-success flex-shrink-0" />
-                                  <span>{r.professor_name}</span>
+                                  <span>{r.professor_job_title ? `${r.professor_job_title}/ ` : ''}{r.professor_name}</span>
                                 </div>
                               </td>
                               <td>
                                 <span className="badge bg-light text-dark border px-2 py-1">
-                                  {r.professor_job_title || "-"}
+                                  {getFullJobTitle(r.professor_job_title)}
                                 </span>
                               </td>
                               <td className="text-muted">

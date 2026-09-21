@@ -167,18 +167,6 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
   // Navigation items definition
   const menuItems = [
     {
-      id: 'dashboard',
-      label: 'الجدول الرئيسي',
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect width="7" height="9" x="3" y="3" rx="1" />
-          <rect width="7" height="5" x="14" y="3" rx="1" />
-          <rect width="7" height="9" x="14" y="12" rx="1" />
-          <rect width="7" height="5" x="3" y="16" rx="1" />
-        </svg>
-      )
-    },
-    {
       id: 'professors',
       label: 'أعضاء هيئة التدريس',
       icon: (
@@ -201,6 +189,16 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
         </svg>
       )
     },
+        {
+      id: 'signatures',
+      label: 'توقيعات المسؤولين',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 19v-4a2 2 0 0 0-2-2h-3l-2.5 2.5a2 2 0 0 1-2.8 0L7 13H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2Z" />
+          <path d="M14 2h-4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2Z" />
+        </svg>
+      )
+    },
     {
       id: 'study-plan',
       label: 'الخطة الدراسية',
@@ -219,7 +217,17 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
         </svg>
       )
     },
-    {
+      {
+      id: 'statistics',
+      label: 'الإحصائيات',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 3v18h18" />
+          <path d="m19 9-5 5-4-4-3 3" />
+        </svg>
+      )
+    },
+        {
       id: 'workload',
       label: 'تحديد الأعباء',
       icon: (
@@ -233,34 +241,26 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
       )
     },
     {
+      id: 'dashboard',
+      label: 'الجدول الرئيسي',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect width="7" height="9" x="3" y="3" rx="1" />
+          <rect width="7" height="5" x="14" y="3" rx="1" />
+          <rect width="7" height="9" x="14" y="12" rx="1" />
+          <rect width="7" height="5" x="3" y="16" rx="1" />
+        </svg>
+      )
+    },
+    {
       id: 'professor-workloads',
-      label: 'أعباء إضافية للأساتذة',
+      label: 'أعمال إضافية للأساتذة',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
           <circle cx="9" cy="7" r="4" />
           <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        </svg>
-      )
-    },
-    {
-      id: 'signatures',
-      label: 'توقيعات المسؤولين',
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20 19v-4a2 2 0 0 0-2-2h-3l-2.5 2.5a2 2 0 0 1-2.8 0L7 13H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2Z" />
-          <path d="M14 2h-4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2Z" />
-        </svg>
-      )
-    },
-    {
-      id: 'statistics',
-      label: 'الإحصائيات',
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 3v18h18" />
-          <path d="m19 9-5 5-4-4-3 3" />
         </svg>
       )
     },

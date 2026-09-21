@@ -3605,7 +3605,7 @@ ${renderProfSignaturesHTML(fids)}
           table { border-collapse: collapse; direction: rtl; }
           th, td { border: 1px solid #333333; padding: 8px 25px; text-align: center; vertical-align: middle; }
           tr { height: 35px; }
-          th { background-color: transparent; color: #ffffff; font-weight: bold; font-size: 18px; }
+          th { background-color: #2E7D32; color: #ffffff; font-weight: bold; font-size: 18px; }
           td { font-size: 20px; mso-data-placement:same-cell; white-space: nowrap; color: #4a4a4a; }
           .header-row { font-size: 30px; font-weight: bold; color: #2e7d32; text-align: center; border: none; }
           .logo-cell { text-align: left; border: none; }
@@ -3645,7 +3645,7 @@ ${renderProfSignaturesHTML(fids)}
             </td>
           </tr>
           <tr>
-            ${headers.map(h => `<th style="background-color: transparent; color: #ffffff;">${h}</th>`).join("")}
+            ${headers.map(h => `<th style="background-color: #2E7D32; color: #ffffff;">${h}</th>`).join("")}
           </tr>
           ${excelRowsHtml}
           ${renderProfSignaturesExcelHTML(fids, headers.length)}
@@ -5758,322 +5758,233 @@ ${renderProfSignaturesHTML(fids)}
 
             <div className="d-flex flex-column gap-3 mb-2">
 
-              <div className="d-flex align-items-center flex-wrap gap-3">
+              {/* الصف الأول (4 عناصر متوازنة) */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '12px 14px',
+              }}>
 
-                <input
+                {/* 1. حقل البحث */}
+                <div>
+                  <input
+                    className="form-control"
+                    placeholder="بحث باسم الأستاذ /وظيفته/ الكلية"
+                    value={printSearchTerm}
+                    onChange={(e) => setPrintSearchTerm(e.target.value)}
+                  />
+                </div>
 
-                  className="form-control w-100"
-                  placeholder="بحث باسم الأستاذ /وظيفته/ الكلية"
-                  value={printSearchTerm}
-                  onChange={(e) => setPrintSearchTerm(e.target.value)}
-                />
-                
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 auto' }}>
-
-                  <label style={{ margin: 0, fontWeight: 'bold', whiteSpace: 'nowrap' }}>الدرجة العلمية:</label>
-
+                {/* 2. الكلية */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <label style={{ margin: 0, fontWeight: 'bold', whiteSpace: 'nowrap', minWidth: '95px' }}>الكلية:</label>
                   <select
+                    className="form-select"
+                    value={printFacultyFilter}
+                    onChange={(e) => setPrintFacultyFilter(e.target.value)}
+                    style={{ flex: 1, minWidth: 0 }}
+                  >
+                    <option value="الكل">جميع الكليات</option>
+                    {faculties.map(f => (
+                      <option key={f.id} value={f.id}>{f.name}</option>
+                    ))}
+                  </select>
+                </div>
 
-                    className="form-select flex-fill"
+                {/* 3. الدرجة العلمية */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <label style={{ margin: 0, fontWeight: 'bold', whiteSpace: 'nowrap', minWidth: '95px' }}>الدرجة العلمية:</label>
+                  <select
+                    className="form-select"
                     value={printJobTitleFilter}
                     onChange={(e) => setPrintJobTitleFilter(e.target.value)}
+                    style={{ flex: 1, minWidth: 0 }}
                   >
-
-                    <option value="الكل">الكل</option>
-
+                    <option value="الكل">جميع الدرجات العلمية</option>
                     <option value="أ.م">أستاذ (أ.م)</option>
-
                     <option value="أ.م.د">أستاذ مساعد (أ.م.د)</option>
-
                     <option value="د">مدرس (د)</option>
-
                     <option value="م.م">مدرس مساعد (م.م)</option>
-
                     <option value="معيد">معيد</option>
-
                     <option value="أخصائي">أخصائي</option>
-
                   </select>
-
                 </div>
 
-
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 auto' }}>
-
-                  <label style={{ margin: 0, fontWeight: 'bold', whiteSpace: 'nowrap' }}>نوع التعاقد:</label>
-
+                {/* 4. نوع التعاقد */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <label style={{ margin: 0, fontWeight: 'bold', whiteSpace: 'nowrap', minWidth: '115px' }}>نوع التعاقد:</label>
                   <select
-
                     className="form-select"
-
                     value={printContractFilter}
-
                     onChange={(e) => setPrintContractFilter(e.target.value)}
-
-                    style={{ flex: '1 1 auto' }}
-
+                    style={{ flex: 1, minWidth: 0 }}
                   >
-
-                    <option value="الكل">الكل</option>
-
+                    <option value="الكل">جميع انواع التعاقدات</option>
                     <option value="تعاقد كلي">تعاقد كلي</option>
-
                     <option value="تعاقد جزئي">تعاقد جزئي</option>
-
                     <option value="تعاقد بالساعة">تعاقد بالساعة</option>
-
                     <option value="بدون تعاقد">بدون تعاقد</option>
-
                   </select>
-
-                </div>
-
-
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '380px' }}>
-
-                  <label style={{ margin: 0, fontWeight: 'bold', whiteSpace: 'nowrap' }}>الكلية:</label>
-
-                  <select
-
-                    className="form-select"
-
-                    value={printFacultyFilter}
-
-                    onChange={(e) => setPrintFacultyFilter(e.target.value)}
-
-                    style={{ minWidth: '300px' }}
-
-                  >
-
-                    <option value="الكل">الكل</option>
-
-                    {faculties.map(f => (
-
-                      <option key={f.id} value={f.id}>{f.name}</option>
-
-                    ))}
-
-                  </select>
-
                 </div>
 
               </div>
 
+              {/* الصف الثاني (4 عناصر متوازنة) */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '12px 14px',
+              }}>
 
-
-              <div className="d-flex align-items-center flex-wrap gap-3">
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 auto' }}>
-
-                  <label style={{ margin: 0, fontWeight: 'bold', whiteSpace: 'nowrap' }}>العام الجامعي:</label>
-
+                {/* 5. العام الجامعي */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <label style={{ margin: 0, fontWeight: 'bold', whiteSpace: 'nowrap', minWidth: '85px' }}>العام الجامعي:</label>
                   <select
-
                     className="form-select"
-
                     value={exportAcademicYear}
-
                     onChange={(e) => setExportAcademicYear(e.target.value)}
-
-                    style={{ width: '170px' }}
-
+                    style={{ flex: 1, minWidth: 0 }}
                   >
-
                     <option value="الكل">جميع الأعوام</option>
-
                     {academicYears.map(y => (
-
                       <option key={`exp-${y.id}`} value={y.name}>{y.name}</option>
-
                     ))}
-
                   </select>
-
                 </div>
 
-
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '180px' }}>
-
-                  <label style={{ margin: 0, fontWeight: 'bold', whiteSpace: 'nowrap' }}>المستوى:</label>
-
+                {/* 6. الفصل الدراسي */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <label style={{ margin: 0, fontWeight: 'bold', whiteSpace: 'nowrap', minWidth: '95px' }}>الفصل الدراسي:</label>
                   <select
-
                     className="form-select"
-
-                    value={exportLevel}
-
-                    onChange={(e) => setExportLevel(e.target.value)}
-
-                    style={{ width: '145px' }}
-
-                  >
-
-                    <option value="الكل">الكل</option>
-
-                    <option value="عام">عام</option>
-
-                    <option value="الأول">الأول</option>
-
-                    <option value="الثاني">الثاني</option>
-
-                    <option value="الثالث">الثالث</option>
-
-                    <option value="الرابع">الرابع</option>
-
-                    <option value="الخامس">الخامس</option>
-
-                  </select>
-
-                </div>
-
-
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '200px' }}>
-
-                  <label style={{ margin: 0, fontWeight: 'bold', whiteSpace: 'nowrap' }}>الفصل الدراسي:</label>
-
-                  <select
-
-                    className="form-select"
-
                     value={exportSemester}
-
                     onChange={(e) => setExportSemester(e.target.value)}
-
-                    style={{ width: '145px' }}
-
+                    style={{ flex: 1, minWidth: 0 }}
                   >
-
-                    <option value="الكل">الكل</option>
-
-                    <option value="أول">أول</option>
-
-                    <option value="ثاني">ثاني</option>
-
-                    <option value="صيفي">صيفي</option>
-
+                    <option value="الكل">جميع الفصول الدراسية</option>
+                    <option value="أول">الفصل الدراسي الأول</option>
+                    <option value="ثاني">الفصل الدراسي الثاني</option>
+                    <option value="صيفي">الفصل الدراسي الصيفي</option>
                   </select>
-
                 </div>
 
-
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '320px' }}>
-
-                  <label style={{ margin: 0, fontWeight: 'bold', whiteSpace: 'nowrap' }}>بيانات غير مكتملة:</label>
-
+                {/* 7. المستوى */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <label style={{ margin: 0, fontWeight: 'bold', whiteSpace: 'nowrap', minWidth: '95px' }}>المستوى:</label>
                   <select
-
                     className="form-select"
-
-                    value={printIncompleteFilter}
-
-                    onChange={(e) => setPrintIncompleteFilter(e.target.value)}
-
-                    style={{ minWidth: '220px' }}
-
+                    value={exportLevel}
+                    onChange={(e) => setExportLevel(e.target.value)}
+                    style={{ flex: 1, minWidth: 0 }}
                   >
-
-                    <option value="">الكل</option>
-
-                    <option value="phone">رقم الهاتف</option>
-
-                    <option value="email">الاميل</option>
-
-                    <option value="workplace">جهة العمل</option>
-
-                    <option value="job_title">الدرجة العلمية</option>
-
-                    <option value="contract_type">نوع التعاقد</option>
-
-                    <option value="faculty">الكلية التابع لها</option>
-
-                    <option value="mnu_job_title">طبيعة العمل داخل MNU</option>
-
-                    <option value="weeks">أسابيع الحضور</option>
-
+                    <option value="الكل">جميع المستويات</option>
+                    <option value="عام">المستوى العام</option>
+                    <option value="الأول">المستوى الأول</option>
+                    <option value="الثاني">المستوى الثاني</option>
+                    <option value="الثالث">المستوى الثالث</option>
+                    <option value="الرابع">المستوى الرابع</option>
+                    <option value="الخامس">المستوى الخامس</option>
                   </select>
-
                 </div>
 
-                  
-
-                  {(printSearchTerm !== "" || printFacultyFilter !== "الكل" || printJobTitleFilter !== "الكل" || printContractFilter !== "الكل" || printIncompleteFilter !== "" || exportAcademicYear !== "الكل" || exportSemester !== "الكل" || exportLevel !== "الكل") && (
-
-                    <Button
-
-                      variant="outline-secondary"
-
-                      size="sm"
-
-                      onClick={() => {
-
-                        setPrintSearchTerm("");
-
-                        setPrintFacultyFilter("الكل");
-
-                        setPrintJobTitleFilter("الكل");
-
-                        setPrintContractFilter("الكل");
-
-                        setPrintIncompleteFilter("");
-
-                        setExportAcademicYear("الكل");
-
-                        setExportSemester("الكل");
-
-                        setExportLevel("الكل");
-
-                      }}
-
-                      style={{ whiteSpace: 'nowrap', marginRight: '28px' , height: '35px'}}
-
-                    >
-
-                      إزالة الفلاتر
-
-                    </Button>
-
-                  )}
-
+                {/* 8. بيانات غير مكتملة */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <label style={{ margin: 0, fontWeight: 'bold', whiteSpace: 'nowrap', minWidth: '115px' }}>بيانات غير مكتملة:</label>
+                  <select
+                    className="form-select"
+                    value={printIncompleteFilter}
+                    onChange={(e) => setPrintIncompleteFilter(e.target.value)}
+                    style={{ flex: 1, minWidth: 0 }}
+                  >
+                    <option value="">جميع البيانات الغير مكتملة</option>
+                    <option value="phone">رقم الهاتف</option>
+                    <option value="email">الاميل</option>
+                    <option value="workplace">جهة العمل</option>
+                    <option value="job_title">الدرجة العلمية</option>
+                    <option value="contract_type">نوع التعاقد</option>
+                    <option value="faculty">الكلية التابع لها</option>
+                    <option value="mnu_job_title">طبيعة العمل داخل MNU</option>
+                    <option value="weeks">أسابيع الحضور</option>
+                  </select>
                 </div>
 
               </div>
 
             </div>
 
-            <div className="d-flex gap-2 mb-3 mt-3">
+          </div>
 
-              <Button
+            <div className="d-flex justify-content-between align-items-center mb-3 mt-3">
 
-                variant="outline-primary"
+              <div className="d-flex gap-2">
 
-                size="sm"
+                <Button
 
-                onClick={() => setSelectedRows(filteredPrint.map(p => p.id))}
+                  variant="outline-primary"
 
-              >
+                  size="sm"
 
-                تحديد الكل
+                  onClick={() => setSelectedRows(filteredPrint.map(p => p.id))}
 
-              </Button>
+                >
 
-              <Button
+                  تحديد الكل
 
-                variant="outline-secondary"
+                </Button>
 
-                size="sm"
+                <Button
 
-                onClick={() => setSelectedRows([])}
+                  variant="outline-secondary"
 
-              >
+                  size="sm"
 
-                إلغاء تحديد الكل
+                  onClick={() => setSelectedRows([])}
 
-              </Button>
+                >
+
+                  إلغاء تحديد الكل
+
+                </Button>
+
+              </div>
+
+              {(printSearchTerm !== "" || printFacultyFilter !== "الكل" || printJobTitleFilter !== "الكل" || printContractFilter !== "الكل" || printIncompleteFilter !== "" || exportAcademicYear !== "الكل" || exportSemester !== "الكل" || exportLevel !== "الكل") && (
+
+                <Button
+
+                  variant="outline-secondary"
+
+                  size="sm"
+
+                  onClick={() => {
+
+                    setPrintSearchTerm("");
+
+                    setPrintFacultyFilter("الكل");
+
+                    setPrintJobTitleFilter("الكل");
+
+                    setPrintContractFilter("الكل");
+
+                    setPrintIncompleteFilter("");
+
+                    setExportAcademicYear("الكل");
+
+                    setExportSemester("الكل");
+
+                    setExportLevel("الكل");
+
+                  }}
+
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+
+                >
+
+                  إزالة الفلاتر
+
+                </Button>
+
+              )}
 
             </div>
 

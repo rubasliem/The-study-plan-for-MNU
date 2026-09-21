@@ -180,8 +180,8 @@ const getFormattedProfName = (profObj) => {
 
   // Strip preexisting title prefix ONLY if explicitly followed by slash/dot or title word e.g. "د/ " or "أ.د." or "دكتور "
   rawName = rawName.replace(/^(أ\.د|أ\.م\.د|أ\.م|م\.م|د|م)\s*[\/\.]\s*/, "")
-                   .replace(/^(أ\.د|أ\.م\.د|أ\.م|م\.م|دكتور|دكتورة|أستاذ|استاذ)\s+/i, "")
-                   .trim();
+    .replace(/^(أ\.د|أ\.م\.د|أ\.م|م\.م|دكتور|دكتورة|أستاذ|استاذ)\s+/i, "")
+    .trim();
 
   const abbr = getJobTitleAbbr(profObj.job_title);
   return abbr ? `${abbr} / ${rawName}` : rawName;
@@ -6713,8 +6713,8 @@ ${signaturesHtml}
           </Alert>
           <Form.Group className="mb-3">
             <Form.Label className="fw-bold">اختر العام الجامعي المصدر (المراد النسخ منه):</Form.Label>
-            <Form.Select 
-              value={sourceAcademicYear} 
+            <Form.Select
+              value={sourceAcademicYear}
               onChange={e => {
                 const newYear = e.target.value;
                 setSourceAcademicYear(newYear);
@@ -6745,8 +6745,8 @@ ${signaturesHtml}
           </Form.Group>
           <Form.Group className="mb-3">
             <Form.Label className="fw-bold">اختر الفصل الدراسي المصدر:</Form.Label>
-            <Form.Select 
-              value={sourceSemester} 
+            <Form.Select
+              value={sourceSemester}
               onChange={e => {
                 setSourceSemester(e.target.value);
                 setSelectedSourceCourses([]);
@@ -6768,9 +6768,9 @@ ${signaturesHtml}
               </Form.Label>
               {sourcePlanCourses.length > 0 && (
                 <div className="d-flex align-items-center gap-1">
-                  <Button 
-                    variant="link" 
-                    size="sm" 
+                  <Button
+                    variant="link"
+                    size="sm"
                     className="p-0 text-decoration-none fw-bold text-success me-2"
                     style={{ fontSize: '0.8rem' }}
                     onClick={() => setSelectedSourceCourses(sourcePlanCourses)}
@@ -6778,9 +6778,9 @@ ${signaturesHtml}
                     تحديد الكل ({sourcePlanCourses.length})
                   </Button>
                   {selectedSourceCourses.length > 0 && (
-                    <Button 
-                      variant="link" 
-                      size="sm" 
+                    <Button
+                      variant="link"
+                      size="sm"
                       className="p-0 text-decoration-none fw-bold text-danger"
                       style={{ fontSize: '0.8rem' }}
                       onClick={() => setSelectedSourceCourses([])}
@@ -6801,8 +6801,8 @@ ${signaturesHtml}
                 loadingSourceCourses
                   ? "جاري فحص وتحميل المقررات..."
                   : sourcePlanCourses.length === 0
-                  ? "لا توجد مقررات مسجلة في هذا الفصل/العام"
-                  : "حدد مقررات معينة (أو اتركها فارغة لنسخ كل المقررات)..."
+                    ? "لا توجد مقررات مسجلة في هذا الفصل/العام"
+                    : "حدد مقررات معينة (أو اتركها فارغة لنسخ كل المقررات)..."
               }
               isLoading={loadingSourceCourses}
               isDisabled={loadingSourceCourses || sourcePlanCourses.length === 0}
@@ -6852,11 +6852,11 @@ ${signaturesHtml}
           </Form.Group>
         </Modal.Body>
         <Modal.Footer className="d-flex justify-content-between">
-          <Button 
-            variant="success" 
-            className="fw-bold px-4 d-flex align-items-center gap-2" 
-            onClick={handleExecuteCopyPlan} 
-            disabled={copyingPlan || loadingSourceCourses} 
+          <Button
+            variant="success"
+            className="fw-bold px-4 d-flex align-items-center gap-2"
+            onClick={handleExecuteCopyPlan}
+            disabled={copyingPlan || loadingSourceCourses}
             style={{ backgroundColor: "#15803d", borderColor: "#15803d" }}
           >
             {copyingPlan ? (
