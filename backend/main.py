@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, status, Request
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, status, Request, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Optional, List
 from fastapi.middleware.cors import CORSMiddleware
@@ -4613,6 +4613,30 @@ def save_workload_limits(
         "count": len(saved_limits),
         "limit": saved_limits[0] if saved_limits else None
     }
+
+@app.delete("/api/workload/limits")
+def delete_workload_limits(
+    faculty_ids: str = Query(..., description="Comma-separated faculty IDs to delete"),
+    academic_year: str = Query(...),
+    semester: str = Query(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if current_user.role in [models.UserRole.faculty_admin, models.UserRole.student_affairs, models.UserRole.reviewer] and not getattr(current_user, 'perm_view_professors_load', False):
+        raise HTTPException(status_code=403, detail="لا تمتلك صلاحية تعديل حدود الأعباء التدريسية")
+
+    ids_to_delete = [int(x.strip()) for x in faculty_ids.split(",") if x.strip().isdigit()]
+    if not ids_to_delete:
+        raise HTTPException(status_code=400, detail="لا توجد كليات لحذفها")
+
+    deleted = db.query(models.FacultyWorkloadLimit).filter(
+        models.FacultyWorkloadLimit.faculty_id.in_(ids_to_delete),
+        models.FacultyWorkloadLimit.academic_year == academic_year,
+        models.FacultyWorkloadLimit.semester == semester
+    ).delete(synchronize_session=False)
+    db.commit()
+
+    return {"message": f"تم حذف {deleted} سجل بنجاح", "deleted_count": deleted}
 
 @app.get("/api/workload/professor-courses")
 def get_workload_professor_courses(

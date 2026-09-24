@@ -343,13 +343,51 @@ const ControlPanelPage = () => {
             toast.error("يجب الإبقاء على قاعدة واحدة على الأقل");
             return;
         }
-        setRuleGroups(prev => prev.filter(g => g.id !== groupId));
-        toast.success("تم حذف القاعدة بنجاح");
+        const groupToRemove = ruleGroups.find(g => g.id === groupId);
+        const facultiesToRestore = groupToRemove?.faculties || [];
+
+        setRuleGroups(prev => {
+            const remaining = prev.filter(g => g.id !== groupId);
+            if (facultiesToRestore.length > 0 && remaining.length > 0) {
+                // Return the faculties of the deleted rule back to the first rule group (القاعدة العامة)
+                const firstGroup = remaining[0];
+                const existingValues = new Set((firstGroup.faculties || []).map(f => String(f.value)));
+                const missing = facultiesToRestore.filter(f => !existingValues.has(String(f.value)));
+                const updatedFirst = {
+                    ...firstGroup,
+                    faculties: [...(firstGroup.faculties || []), ...missing]
+                };
+                return [updatedFirst, ...remaining.slice(1)].map((g, idx) => ({
+                    ...g,
+                    title: idx === 0 ? (g.title?.includes("العامة") ? g.title : `القاعدة 1 (الكليات العامة)`) : `القاعدة ${idx + 1}`
+                }));
+            }
+            return remaining.map((g, idx) => ({
+                ...g,
+                title: idx === 0 ? (g.title?.includes("العامة") ? g.title : `القاعدة 1 (الكليات العامة)`) : `القاعدة ${idx + 1}`
+            }));
+        });
+        toast.success("تم حذف القاعدة بنجاح ونقل كلياتها إلى القاعدة العامة");
     };
 
     // Update fields in a specific rule group
     const handleUpdateRuleGroup = (groupId, field, value) => {
-        setRuleGroups(prev => prev.map(g => g.id === groupId ? { ...g, [field]: value } : g));
+        setRuleGroups(prev => {
+            if (field === 'faculties') {
+                const selectedValues = new Set((value || []).map(o => String(o.value)));
+                return prev.map(g => {
+                    if (g.id === groupId) {
+                        return { ...g, faculties: value || [] };
+                    }
+                    // Remove selected faculties from other groups so a faculty isn't duplicated across rules
+                    return {
+                        ...g,
+                        faculties: (g.faculties || []).filter(f => !selectedValues.has(String(f.value)))
+                    };
+                });
+            }
+            return prev.map(g => g.id === groupId ? { ...g, [field]: value } : g);
+        });
     };
 
     // Insert token into formula input for a specific group at cursor position
@@ -429,7 +467,7 @@ const ControlPanelPage = () => {
                             matched.forEach(m => assignedFacultyIds.add(Number(m.value)));
                             loadedGroups.push({
                                 id: `rule-${gIndex}`,
-                                title: `القاعدة ${gIndex}`,
+                                title: gIndex === 1 ? `القاعدة 1 (الكليات العامة)` : `القاعدة ${gIndex}`,
                                 faculties: matched,
                                 facultyFormula: data.facultyFormula,
                                 assistantFormula: data.assistantFormula,
@@ -440,22 +478,30 @@ const ControlPanelPage = () => {
                         }
                     });
 
-                    // Add any remaining accessible faculties that are not yet saved
+                    // Add any remaining accessible faculties that are not yet saved to the first rule group (القاعدة العامة)
+                    // instead of creating an unwanted separate rule group
                     const unassigned = accessibleLimitFaculties
                         .filter(f => !assignedFacultyIds.has(f.id))
                         .map(f => ({ value: String(f.id), label: f.name }));
 
                     if (unassigned.length > 0) {
-                        const nextIdx = loadedGroups.length + 1;
-                        loadedGroups.push({
-                            id: `rule-${nextIdx}`,
-                            title: `القاعدة ${nextIdx}`,
-                            faculties: unassigned,
-                            facultyFormula: DEFAULT_FACULTY_FORMULA,
-                            assistantFormula: DEFAULT_ASSISTANT_FORMULA,
-                            facultyRoles: [...DEFAULT_FACULTY_ROLES],
-                            assistantRoles: [...DEFAULT_ASSISTANT_ROLES]
-                        });
+                        if (loadedGroups.length > 0) {
+                            const existingIds = new Set((loadedGroups[0].faculties || []).map(f => String(f.value)));
+                            const toAdd = unassigned.filter(f => !existingIds.has(String(f.value)));
+                            if (toAdd.length > 0) {
+                                loadedGroups[0].faculties = [...(loadedGroups[0].faculties || []), ...toAdd];
+                            }
+                        } else {
+                            loadedGroups.push({
+                                id: 'rule-1',
+                                title: 'القاعدة 1 (الكليات العامة)',
+                                faculties: unassigned,
+                                facultyFormula: DEFAULT_FACULTY_FORMULA,
+                                assistantFormula: DEFAULT_ASSISTANT_FORMULA,
+                                facultyRoles: [...DEFAULT_FACULTY_ROLES],
+                                assistantRoles: [...DEFAULT_ASSISTANT_ROLES]
+                            });
+                        }
                     }
 
                     if (loadedGroups.length > 0) {
@@ -500,6 +546,34 @@ const ControlPanelPage = () => {
 
         setWorkloadLimitsSaving(true);
         try {
+            // Collect all faculty IDs that should be kept (from current rule groups)
+            const keptFacultyIds = new Set();
+            for (const group of ruleGroups) {
+                for (const f of group.faculties) {
+                    keptFacultyIds.add(parseInt(f.value));
+                }
+            }
+
+            // Find faculty IDs that exist in DB but are NOT in current rule groups (i.e., deleted)
+            const allAccessibleIds = accessibleLimitFaculties.map(f => f.id);
+            const removedIds = allAccessibleIds.filter(id => !keptFacultyIds.has(id));
+
+            // Delete removed faculty limits from DB
+            if (removedIds.length > 0) {
+                try {
+                    await axios.delete(`${API}/api/workload/limits`, {
+                        params: {
+                            faculty_ids: removedIds.join(','),
+                            academic_year: selectedLimitYear,
+                            semester: selectedLimitSemester
+                        }
+                    });
+                } catch (delErr) {
+                    console.warn("Error deleting removed limits (may not exist yet):", delErr);
+                }
+            }
+
+            // Save remaining rule groups
             let totalSavedFaculties = 0;
             for (const group of ruleGroups) {
                 const facultyIds = group.faculties.map(f => parseInt(f.value));
