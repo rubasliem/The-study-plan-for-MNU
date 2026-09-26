@@ -675,7 +675,12 @@ const StudyPlanPage = () => {
       (
         (c.name_ar && selected.name_ar && c.name_ar.trim().toLowerCase() === selected.name_ar.trim().toLowerCase()) ||
         (c.name_en && selected.name_en && c.name_en.trim().toLowerCase() === selected.name_en.trim().toLowerCase()) ||
-        (c.code && selected.code && c.code.trim().toLowerCase() === selected.code.trim().toLowerCase())
+        (
+          c.code && selected.code &&
+          c.code.trim().toLowerCase() === selected.code.trim().toLowerCase() &&
+          (!c.name_ar || !selected.name_ar || c.name_ar.trim().toLowerCase() === selected.name_ar.trim().toLowerCase()) &&
+          (!c.name_en || !selected.name_en || c.name_en.trim().toLowerCase() === selected.name_en.trim().toLowerCase())
+        )
       )
     );
   };
@@ -769,8 +774,8 @@ const StudyPlanPage = () => {
 
       if (arName && code) addedKeys.add(`${arName}__${code}`);
       if (enName && code) addedKeys.add(`${enName}__${code}`);
-      if (code) addedKeys.add(`code__${code}`);
-      if (arName) addedKeys.add(`name__${arName}`);
+      if (arName && !code) addedKeys.add(`name_only__${arName}`);
+      if (enName && !code) addedKeys.add(`name_only__${enName}`);
     });
 
     // إضافة كافة المقررات المتكافئة للمقررات المضافة
@@ -800,8 +805,8 @@ const StudyPlanPage = () => {
         (addedCourseIds.has(cIdStr) ||
           (arLower && codeLower && addedKeys.has(`${arLower}__${codeLower}`)) ||
           (enLower && codeLower && addedKeys.has(`${enLower}__${codeLower}`)) ||
-          (arLower && addedKeys.has(`name__${arLower}`)) ||
-          (codeLower && addedKeys.has(`code__${codeLower}`))
+          (!codeLower && arLower && addedKeys.has(`name_only__${arLower}`)) ||
+          (!codeLower && enLower && addedKeys.has(`name_only__${enLower}`))
         ) && !currentEditingIds.has(cIdStr)
       );
 
@@ -848,9 +853,18 @@ const StudyPlanPage = () => {
     setEditingCourseId(null);
   };
 
-  const openModal = () => {
+  const openModal = async () => {
     resetModal();
     setShowModal(true);
+    if (selectedFaculty) {
+      try {
+        const coursesRes = await axios.get(`${API}/api/courses`);
+        const facultyCourses = (coursesRes.data || []).filter(c => String(c.faculty_id) === String(selectedFaculty));
+        setCourses(facultyCourses);
+      } catch (err) {
+        console.warn("Could not silently refresh courses:", err);
+      }
+    }
   };
 
   const handleFacultyChange = (e) => {
