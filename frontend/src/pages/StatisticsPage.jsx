@@ -724,16 +724,18 @@ const StatisticsPage = () => {
                                                             return (
                                                                 <div dir="rtl" style={{ 
                                                                     position: 'absolute',
-                                                                    top: '-40px',
+                                                                    top: '-160px',
                                                                     left: `${coordX}px`,
                                                                     transform: 'translateX(-50%)',
                                                                     background: '#fff', 
                                                                     border: '1px solid #e0e0e0',
                                                                     borderRadius: '8px',
-                                                                    boxShadow: '0 6px 20px rgba(0,0,0,0.15)',
-                                                                    padding: '14px 18px',
+                                                                    boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                                                                    padding: '12px 18px',
                                                                     width: `${tooltipWidthNum}px`,
                                                                     maxWidth: '94vw',
+                                                                    maxHeight: '530px',
+                                                                    overflowY: 'auto'
                                                                 }}>
                                                                     {/* Header */}
                                                                     <div style={{ borderBottom: '2px solid #c89e5a', paddingBottom: '6px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
