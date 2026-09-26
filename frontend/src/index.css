@@ -925,4 +925,75 @@ h1, h2, h3, h4, h5, h6, .modal-title, .h1, .h2, .h3, .h4, .h5, .h6 {
   color: #ffffff !important;
   box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.5) !important;
   transform: scale(0.97);
-}
+}
+
+/* ── تصميم رسائل التأكيد والـ Pop-up (SweetAlert2) بشكل متناسق ومريح للعين ── */
+.swal2-popup {
+  font-family: 'Cairo', sans-serif !important;
+  border-radius: 16px !important;
+}
+
+.swal2-popup.swal-custom-popup {
+  padding: 1.25rem 1.5rem 1.35rem 1.5rem !important;
+  max-width: 92vw !important;
+  box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.12), 0 8px 15px -6px rgba(0, 0, 0, 0.06) !important;
+  border: 1px solid #f1f5f9 !important;
+}
+
+/* تصغير أيقونة التحذير الدائرية لتناسب حجم النافذة */
+.swal2-icon.swal-custom-icon,
+.swal2-popup .swal2-icon {
+  width: 3.25rem !important;
+  height: 3.25rem !important;
+  margin: 0.5rem auto 0.75rem auto !important;
+  border-width: 2.5px !important;
+}
+
+.swal2-icon.swal-custom-icon .swal2-icon-content,
+.swal2-popup .swal2-icon .swal2-icon-content {
+  font-size: 1.85rem !important;
+}
+
+/* تصغير نص السؤال/العنوان وجعله عادي/متوسط وليس Bold عريض وضخم */
+.swal2-title.swal-custom-title,
+.swal2-popup .swal2-title {
+  font-size: 1.05rem !important;
+  font-weight: 500 !important; /* ليس bold ثقيل */
+  color: #1e293b !important;
+  margin: 0.25rem 0 0.5rem 0 !important;
+  padding: 0 !important;
+  line-height: 1.6 !important;
+  text-align: center !important;
+}
+
+/* نص التفاصيل الإضافية إن وجد */
+.swal2-html-container.swal-custom-html,
+.swal2-popup .swal2-html-container {
+  font-size: 0.88rem !important;
+  font-weight: 400 !important;
+  color: #64748b !important;
+  margin: 0.25rem 0 0.6rem 0 !important;
+  line-height: 1.5 !important;
+  text-align: center !important;
+}
+
+/* تنسيق أزرار نعم / إلغاء بحجم متناسق وأنيق */
+.swal-custom-actions,
+.swal2-popup .swal2-actions {
+  margin-top: 1rem !important;
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+  gap: 0.65rem !important;
+}
+
+.swal-custom-actions .btn,
+.swal2-popup .swal2-actions button {
+  font-size: 0.88rem !important;
+  padding: 0.38rem 1.4rem !important;
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+  min-width: 80px !important;
+  transition: all 0.15s ease-in-out !important;
+}
+

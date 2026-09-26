@@ -5,8 +5,8 @@ export const confirmAction = async (optionsOrText) => {
     let html = "";
     let confirmButtonText = "نعم";
     let cancelButtonText = "إلغاء";
-    let confirmButtonClass = "btn btn-outline-danger mx-2 px-4 fw-semibold";
-    let cancelButtonClass = "btn btn-outline-secondary mx-2 px-4 fw-semibold";
+    let confirmButtonClass = "btn btn-outline-danger mx-1 px-3 py-1";
+    let cancelButtonClass = "btn btn-outline-secondary mx-1 px-3 py-1";
     let onConfirm = null;
 
     if (typeof optionsOrText === 'string') {
@@ -29,15 +29,19 @@ export const confirmAction = async (optionsOrText) => {
         title: title,
         html: html || undefined,
         icon: "warning",
-        width: '560px',
+        width: '400px',
+        padding: '1.25rem 1.5rem',
         showCancelButton: true,
         confirmButtonText: confirmButtonText,
         cancelButtonText: cancelButtonText,
         reverseButtons: true,
         buttonsStyling: false,
         customClass: {
-            title: 'fs-5 fw-bold text-dark mb-2',
-            htmlContainer: 'fs-6 text-muted mb-3',
+            popup: 'swal-custom-popup',
+            icon: 'swal-custom-icon',
+            title: 'swal-custom-title',
+            htmlContainer: 'swal-custom-html',
+            actions: 'swal-custom-actions',
             confirmButton: confirmButtonClass,
             cancelButton: cancelButtonClass
         }
