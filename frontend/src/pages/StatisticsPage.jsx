@@ -22,13 +22,22 @@ const StatisticsPage = () => {
 
     // Custom interactive popup state for assigned professors by semester
     const [activeSemesterPopup, setActiveSemesterPopup] = useState(null);
+    const [pinnedSemester, setPinnedSemester] = useState(null);
     const [popupCoordX, setPopupCoordX] = useState(null);
     const isHoveringPopupRef = useRef(false);
     const closeTimeoutRef = useRef(null);
 
+    // Custom interactive popup state for courses per program
+    const [activeProgramPopup, setActiveProgramPopup] = useState(null);
+    const [pinnedProgram, setPinnedProgram] = useState(null);
+    const [programPopupCoordX, setProgramPopupCoordX] = useState(null);
+    const isHoveringProgramPopupRef = useRef(false);
+    const closeProgramTimeoutRef = useRef(null);
+
     useEffect(() => {
         return () => {
             if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+            if (closeProgramTimeoutRef.current) clearTimeout(closeProgramTimeoutRef.current);
         };
     }, []);
 
@@ -373,10 +382,29 @@ const StatisticsPage = () => {
                                 </Card.Header>
                                 <Card.Body style={{ height: "400px", overflow: "visible", position: "relative" }}>
                                     {stats.programs_stats.length > 0 ? (
-                                        <ResponsiveContainer width="100%" height="100%">
+                                        <>
+                                            <ResponsiveContainer width="100%" height="100%">
                                             <BarChart 
                                                 data={stats.programs_stats} 
                                                 margin={{ top: 20, right: 30, left: 0, bottom: stats.programs_stats.length <= 3 ? 55 : 80 }}
+                                                onMouseLeave={() => {
+                                                    if (!pinnedProgram) {
+                                                        closeProgramTimeoutRef.current = setTimeout(() => {
+                                                            if (!isHoveringProgramPopupRef.current) {
+                                                                setActiveProgramPopup(null);
+                                                            }
+                                                        }, 300);
+                                                    }
+                                                }}
+                                                onClick={(state) => {
+                                                    if (closeProgramTimeoutRef.current) clearTimeout(closeProgramTimeoutRef.current);
+                                                    if (state && state.activePayload && state.activePayload.length) {
+                                                        const item = state.activePayload[0].payload;
+                                                        setPinnedProgram((prev) => (prev?.name === item.name ? null : item));
+                                                        setActiveProgramPopup(item);
+                                                        if (state.chartX != null) setProgramPopupCoordX(state.chartX);
+                                                    }
+                                                }}
                                             >
                                                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                                 <XAxis 
@@ -416,111 +444,212 @@ const StatisticsPage = () => {
                                                 />
                                                 <YAxis allowDecimals={false} />
                                                 <RechartsTooltip 
-                                                    cursor={{ fill: '#f5f5f5' }}
-                                                    wrapperStyle={{ zIndex: 9999 }}
-                                                    content={({ active, payload, label }) => {
+                                                    cursor={{ fill: 'rgba(27, 94, 32, 0.12)' }}
+                                                    content={({ active, payload, coordinate }) => {
                                                         if (active && payload && payload.length) {
+                                                            if (closeProgramTimeoutRef.current) clearTimeout(closeProgramTimeoutRef.current);
                                                             const data = payload[0].payload;
-                                                            return (
-                                                                <div className="bg-white border rounded shadow p-3 text-end" style={{ width: 'max-content', minWidth: '360px', maxWidth: '850px' }}>
-                                                                    <div className="fw-bold text-dark border-bottom pb-2 mb-2 d-flex justify-content-between align-items-center gap-3">
-                                                                        <span style={{ fontSize: '17px' }}>{label}</span>
-                                                                        <span className="text-success fw-bold" style={{ fontSize: '15px' }}>عدد المقررات: {data.course_count}</span>
-                                                                    </div>
-                                                                    {data.courses && data.courses.length > 0 && (
-                                                                        <ul className="mb-0 ps-0 pe-0" style={{ listStyleType: "none", fontSize: "15px" }}>
-                                                                            {data.courses.map((course, idx) => {
-                                                                                const match = typeof course === 'string' ? course.match(/^(.*?)\s*\((.*?)\)$/) : null;
-                                                                                const courseName = match ? match[1].trim() : course;
-                                                                                const depts = match ? match[2].trim() : null;
-                                                                                const repeatedInfo = getRepeatedCourseInfo(courseName);
-                                                                                const isRepeated = !!repeatedInfo;
-
-                                                                                const progs = repeatedInfo?.programs || [];
-
-                                                                                return (
-                                                                                    <li 
-                                                                                        key={idx} 
-                                                                                        className="mb-2" 
-                                                                                        style={{ 
-                                                                                            display: 'flex', 
-                                                                                            alignItems: 'center', 
-                                                                                            justifyContent: 'space-between',
-                                                                                            gap: '12px', 
-                                                                                            flexWrap: 'wrap',
-                                                                                            backgroundColor: isRepeated ? '#fff8e1' : '#fafafa',
-                                                                                            padding: isRepeated ? '6px 12px' : '5px 10px',
-                                                                                            borderRadius: '6px',
-                                                                                            border: isRepeated ? '1px dashed #ffb74d' : '1px solid #eeeeee'
-                                                                                        }}
-                                                                                        title={repeatedInfo ? repeatedInfo.note : undefined}
-                                                                                    >
-                                                                                        <div className="d-flex align-items-center gap-2 flex-wrap">
-                                                                                            <span style={{ color: isRepeated ? '#e65100' : '#1b5e20', fontSize: '15px' }}>•</span>
-                                                                                            <span style={{ fontWeight: isRepeated ? '700' : '600', color: isRepeated ? '#e65100' : '#222', fontSize: '15px' }}>
-                                                                                                {courseName}
-                                                                                            </span>
-                                                                                            {isRepeated && (
-                                                                                                <span 
-                                                                                                    className="badge bg-warning text-dark px-2 py-1" 
-                                                                                                    style={{ fontSize: '11px', fontWeight: 'bold' }}
-                                                                                                >
-                                                                                                    مكرر
-                                                                                                </span>
-                                                                                            )}
-                                                                                            {depts && (
-                                                                                                <span style={{ color: '#1565c0', fontSize: '12.5px', background: '#f0f4f8', padding: '2px 8px', borderRadius: '4px', fontWeight: '500' }}>
-                                                                                                    ({depts})
-                                                                                                </span>
-                                                                                            )}
-                                                                                        </div>
-                                                                                        {isRepeated && (
-                                                                                            <div className="d-flex align-items-center gap-1 flex-wrap">
-                                                                                                {progs.length > 1 ? (
-                                                                                                    <span 
-                                                                                                        className="badge border px-2 py-1" 
-                                                                                                        style={{ 
-                                                                                                            backgroundColor: '#eff6ff', 
-                                                                                                            color: '#1d4ed8', 
-                                                                                                            borderColor: '#bfdbfe', 
-                                                                                                            fontSize: '11.5px', 
-                                                                                                            fontWeight: '600' 
-                                                                                                        }}
-                                                                                                    >
-                                                                                                        البرامج: {progs.join('، ')}
-                                                                                                    </span>
-                                                                                                ) : null}
-                                                                                                {repeatedInfo?.semesters && repeatedInfo.semesters.length > 1 ? (
-                                                                                                    <span 
-                                                                                                        className="badge border px-2 py-1" 
-                                                                                                        style={{ 
-                                                                                                            backgroundColor: '#f8fafc', 
-                                                                                                            color: '#475569', 
-                                                                                                            borderColor: '#cbd5e1', 
-                                                                                                            fontSize: '11px', 
-                                                                                                            fontWeight: '500' 
-                                                                                                        }}
-                                                                                                    >
-                                                                                                        الفصول: {repeatedInfo.semesters.join(' و ')}
-                                                                                                    </span>
-                                                                                                ) : null}
-                                                                                            </div>
-                                                                                        )}
-                                                                                    </li>
-                                                                                );
-                                                                            })}
-                                                                        </ul>
-                                                                    )}
-                                                                </div>
-                                                            );
+                                                            const x = coordinate?.x != null ? coordinate.x : 250;
+                                                            if (activeProgramPopup?.name !== data.name || programPopupCoordX !== x) {
+                                                                setTimeout(() => {
+                                                                    setActiveProgramPopup(data);
+                                                                    setProgramPopupCoordX(x);
+                                                                }, 0);
+                                                            }
                                                         }
                                                         return null;
-                                                    }}
+                                                    }} 
                                                 />
-                                                <Bar dataKey="course_count" name="عدد المقررات" fill="#1b5e20" radius={[4, 4, 0, 0]} barSize={stats.programs_stats.length <= 3 ? 55 : 40} />
+                                                <Bar dataKey="course_count" name="عدد المقررات" fill="#1b5e20" radius={[4, 4, 0, 0]} barSize={stats.programs_stats.length <= 3 ? 55 : 40} style={{ cursor: 'pointer' }} />
                                             </BarChart>
                                         </ResponsiveContainer>
-                                    ) : (
+
+                                        {/* ── نافذة مقررات البرنامج التفاعلية (قابلة للسكرول وشبكة من عمودين مطابقة لقائمة الأساتذة) ── */}
+                                        {(pinnedProgram || activeProgramPopup) && (() => {
+                                            const data = pinnedProgram || activeProgramPopup;
+                                            const isPinned = pinnedProgram?.name === data.name;
+                                            const rawX = programPopupCoordX != null ? programPopupCoordX : 280;
+                                            const targetX = Math.max(280, Math.min(rawX, 360));
+
+                                            return (
+                                                <div 
+                                                    dir="rtl"
+                                                    onMouseEnter={() => {
+                                                        if (closeProgramTimeoutRef.current) clearTimeout(closeProgramTimeoutRef.current);
+                                                        isHoveringProgramPopupRef.current = true;
+                                                    }}
+                                                    onMouseLeave={() => {
+                                                        isHoveringProgramPopupRef.current = false;
+                                                        if (!pinnedProgram) {
+                                                            closeProgramTimeoutRef.current = setTimeout(() => {
+                                                                if (!isHoveringProgramPopupRef.current) {
+                                                                    setActiveProgramPopup(null);
+                                                                }
+                                                            }, 300);
+                                                        }
+                                                    }}
+                                                    style={{ 
+                                                        position: 'absolute',
+                                                        top: '-150px',
+                                                        left: `${targetX}px`,
+                                                        transform: 'translateX(-50%)',
+                                                        background: '#ffffff', 
+                                                        border: '1px solid #cbd5e1',
+                                                        borderRadius: '10px',
+                                                        boxShadow: '0 12px 35px rgba(0,0,0,0.22)',
+                                                        width: '560px',
+                                                        maxWidth: '92vw',
+                                                        maxHeight: '520px',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        pointerEvents: 'auto',
+                                                        zIndex: 9999,
+                                                        overflow: 'hidden'
+                                                    }}
+                                                >
+                                                    {/* Header */}
+                                                    <div style={{ 
+                                                        padding: '12px 18px 10px 18px', 
+                                                        borderBottom: '2px solid #1b5e20', 
+                                                        display: 'flex', 
+                                                        justifyContent: 'space-between', 
+                                                        alignItems: 'center',
+                                                        backgroundColor: '#ffffff',
+                                                        flexShrink: 0 
+                                                    }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            <span style={{ fontWeight: 'bold', fontSize: '16.5px', color: '#1e293b' }}>
+                                                                {data.name}
+                                                            </span>
+                                                            {isPinned && (
+                                                                <span className="badge bg-secondary" style={{ fontSize: '11px' }}>
+                                                                    مثبت
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            <span style={{ color: '#1b5e20', fontWeight: 'bold', fontSize: '14.5px' }}>
+                                                                عدد المقررات: {data.course_count}
+                                                            </span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setPinnedProgram(null);
+                                                                    setActiveProgramPopup(null);
+                                                                    isHoveringProgramPopupRef.current = false;
+                                                                }}
+                                                                style={{
+                                                                    background: 'none',
+                                                                    border: 'none',
+                                                                    fontSize: '18px',
+                                                                    cursor: 'pointer',
+                                                                    color: '#94a3b8',
+                                                                    padding: '0 4px',
+                                                                    lineHeight: 1,
+                                                                    marginRight: '2px'
+                                                                }}
+                                                                title="إغلاق"
+                                                            >
+                                                                ✕
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <style>{`
+                                                        .program-course-list-scroll::-webkit-scrollbar {
+                                                            width: 7px;
+                                                        }
+                                                        .program-course-list-scroll::-webkit-scrollbar-track {
+                                                            background: #f8fafc;
+                                                            border-radius: 4px;
+                                                        }
+                                                        .program-course-list-scroll::-webkit-scrollbar-thumb {
+                                                            background: #1b5e20;
+                                                            border-radius: 4px;
+                                                        }
+                                                        .program-course-list-scroll::-webkit-scrollbar-thumb:hover {
+                                                            background: #144917;
+                                                        }
+                                                    `}</style>
+
+                                                    {/* قائمة المقررات بشبكة عمودين وسكرول سلس */}
+                                                    <div 
+                                                        className="program-course-list-scroll"
+                                                        style={{ 
+                                                            padding: '12px 18px', 
+                                                            overflowY: 'auto', 
+                                                            flex: '1 1 auto',
+                                                            minHeight: 0,
+                                                            overscrollBehavior: 'contain',
+                                                            scrollbarWidth: 'thin',
+                                                            scrollbarColor: '#1b5e20 #f1f5f9'
+                                                        }}
+                                                        onWheel={(e) => e.stopPropagation()}
+                                                    >
+                                                        {data.courses && data.courses.length > 0 ? (
+                                                             <div style={{ 
+                                                                 display: 'grid', 
+                                                                 gridTemplateColumns: data.courses.length > 1 ? 'repeat(2, 1fr)' : '1fr', 
+                                                                 gap: '6px 12px',
+                                                                 fontSize: '13.5px'
+                                                             }}>
+                                                                 {data.courses.map((course, idx) => {
+                                                                     const match = typeof course === 'string' ? course.match(/^(.*?)\s*\((.*?)\)$/) : null;
+                                                                     const courseName = match ? match[1].trim() : course;
+                                                                     const depts = match ? match[2].trim() : null;
+                                                                     const repeatedInfo = getRepeatedCourseInfo(courseName);
+                                                                     const isRepeated = !!repeatedInfo;
+                                                                     const progs = repeatedInfo?.programs || [];
+
+                                                                     return (
+                                                                         <div 
+                                                                             key={idx}
+                                                                             style={{ 
+                                                                                 display: 'flex', 
+                                                                                 alignItems: 'center', 
+                                                                                 gap: '6px',
+                                                                                 backgroundColor: isRepeated ? '#fff8e1' : '#f8fafc',
+                                                                                 padding: isRepeated ? '4px 8px' : '4px 8px',
+                                                                                 borderRadius: '5px',
+                                                                                 border: isRepeated ? '1px dashed #ffb74d' : '1px solid #f1f5f9'
+                                                                             }}
+                                                                             title={repeatedInfo ? repeatedInfo.note : undefined}
+                                                                         >
+                                                                             <span style={{ color: isRepeated ? '#e65100' : '#1b5e20', fontSize: '14px', flexShrink: 0 }}>•</span>
+                                                                             <span style={{ 
+                                                                                 fontWeight: isRepeated ? '700' : '600', 
+                                                                                 color: isRepeated ? '#e65100' : '#333', 
+                                                                                 fontSize: '13px',
+                                                                                 wordBreak: 'break-word'
+                                                                             }}>
+                                                                                 {courseName}
+                                                                             </span>
+                                                                             {isRepeated && (
+                                                                                 <span 
+                                                                                     className="badge bg-warning text-dark px-1 py-0" 
+                                                                                     style={{ fontSize: '10px', fontWeight: 'bold', marginRight: 'auto', flexShrink: 0 }}
+                                                                                 >
+                                                                                     مكرر
+                                                                                 </span>
+                                                                             )}
+                                                                             {depts && (
+                                                                                 <span style={{ color: '#1565c0', fontSize: '11px', background: '#eff6ff', padding: '1px 5px', borderRadius: '3px', fontWeight: '500', flexShrink: 0 }}>
+                                                                                     ({depts})
+                                                                                 </span>
+                                                                             )}
+                                                                         </div>
+                                                                     );
+                                                                 })}
+                                                             </div>
+                                                        ) : (
+                                                            <div className="text-muted text-center py-3">لا توجد مقررات مسجلة لهذا البرنامج.</div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+                                    </>
+                                ) : (
                                         <div className="d-flex h-100 align-items-center justify-content-center text-muted fw-bold">لا توجد بيانات</div>
                                     )}
                                 </Card.Body>
@@ -636,43 +765,53 @@ const StatisticsPage = () => {
                                                 <BarChart 
                                                     data={stats.assigned_professors_by_semester} 
                                                     margin={{ top: 20, right: 30, left: 0, bottom: 20 }}
-                                                    onMouseMove={(state) => {
-                                                        if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
-                                                        if (state && state.activePayload && state.activePayload.length) {
-                                                            setActiveSemesterPopup(state.activePayload[0].payload);
-                                                            if (state.chartX != null) {
-                                                                setPopupCoordX(state.chartX);
-                                                            }
-                                                        }
-                                                    }}
                                                     onMouseLeave={() => {
-                                                        closeTimeoutRef.current = setTimeout(() => {
-                                                            if (!isHoveringPopupRef.current) {
-                                                                setActiveSemesterPopup(null);
-                                                            }
-                                                        }, 220);
+                                                        if (!pinnedSemester) {
+                                                            closeTimeoutRef.current = setTimeout(() => {
+                                                                if (!isHoveringPopupRef.current) {
+                                                                    setActiveSemesterPopup(null);
+                                                                }
+                                                            }, 300);
+                                                        }
                                                     }}
                                                     onClick={(state) => {
                                                         if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
                                                         if (state && state.activePayload && state.activePayload.length) {
-                                                            setActiveSemesterPopup(state.activePayload[0].payload);
-                                                            if (state.chartX != null) {
-                                                                setPopupCoordX(state.chartX);
-                                                            }
+                                                            const item = state.activePayload[0].payload;
+                                                            setPinnedSemester((prev) => (prev?.semester === item.semester ? null : item));
+                                                            setActiveSemesterPopup(item);
+                                                            if (state.chartX != null) setPopupCoordX(state.chartX);
                                                         }
                                                     }}
                                                 >
                                                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                                     <XAxis dataKey="semester" tick={{ fontSize: 14, fontWeight: 'bold' }} />
                                                     <YAxis allowDecimals={false} />
-                                                    <RechartsTooltip cursor={{ fill: '#f5f5f5' }} content={() => null} />
+                                                    <RechartsTooltip 
+                                                        cursor={{ fill: 'rgba(200, 158, 90, 0.15)' }}
+                                                        content={({ active, payload, coordinate }) => {
+                                                            if (active && payload && payload.length) {
+                                                                if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+                                                                const data = payload[0].payload;
+                                                                const x = coordinate?.x != null ? coordinate.x : 450;
+                                                                if (activeSemesterPopup?.semester !== data.semester || popupCoordX !== x) {
+                                                                    setTimeout(() => {
+                                                                        setActiveSemesterPopup(data);
+                                                                        setPopupCoordX(x);
+                                                                    }, 0);
+                                                                }
+                                                            }
+                                                            return null;
+                                                        }} 
+                                                    />
                                                     <Bar dataKey="count" name="عدد الدكاترة المكلفين" fill="#c89e5a" radius={[4, 4, 0, 0]} barSize={60} style={{ cursor: 'pointer' }} />
                                                 </BarChart>
                                             </ResponsiveContainer>
 
-                                            {/* ── قائمة أسماء أعضاء هيئة التدريس التفاعلية (قابلة للسكرول بشكل كامل ومضبوطة المسافات) ── */}
-                                            {activeSemesterPopup && (() => {
-                                                const data = activeSemesterPopup;
+                                            {/* ── نافذة أسماء أعضاء هيئة التدريس التفاعلية (قابلة للسكرول بشكل كامل ومضبوطة المسافات) ── */}
+                                            {(pinnedSemester || activeSemesterPopup) && (() => {
+                                                const data = pinnedSemester || activeSemesterPopup;
+                                                const isPinned = pinnedSemester?.semester === data.semester;
 
                                                 const groupProfessorsByDept = (profsList) => {
                                                     const groups = {};
@@ -758,7 +897,7 @@ const StatisticsPage = () => {
                                                     );
                                                 };
 
-                                                const targetX = popupCoordX != null ? Math.max(300, Math.min(popupCoordX, 850)) : 450;
+                                                const targetX = popupCoordX != null ? Math.max(295, Math.min(popupCoordX, 850)) : 450;
 
                                                 return (
                                                     <div 
@@ -769,14 +908,17 @@ const StatisticsPage = () => {
                                                         }}
                                                         onMouseLeave={() => {
                                                             isHoveringPopupRef.current = false;
-                                                            closeTimeoutRef.current = setTimeout(() => {
-                                                                setActiveSemesterPopup(null);
-                                                            }, 120);
+                                                            if (!pinnedSemester) {
+                                                                closeTimeoutRef.current = setTimeout(() => {
+                                                                    if (!isHoveringPopupRef.current) {
+                                                                        setActiveSemesterPopup(null);
+                                                                    }
+                                                                }, 300);
+                                                            }
                                                         }}
                                                         style={{ 
                                                             position: 'absolute',
-                                                            top: '12px',
-                                                            bottom: '15px', // تقع نهاية القائمة تماماً في نفس نهاية البطاقة/الصفحة
+                                                            top: '-150px',
                                                             left: `${targetX}px`,
                                                             transform: 'translateX(-50%)',
                                                             background: '#ffffff', 
@@ -785,9 +927,10 @@ const StatisticsPage = () => {
                                                             boxShadow: '0 12px 35px rgba(0,0,0,0.22)',
                                                             width: '570px',
                                                             maxWidth: '94vw',
+                                                            maxHeight: '520px',
                                                             display: 'flex',
                                                             flexDirection: 'column',
-                                                            pointerEvents: 'auto', // يتيح تحريك مؤشر الماوس واستخدام السكرول بحرية
+                                                            pointerEvents: 'auto',
                                                             zIndex: 9999,
                                                             overflow: 'hidden'
                                                         }}
@@ -802,9 +945,16 @@ const StatisticsPage = () => {
                                                             backgroundColor: '#ffffff',
                                                             flexShrink: 0 
                                                         }}>
-                                                            <span style={{ fontWeight: 'bold', fontSize: '16.5px', color: '#1e293b' }}>
-                                                                {data.semester}
-                                                            </span>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <span style={{ fontWeight: 'bold', fontSize: '16.5px', color: '#1e293b' }}>
+                                                                    {data.semester}
+                                                                </span>
+                                                                {isPinned && (
+                                                                    <span className="badge bg-secondary" style={{ fontSize: '11px' }}>
+                                                                        مثبت
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                                 <span style={{ color: '#c89e5a', fontWeight: 'bold', fontSize: '14.5px' }}>
                                                                     عدد أعضاء هيئة التدريس: {data.count}
@@ -814,7 +964,11 @@ const StatisticsPage = () => {
                                                                 </span>
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => setActiveSemesterPopup(null)}
+                                                                    onClick={() => {
+                                                                        setPinnedSemester(null);
+                                                                        setActiveSemesterPopup(null);
+                                                                        isHoveringPopupRef.current = false;
+                                                                    }}
                                                                     style={{
                                                                         background: 'none',
                                                                         border: 'none',
@@ -831,6 +985,22 @@ const StatisticsPage = () => {
                                                                 </button>
                                                             </div>
                                                         </div>
+                                                        <style>{`
+                                                            .semester-prof-list-scroll::-webkit-scrollbar {
+                                                                width: 7px;
+                                                            }
+                                                            .semester-prof-list-scroll::-webkit-scrollbar-track {
+                                                                background: #f8fafc;
+                                                                border-radius: 4px;
+                                                            }
+                                                            .semester-prof-list-scroll::-webkit-scrollbar-thumb {
+                                                                background: #c89e5a;
+                                                                border-radius: 4px;
+                                                            }
+                                                            .semester-prof-list-scroll::-webkit-scrollbar-thumb:hover {
+                                                                background: #b08745;
+                                                            }
+                                                        `}</style>
 
                                                         {/* جسم القائمة قابل للتمرير والسكرول السلس */}
                                                         <div 
