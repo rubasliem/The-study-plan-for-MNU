@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { Card, Row, Col, Spinner, Alert } from 'react-bootstrap';
 import { FaChartBar, FaUserTie, FaBookOpen, FaExclamationTriangle } from 'react-icons/fa';
@@ -19,6 +19,18 @@ const StatisticsPage = () => {
     const [error, setError] = useState(null);
 
     const [academicYearOptions, setAcademicYearOptions] = useState([]);
+
+    // Custom interactive popup state for assigned professors by semester
+    const [activeSemesterPopup, setActiveSemesterPopup] = useState(null);
+    const [popupCoordX, setPopupCoordX] = useState(null);
+    const isHoveringPopupRef = useRef(false);
+    const closeTimeoutRef = useRef(null);
+
+    useEffect(() => {
+        return () => {
+            if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+        };
+    }, []);
 
     // Fetch faculties and academic years on mount
     useEffect(() => {
@@ -619,239 +631,319 @@ const StatisticsPage = () => {
                                 </Card.Header>
                                 <Card.Body style={{ height: "450px", overflow: "visible", position: "relative" }}>
                                     {stats.assigned_professors_by_semester.length > 0 ? (
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={stats.assigned_professors_by_semester} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
-                                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                                <XAxis dataKey="semester" tick={{ fontSize: 14, fontWeight: 'bold' }} />
-                                                <YAxis allowDecimals={false} />
-                                                <RechartsTooltip 
-                                                    cursor={{ fill: '#f5f5f5' }}
-                                                    wrapperStyle={{ zIndex: 9999, pointerEvents: 'none', transform: 'none', top: 0, left: 0 }}
-                                                    content={({ active, payload, label, coordinate }) => {
-                                                        if (active && payload && payload.length) {
-                                                            const data = payload[0].payload;
-                                                            
-                                                             // Helper to group professors by department if "(Dept)" is present
-                                                            const groupProfessorsByDept = (profsList) => {
-                                                                const groups = {};
-                                                                for (const prof of profsList) {
-                                                                    const match = typeof prof === 'string' ? prof.match(/^(.*?)\s*\((.*?)\)$/) : null;
-                                                                    if (match) {
-                                                                        const pName = match[1].trim();
-                                                                        const dept = match[2].trim();
-                                                                        if (!groups[dept]) groups[dept] = [];
-                                                                        groups[dept].push(pName);
-                                                                    } else {
-                                                                        const noDeptKey = "";
-                                                                        if (!groups[noDeptKey]) groups[noDeptKey] = [];
-                                                                        groups[noDeptKey].push(typeof prof === 'string' ? prof.trim() : prof);
-                                                                    }
-                                                                }
-                                                                return groups;
-                                                            };
-
-                                                            // Count frequency of each professor across the entire semester to highlight repeated names
-                                                            const profCounts = {};
-                                                            if (data.course_professors && Object.keys(data.course_professors).length > 0) {
-                                                                Object.values(data.course_professors).forEach(pList => {
-                                                                    pList.forEach(p => {
-                                                                        const match = typeof p === 'string' ? p.match(/^(.*?)\s*\((.*?)\)$/) : null;
-                                                                        const cleanName = match ? match[1].trim() : (typeof p === 'string' ? p.trim() : p);
-                                                                        profCounts[cleanName] = (profCounts[cleanName] || 0) + 1;
-                                                                    });
-                                                                });
-                                                            } else if (data.professors && data.professors.length > 0) {
-                                                                data.professors.forEach(p => {
-                                                                    const match = typeof p === 'string' ? p.match(/^(.*?)\s*\((.*?)\)$/) : null;
-                                                                    const cleanName = match ? match[1].trim() : (typeof p === 'string' ? p.trim() : p);
-                                                                    profCounts[cleanName] = (profCounts[cleanName] || 0) + 1;
-                                                                });
+                                        <>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart 
+                                                    data={stats.assigned_professors_by_semester} 
+                                                    margin={{ top: 20, right: 30, left: 0, bottom: 20 }}
+                                                    onMouseMove={(state) => {
+                                                        if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+                                                        if (state && state.activePayload && state.activePayload.length) {
+                                                            setActiveSemesterPopup(state.activePayload[0].payload);
+                                                            if (state.chartX != null) {
+                                                                setPopupCoordX(state.chartX);
                                                             }
+                                                        }
+                                                    }}
+                                                    onMouseLeave={() => {
+                                                        closeTimeoutRef.current = setTimeout(() => {
+                                                            if (!isHoveringPopupRef.current) {
+                                                                setActiveSemesterPopup(null);
+                                                            }
+                                                        }, 220);
+                                                    }}
+                                                    onClick={(state) => {
+                                                        if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+                                                        if (state && state.activePayload && state.activePayload.length) {
+                                                            setActiveSemesterPopup(state.activePayload[0].payload);
+                                                            if (state.chartX != null) {
+                                                                setPopupCoordX(state.chartX);
+                                                            }
+                                                        }
+                                                    }}
+                                                >
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                                    <XAxis dataKey="semester" tick={{ fontSize: 14, fontWeight: 'bold' }} />
+                                                    <YAxis allowDecimals={false} />
+                                                    <RechartsTooltip cursor={{ fill: '#f5f5f5' }} content={() => null} />
+                                                    <Bar dataKey="count" name="عدد الدكاترة المكلفين" fill="#c89e5a" radius={[4, 4, 0, 0]} barSize={60} style={{ cursor: 'pointer' }} />
+                                                </BarChart>
+                                            </ResponsiveContainer>
 
-                                                            // Max 2 columns side by side: "اسمان فقط جمب بعض"
-                                                            const coordX = coordinate?.x != null ? coordinate.x : 0;
-                                                            const tooltipWidthNum = 570;
+                                            {/* ── قائمة أسماء أعضاء هيئة التدريس التفاعلية (قابلة للسكرول بشكل كامل ومضبوطة المسافات) ── */}
+                                            {activeSemesterPopup && (() => {
+                                                const data = activeSemesterPopup;
 
-                                                            const renderProfItem = (prof, idx) => {
-                                                                const match = typeof prof === 'string' ? prof.match(/^(.*?)\s*\((.*?)\)$/) : null;
-                                                                const cleanName = match ? match[1].trim() : (typeof prof === 'string' ? prof.trim() : prof);
-                                                                const isRepeated = (profCounts[cleanName] || 0) > 1;
+                                                const groupProfessorsByDept = (profsList) => {
+                                                    const groups = {};
+                                                    for (const prof of profsList) {
+                                                        const match = typeof prof === 'string' ? prof.match(/^(.*?)\s*\((.*?)\)$/) : null;
+                                                        if (match) {
+                                                            const pName = match[1].trim();
+                                                            const dept = match[2].trim();
+                                                            if (!groups[dept]) groups[dept] = [];
+                                                            groups[dept].push(pName);
+                                                        } else {
+                                                            const noDeptKey = "";
+                                                            if (!groups[noDeptKey]) groups[noDeptKey] = [];
+                                                            groups[noDeptKey].push(typeof prof === 'string' ? prof.trim() : prof);
+                                                        }
+                                                    }
+                                                    return groups;
+                                                };
 
-                                                                return (
-                                                                    <div 
-                                                                        key={idx} 
-                                                                        style={{ 
-                                                                            display: 'flex', 
-                                                                            alignItems: 'center', 
-                                                                            gap: '6px',
-                                                                            backgroundColor: isRepeated ? '#fff7ed' : 'transparent',
-                                                                            padding: isRepeated ? '3px 8px' : '2px 4px',
-                                                                            borderRadius: isRepeated ? '5px' : '0',
-                                                                            border: isRepeated ? '1px dashed #fdba74' : 'none'
-                                                                        }}
-                                                                        title={isRepeated ? `هذا العضو مكلف في أكثر من مقرر/قسم (${profCounts[cleanName]} مرات)` : undefined}
-                                                                    >
-                                                                        <span style={{ color: isRepeated ? '#ea580c' : '#c89e5a', flexShrink: 0, fontSize: '14px', fontWeight: isRepeated ? 'bold' : 'normal' }}>•</span>
-                                                                        <span style={{ 
-                                                                            wordBreak: 'break-word', 
-                                                                            color: isRepeated ? '#c2410c' : '#333', 
-                                                                            fontWeight: isRepeated ? '700' : '600',
-                                                                            fontSize: '14px'
-                                                                        }}>
-                                                                            {cleanName}
-                                                                        </span>
-                                                                        {isRepeated && (
-                                                                            <span 
-                                                                                style={{ 
-                                                                                    fontSize: '11px', 
-                                                                                    fontWeight: 'bold', 
-                                                                                    backgroundColor: '#ffedd5', 
-                                                                                    color: '#9a3412', 
-                                                                                    padding: '2px 6px', 
-                                                                                    borderRadius: '4px',
-                                                                                    border: '1px solid #fed7aa',
-                                                                                    marginRight: 'auto',
-                                                                                    flexShrink: 0
-                                                                                }}
-                                                                            >
-                                                                                مكرر
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                );
-                                                            };
+                                                const profCounts = {};
+                                                if (data.course_professors && Object.keys(data.course_professors).length > 0) {
+                                                    Object.values(data.course_professors).forEach(pList => {
+                                                        pList.forEach(p => {
+                                                            const match = typeof p === 'string' ? p.match(/^(.*?)\s*\((.*?)\)$/) : null;
+                                                            const cleanName = match ? match[1].trim() : (typeof p === 'string' ? p.trim() : p);
+                                                            profCounts[cleanName] = (profCounts[cleanName] || 0) + 1;
+                                                        });
+                                                    });
+                                                } else if (data.professors && data.professors.length > 0) {
+                                                    data.professors.forEach(p => {
+                                                        const match = typeof p === 'string' ? p.match(/^(.*?)\s*\((.*?)\)$/) : null;
+                                                        const cleanName = match ? match[1].trim() : (typeof p === 'string' ? p.trim() : p);
+                                                        profCounts[cleanName] = (profCounts[cleanName] || 0) + 1;
+                                                    });
+                                                }
 
-                                                            return (
-                                                                <div dir="rtl" style={{ 
-                                                                    position: 'absolute',
-                                                                    top: '-160px',
-                                                                    left: `${coordX}px`,
-                                                                    transform: 'translateX(-50%)',
-                                                                    background: '#fff', 
-                                                                    border: '1px solid #e0e0e0',
-                                                                    borderRadius: '8px',
-                                                                    boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
-                                                                    padding: '12px 18px',
-                                                                    width: `${tooltipWidthNum}px`,
-                                                                    maxWidth: '94vw',
-                                                                    maxHeight: '530px',
-                                                                    overflowY: 'auto'
-                                                                }}>
-                                                                    {/* Header */}
-                                                                    <div style={{ borderBottom: '2px solid #c89e5a', paddingBottom: '6px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                        <span style={{ fontWeight: 'bold', fontSize: '17px', color: '#333' }}>{label}</span>
-                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                                            <span style={{ color: '#c89e5a', fontWeight: 'bold', fontSize: '15px' }}>عدد أعضاء هيئة التدريس: {data.count}</span>
-                                                                            <span className="badge bg-success text-white" style={{ fontSize: '12px', fontWeight: 'bold', padding: '4px 7px' }}>
-                                                                                (دون تكرار)
-                                                                            </span>
-                                                                        </div>
-                                                                    </div>
+                                                const renderProfItem = (prof, idx) => {
+                                                    const match = typeof prof === 'string' ? prof.match(/^(.*?)\s*\((.*?)\)$/) : null;
+                                                    const cleanName = match ? match[1].trim() : (typeof prof === 'string' ? prof.trim() : prof);
+                                                    const isRepeated = (profCounts[cleanName] || 0) > 1;
 
+                                                    return (
+                                                        <div 
+                                                            key={idx} 
+                                                            style={{ 
+                                                                display: 'flex', 
+                                                                alignItems: 'center', 
+                                                                gap: '6px',
+                                                                backgroundColor: isRepeated ? '#fff7ed' : 'transparent',
+                                                                padding: isRepeated ? '3px 8px' : '2px 4px',
+                                                                borderRadius: isRepeated ? '5px' : '0',
+                                                                border: isRepeated ? '1px dashed #fdba74' : 'none'
+                                                            }}
+                                                            title={isRepeated ? `هذا العضو مكلف في أكثر من مقرر/قسم (${profCounts[cleanName]} مرات)` : undefined}
+                                                        >
+                                                            <span style={{ color: isRepeated ? '#ea580c' : '#c89e5a', flexShrink: 0, fontSize: '14px', fontWeight: isRepeated ? 'bold' : 'normal' }}>•</span>
+                                                            <span style={{ 
+                                                                wordBreak: 'break-word', 
+                                                                color: isRepeated ? '#c2410c' : '#333', 
+                                                                fontWeight: isRepeated ? '700' : '600',
+                                                                fontSize: '13.5px'
+                                                            }}>
+                                                                {cleanName}
+                                                            </span>
+                                                            {isRepeated && (
+                                                                <span 
+                                                                    style={{ 
+                                                                        fontSize: '10.5px', 
+                                                                        fontWeight: 'bold', 
+                                                                        backgroundColor: '#ffedd5', 
+                                                                        color: '#9a3412', 
+                                                                        padding: '1px 5px', 
+                                                                        borderRadius: '4px',
+                                                                        border: '1px solid #fed7aa',
+                                                                        marginRight: 'auto',
+                                                                        flexShrink: 0
+                                                                    }}
+                                                                >
+                                                                    مكرر
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                };
 
-                                                                    {/* Courses & Professors grouped by department */}
-                                                                    {data.course_professors && Object.keys(data.course_professors).length > 0 ? (
-                                                                        <div>
-                                                                            {Object.entries(data.course_professors).map(([courseName, profs], cIdx) => {
-                                                                                const deptGroups = groupProfessorsByDept(profs);
-                                                                                const hasDepts = Object.keys(deptGroups).some(k => k !== "");
-                                                                                const repeatedInfo = getRepeatedCourseInfo(courseName);
-                                                                                const isCourseRepeated = !!repeatedInfo;
+                                                const targetX = popupCoordX != null ? Math.max(300, Math.min(popupCoordX, 850)) : 450;
 
-                                                                                return (
-                                                                                    <div key={cIdx} style={{ marginBottom: '8px' }} title={repeatedInfo ? repeatedInfo.note : undefined}>
-                                                                                        <div style={{ fontWeight: 'bold', color: isCourseRepeated ? '#e65100' : '#1b5e20', fontSize: '14.5px', marginBottom: '4px', wordBreak: 'break-word', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                                                                            <span>{courseName}:</span>
-                                                                                            {isCourseRepeated && (
-                                                                                                <span className="badge bg-warning text-dark px-2 py-0" style={{ fontSize: '11px', fontWeight: 'bold' }}>
-                                                                                                    مكرر
-                                                                                                </span>
-                                                                                            )}
-                                                                                            {repeatedInfo?.programs && repeatedInfo.programs.length > 1 && (
-                                                                                                <span className="badge border px-2 py-0" style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', borderColor: '#bfdbfe', fontSize: '11px', fontWeight: '500' }}>
-                                                                                                    البرامج: {repeatedInfo.programs.join('، ')}
-                                                                                                </span>
-                                                                                            )}
-                                                                                        </div>
-                                                                                        {hasDepts ? (
-                                                                                            Object.entries(deptGroups).map(([dept, deptProfs], dIdx) => (
-                                                                                                <div key={dIdx} style={{ marginRight: '8px', marginBottom: '4px' }}>
-                                                                                                    {dept && (
-                                                                                                        <div style={{ fontWeight: 'bold', color: '#1565c0', fontSize: '13.5px', marginBottom: '3px' }}>
-                                                                                                            قسم {dept}:
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                    <div style={{ 
-                                                                                                        display: 'grid', 
-                                                                                                        gridTemplateColumns: deptProfs.length > 1 ? 'repeat(2, 1fr)' : '1fr', 
-                                                                                                        gap: '4px 12px',
-                                                                                                        fontSize: '14px',
-                                                                                                        color: '#333'
-                                                                                                    }}>
-                                                                                                        {deptProfs.map(renderProfItem)}
-                                                                                                    </div>
+                                                return (
+                                                    <div 
+                                                        dir="rtl"
+                                                        onMouseEnter={() => {
+                                                            if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+                                                            isHoveringPopupRef.current = true;
+                                                        }}
+                                                        onMouseLeave={() => {
+                                                            isHoveringPopupRef.current = false;
+                                                            closeTimeoutRef.current = setTimeout(() => {
+                                                                setActiveSemesterPopup(null);
+                                                            }, 120);
+                                                        }}
+                                                        style={{ 
+                                                            position: 'absolute',
+                                                            top: '12px',
+                                                            bottom: '15px', // تقع نهاية القائمة تماماً في نفس نهاية البطاقة/الصفحة
+                                                            left: `${targetX}px`,
+                                                            transform: 'translateX(-50%)',
+                                                            background: '#ffffff', 
+                                                            border: '1px solid #cbd5e1',
+                                                            borderRadius: '10px',
+                                                            boxShadow: '0 12px 35px rgba(0,0,0,0.22)',
+                                                            width: '570px',
+                                                            maxWidth: '94vw',
+                                                            display: 'flex',
+                                                            flexDirection: 'column',
+                                                            pointerEvents: 'auto', // يتيح تحريك مؤشر الماوس واستخدام السكرول بحرية
+                                                            zIndex: 9999,
+                                                            overflow: 'hidden'
+                                                        }}
+                                                    >
+                                                        {/* الهيدر ثابت في أعلى القائمة */}
+                                                        <div style={{ 
+                                                            padding: '12px 18px 10px 18px', 
+                                                            borderBottom: '2px solid #c89e5a', 
+                                                            display: 'flex', 
+                                                            justifyContent: 'space-between', 
+                                                            alignItems: 'center',
+                                                            backgroundColor: '#ffffff',
+                                                            flexShrink: 0 
+                                                        }}>
+                                                            <span style={{ fontWeight: 'bold', fontSize: '16.5px', color: '#1e293b' }}>
+                                                                {data.semester}
+                                                            </span>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <span style={{ color: '#c89e5a', fontWeight: 'bold', fontSize: '14.5px' }}>
+                                                                    عدد أعضاء هيئة التدريس: {data.count}
+                                                                </span>
+                                                                <span className="badge bg-success text-white" style={{ fontSize: '11.5px', fontWeight: 'bold', padding: '4px 7px' }}>
+                                                                    (دون تكرار)
+                                                                </span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setActiveSemesterPopup(null)}
+                                                                    style={{
+                                                                        background: 'none',
+                                                                        border: 'none',
+                                                                        fontSize: '18px',
+                                                                        cursor: 'pointer',
+                                                                        color: '#94a3b8',
+                                                                        padding: '0 4px',
+                                                                        lineHeight: 1,
+                                                                        marginRight: '2px'
+                                                                    }}
+                                                                    title="إغلاق"
+                                                                >
+                                                                    ✕
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* جسم القائمة قابل للتمرير والسكرول السلس */}
+                                                        <div 
+                                                            className="semester-prof-list-scroll"
+                                                            style={{ 
+                                                                padding: '12px 18px', 
+                                                                overflowY: 'auto', 
+                                                                flex: '1 1 auto',
+                                                                minHeight: 0,
+                                                                overscrollBehavior: 'contain',
+                                                                scrollbarWidth: 'thin',
+                                                                scrollbarColor: '#c89e5a #f1f5f9'
+                                                            }}
+                                                            onWheel={(e) => e.stopPropagation()}
+                                                        >
+                                                            {data.course_professors && Object.keys(data.course_professors).length > 0 ? (
+                                                                <div>
+                                                                    {Object.entries(data.course_professors).map(([courseName, profs], cIdx) => {
+                                                                        const deptGroups = groupProfessorsByDept(profs);
+                                                                        const hasDepts = Object.keys(deptGroups).some(k => k !== "");
+                                                                        const repeatedInfo = getRepeatedCourseInfo(courseName);
+                                                                        const isCourseRepeated = !!repeatedInfo;
+
+                                                                        return (
+                                                                            <div key={cIdx} style={{ marginBottom: '8px' }} title={repeatedInfo ? repeatedInfo.note : undefined}>
+                                                                                <div style={{ fontWeight: 'bold', color: isCourseRepeated ? '#e65100' : '#1b5e20', fontSize: '14px', marginBottom: '4px', wordBreak: 'break-word', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                                                                    <span>{courseName}:</span>
+                                                                                    {isCourseRepeated && (
+                                                                                        <span className="badge bg-warning text-dark px-2 py-0" style={{ fontSize: '11px', fontWeight: 'bold' }}>
+                                                                                            مكرر
+                                                                                        </span>
+                                                                                    )}
+                                                                                    {repeatedInfo?.programs && repeatedInfo.programs.length > 1 && (
+                                                                                        <span className="badge border px-2 py-0" style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', borderColor: '#bfdbfe', fontSize: '11px', fontWeight: '500' }}>
+                                                                                            البرامج: {repeatedInfo.programs.join('، ')}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                                {hasDepts ? (
+                                                                                    Object.entries(deptGroups).map(([dept, deptProfs], dIdx) => (
+                                                                                        <div key={dIdx} style={{ marginRight: '8px', marginBottom: '4px' }}>
+                                                                                            {dept && (
+                                                                                                <div style={{ fontWeight: 'bold', color: '#1565c0', fontSize: '13px', marginBottom: '3px' }}>
+                                                                                                    قسم {dept}:
                                                                                                 </div>
-                                                                                            ))
-                                                                                        ) : (
+                                                                                            )}
                                                                                             <div style={{ 
                                                                                                 display: 'grid', 
-                                                                                                gridTemplateColumns: profs.length > 1 ? 'repeat(2, 1fr)' : '1fr', 
+                                                                                                gridTemplateColumns: deptProfs.length > 1 ? 'repeat(2, 1fr)' : '1fr', 
                                                                                                 gap: '4px 12px',
-                                                                                                fontSize: '14px',
-                                                                                                color: '#333',
-                                                                                                marginRight: '8px'
+                                                                                                fontSize: '13.5px',
+                                                                                                color: '#333'
                                                                                             }}>
-                                                                                                {profs.map(renderProfItem)}
+                                                                                                {deptProfs.map(renderProfItem)}
                                                                                             </div>
-                                                                                        )}
-                                                                                    </div>
-                                                                                );
-                                                                            })}
-                                                                        </div>
-                                                                    ) : data.professors && data.professors.length > 0 ? (() => {
-                                                                        const deptGroups = groupProfessorsByDept(data.professors);
-                                                                        const hasDepts = Object.keys(deptGroups).some(k => k !== "");
-
-                                                                        return hasDepts ? (
-                                                                            Object.entries(deptGroups).map(([dept, deptProfs], dIdx) => (
-                                                                                <div key={dIdx} style={{ marginRight: '8px', marginBottom: '4px' }}>
-                                                                                    {dept && (
-                                                                                        <div style={{ fontWeight: 'bold', color: '#1565c0', fontSize: '13.5px', marginBottom: '3px' }}>
-                                                                                            قسم {dept}:
                                                                                         </div>
-                                                                                    )}
+                                                                                    ))
+                                                                                ) : (
                                                                                     <div style={{ 
                                                                                         display: 'grid', 
-                                                                                        gridTemplateColumns: deptProfs.length > 1 ? 'repeat(2, 1fr)' : '1fr', 
+                                                                                        gridTemplateColumns: profs.length > 1 ? 'repeat(2, 1fr)' : '1fr', 
                                                                                         gap: '4px 12px',
-                                                                                        fontSize: '14px',
-                                                                                        color: '#333'
+                                                                                        fontSize: '13.5px',
+                                                                                        color: '#333',
+                                                                                        marginRight: '8px'
                                                                                     }}>
-                                                                                        {deptProfs.map(renderProfItem)}
+                                                                                        {profs.map(renderProfItem)}
                                                                                     </div>
-                                                                                </div>
-                                                                            ))
-                                                                        ) : (
-                                                                            <div style={{ 
-                                                                                display: 'grid', 
-                                                                                gridTemplateColumns: data.professors.length > 1 ? 'repeat(2, 1fr)' : '1fr', 
-                                                                                gap: '4px 12px',
-                                                                                fontSize: '14px',
-                                                                                color: '#333'
-                                                                            }}>
-                                                                                {data.professors.map(renderProfItem)}
+                                                                                )}
                                                                             </div>
                                                                         );
-                                                                    })() : null}
+                                                                    })}
                                                                 </div>
-                                                            );
-                                                        }
-                                                        return null;
-                                                    }} 
-                                                />
-                                                <Bar dataKey="count" name="عدد الدكاترة المكلفين" fill="#c89e5a" radius={[4, 4, 0, 0]} barSize={60} />
-                                            </BarChart>
-                                        </ResponsiveContainer>
+                                                            ) : data.professors && data.professors.length > 0 ? (() => {
+                                                                const deptGroups = groupProfessorsByDept(data.professors);
+                                                                const hasDepts = Object.keys(deptGroups).some(k => k !== "");
+
+                                                                return hasDepts ? (
+                                                                    Object.entries(deptGroups).map(([dept, deptProfs], dIdx) => (
+                                                                        <div key={dIdx} style={{ marginRight: '8px', marginBottom: '4px' }}>
+                                                                            {dept && (
+                                                                                <div style={{ fontWeight: 'bold', color: '#1565c0', fontSize: '13px', marginBottom: '3px' }}>
+                                                                                    قسم {dept}:
+                                                                                </div>
+                                                                            )}
+                                                                            <div style={{ 
+                                                                                display: 'grid', 
+                                                                                gridTemplateColumns: deptProfs.length > 1 ? 'repeat(2, 1fr)' : '1fr', 
+                                                                                gap: '4px 12px',
+                                                                                fontSize: '13.5px',
+                                                                                color: '#333'
+                                                                            }}>
+                                                                                {deptProfs.map(renderProfItem)}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))
+                                                                ) : (
+                                                                    <div style={{ 
+                                                                        display: 'grid', 
+                                                                        gridTemplateColumns: data.professors.length > 1 ? 'repeat(2, 1fr)' : '1fr', 
+                                                                        gap: '4px 12px',
+                                                                        fontSize: '13.5px',
+                                                                        color: '#333'
+                                                                    }}>
+                                                                        {data.professors.map(renderProfItem)}
+                                                                    </div>
+                                                                );
+                                                            })() : null}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+                                        </>
                                     ) : (
                                         <div className="d-flex h-100 align-items-center justify-content-center text-muted fw-bold">لا توجد خطط دراسية مسجلة للفصول أو لا يوجد تكليف.</div>
                                     )}
