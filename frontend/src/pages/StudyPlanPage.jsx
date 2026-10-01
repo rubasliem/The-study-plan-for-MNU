@@ -394,7 +394,7 @@ const StudyPlanPage = () => {
           console.warn("Could not fetch workload limits:", err);
           return { data: null };
         }),
-        axios.get(`${API}/api/professors`).catch(err => {
+        axios.get(`${API}/api/professors?all=true`).catch(err => {
           console.warn("Could not fetch professors:", err);
           return { data: null };
         })
@@ -539,7 +539,7 @@ const StudyPlanPage = () => {
       try {
         const [facRes, profRes, yearRes] = await Promise.all([
           axios.get(`${API}/api/faculties`),
-          axios.get(`${API}/api/professors`),
+          axios.get(`${API}/api/professors?all=true`),
           axios.get(`${API}/api/academic-years`).catch(() => ({ data: [] }))
         ]);
 
@@ -634,17 +634,28 @@ const StudyPlanPage = () => {
 
   const getAvailableProfessors = (currentProfId = null) => {
     const activeFac = faculties.find(f => String(f.id) === String(selectedFaculty));
-    let facultyProfs = professors.filter(p => {
-      if (!p.faculties || p.faculties.length === 0) return true;
-      return p.faculties.some(f =>
+    
+    // ترتيب الأساتذة: أعضاء الكلية أولاً، ثم باقي أعضاء هيئة التدريس لإتاحة اختيارهم وإضافتهم
+    const facultyProfs = [];
+    const otherProfs = [];
+
+    professors.forEach(p => {
+      const belongs = (p.faculties && p.faculties.some(f =>
         String(f.id) === String(selectedFaculty) ||
         String(f) === String(selectedFaculty) ||
         (typeof f === "object" && activeFac && String(f.name).trim() === String(activeFac.name).trim())
-      ) || String(p.faculty_id) === String(selectedFaculty);
-    });
-    if (facultyProfs.length === 0) facultyProfs = professors;
+      )) || String(p.faculty_id) === String(selectedFaculty);
 
-    return facultyProfs.filter(p => {
+      if (belongs) {
+        facultyProfs.push(p);
+      } else {
+        otherProfs.push(p);
+      }
+    });
+
+    const allCandidateProfs = [...facultyProfs, ...otherProfs];
+
+    return allCandidateProfs.filter(p => {
       if (currentProfId && String(p.id) === String(currentProfId)) return true;
 
       const profRows = multiProfessors.filter(r => String(r.professor_id) === String(p.id));
@@ -5968,16 +5979,53 @@ ${signaturesHtml}
                                 value: selectedProfObj.id,
                                 label: getFormattedProfName(selectedProfObj)
                               } : null}
-                              options={availableProfs.map(p => ({
-                                value: p.id,
-                                label: getFormattedProfName(p)
-                              }))}
+                              options={availableProfs.map(p => {
+                                const activeFac = faculties.find(f => String(f.id) === String(selectedFaculty));
+                                const belongs = (p.faculties && p.faculties.some(f =>
+                                  String(f.id) === String(selectedFaculty) ||
+                                  String(f) === String(selectedFaculty) ||
+                                  (typeof f === "object" && activeFac && String(f.name).trim() === String(activeFac.name).trim())
+                                )) || String(p.faculty_id) === String(selectedFaculty);
+                                const facLabel = belongs
+                                  ? ""
+                                  : (p.faculties && p.faculties.length > 0 ? ` (${p.faculties.map(f => f.name || f).join(" - ")})` : " (غير مسكن بكلية)");
+                                return {
+                                  value: p.id,
+                                  label: `${getFormattedProfName(p)}${facLabel}`
+                                };
+                              })}
                               onChange={opt => {
                                 const val = opt ? opt.value : "";
                                 const next = [...multiProfessors];
                                 next[idx].professor_id = val;
                                 if (val) {
                                   const profObj = professors.find(p => String(p.id) === String(val));
+                                  
+                                  // إضافة الكلية أوتوماتيكياً للأستاذ إذا لم تكن محملة عليه
+                                  if (selectedFaculty && profObj) {
+                                    const activeFac = faculties.find(f => String(f.id) === String(selectedFaculty));
+                                    const hasFac = (profObj.faculties && profObj.faculties.some(f =>
+                                      String(f.id) === String(selectedFaculty) ||
+                                      String(f) === String(selectedFaculty) ||
+                                      (typeof f === "object" && activeFac && String(f.name).trim() === String(activeFac.name).trim())
+                                    )) || String(profObj.faculty_id) === String(selectedFaculty);
+
+                                    if (!hasFac) {
+                                      axios.post(`${API}/api/professors/${val}/assign-faculty/${selectedFaculty}`).then(() => {
+                                        setProfessors(prev => prev.map(p => {
+                                          if (String(p.id) === String(val)) {
+                                            const updatedFacs = [...(p.faculties || [])];
+                                            if (activeFac && !updatedFacs.some(f => String(f.id || f) === String(selectedFaculty))) {
+                                              updatedFacs.push(activeFac);
+                                            }
+                                            return { ...p, faculties: updatedFacs };
+                                          }
+                                          return p;
+                                        }));
+                                      }).catch(e => console.error("Error auto-assigning faculty:", e));
+                                    }
+                                  }
+
                                   const isProfTA = isTeachingAssistant(profObj);
                                   const pDays = getProfessorWorkDays(profObj);
                                   const maxAllwd = isProfTA ? (limitAssistantDay * pDays) : (limitFacultyDay * pDays);

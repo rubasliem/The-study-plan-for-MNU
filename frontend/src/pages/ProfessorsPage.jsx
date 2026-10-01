@@ -1761,7 +1761,7 @@ const ProfessorsPage = () => {
 
               <td rowspan="${totalBlocks}">${p.mnu_job_title || "-"}</td>
 
-              <td rowspan="${totalBlocks}" style="white-space: nowrap;">${p.contract_type ? `تعاقد ${p.contract_type} ${p.work_days && p.contract_type !== 'بالساعة' ? `- ${p.work_days}` : ''}` : "غير محدد"}</td>
+              <td rowspan="${totalBlocks}" style="white-space: nowrap;">تعاقد ${p.contract_type || 'كلي'} ${(p.work_days || (p.contract_type ? '' : '5 أيام في الأسبوع')) && p.contract_type !== 'بالساعة' ? `- ${p.work_days || '5 أيام في الأسبوع'}` : ''}</td>
 
               <td rowspan="${totalBlocks}" class="workplace-cell">${p.original_workplace || "-"}</td>
 
@@ -3538,7 +3538,9 @@ ${renderProfSignaturesHTML(fids)}
               excelRowsHtml += `<td rowspan="${profTotalRowCount}" style="text-align: center; vertical-align: middle;">${getFullJobTitle(p.job_title)}</td>`;
             }
             excelRowsHtml += `<td rowspan="${profTotalRowCount}" style="text-align: center; vertical-align: middle;">${p.mnu_job_title || "-"}</td>`;
-            excelRowsHtml += `<td rowspan="${profTotalRowCount}" style="text-align: center; vertical-align: middle; white-space: nowrap;">${p.contract_type ? `تعاقد ${p.contract_type} ${p.work_days && p.contract_type !== 'بالساعة' ? `- ${p.work_days}` : ''}` : "غير محدد"}</td>`;
+            const pContractType = p.contract_type || "كلي";
+            const pWorkDays = p.work_days || (pContractType === "كلي" ? "5 أيام في الأسبوع" : "");
+            excelRowsHtml += `<td rowspan="${profTotalRowCount}" style="text-align: center; vertical-align: middle; white-space: nowrap;">تعاقد ${pContractType} ${pWorkDays && pContractType !== 'بالساعة' ? `- ${pWorkDays}` : ''}</td>`;
             excelRowsHtml += `<td rowspan="${profTotalRowCount}" style="text-align: center; vertical-align: middle;">${p.original_workplace || "-"}</td>`;
             excelRowsHtml += `<td rowspan="${profTotalRowCount}" style="text-align: center; direction: ltr; vertical-align: middle;">${p.phone || "-"}</td>`;
             excelRowsHtml += `<td rowspan="${profTotalRowCount}" style="text-align: left; vertical-align: middle;">${p.email || "-"}</td>`;
@@ -3575,6 +3577,11 @@ ${renderProfSignaturesHTML(fids)}
         }
       });
     });
+
+    // في الصف الخامس، العمودين A و B محجوزان مسبقاً لصورة اللوجو (rowspan="5" colspan="2")
+    // لذا نحسب الأعمدة المطلوب تخطيها بعد اللوجو للوصول لعمود نوع التعاقد والأيام مباشرة
+    const skipColsBeforeContract = (showJobTitleCol ? 4 : 3) - 2;
+    const middleColCount = Math.max(0, headers.length - 2 - skipColsBeforeContract - 1 - 2);
 
     let excelTemplate = `
       <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
@@ -3639,7 +3646,11 @@ ${renderProfSignaturesHTML(fids)}
             <td colspan="${headers.length - 9}" style="border: none;"></td>
           </tr>
           <tr style="height: 25px;">
-            <td colspan="${headers.length - 4}" style="border: none;"></td>
+            <td colspan="${skipColsBeforeContract}" style="border: none;"></td>
+            <td style="border: none; text-align: center; vertical-align: middle; color: #2e7d32; font-weight: bold; font-size: 10pt; white-space: nowrap;">
+              يحسب تعاقد كلي إذا لم يتم تحديد نوع التعاقد
+            </td>
+            <td colspan="${middleColCount}" style="border: none;"></td>
             <td colspan="2" style="border: none; text-align: center; vertical-align: middle; color: #2e7d32; font-weight: bold; font-size: 10pt; white-space: nowrap;">
               إذا لم يتم تحديد عدد أسابيع حضور الأستاذ تحسب أوتوماتيكياً بناءً على عدد أسابيع فصول السنة المحددة
             </td>
@@ -6206,9 +6217,9 @@ ${renderProfSignaturesHTML(fids)}
 
                   <li><strong>البريد الإلكتروني (<span className="text-success">إختياري</span>):</strong> يجب كتابة البريد الإلكتروني بشكل صحيح.</li>
 
-                  <li><strong>الكلية التابع لها (<span className="text-danger">إجباري</span>):</strong> يجب اختيارها من القوائم المنسدلة المتاحة.</li>
+                  <li><strong>الكلية التابع لها (<span className="text-success">إختياري</span>):</strong> يمكن اختيارها من القوائم المنسدلة المتاحة (أو تركها فارغة).</li>
 
-                  <li><strong>نوع التعاقد (<span className="text-danger">إجباري</span>):</strong> يجب اختيار نوع التعاقد من القائمة المنسدلة المتاحة: (تعاقد كلي - تعاقد جزئي - تعاقد بالساعة - بدون تعاقد).</li>
+                  <li><strong>نوع التعاقد (<span className="text-success">إختياري - افتراضياً تعاقد كلي</span>):</strong> يمكن اختيار نوع التعاقد من القائمة المنسدلة المتاحة (تعاقد كلي - تعاقد جزئي - تعاقد بالساعة - بدون تعاقد)، وفي حال تركه فارغاً يُحسب تعاقد كلي تلقائياً.</li>
 
                   <li><strong>طبيعة العمل بجامعة المنوفية الأهلية (<span className="text-success">إختياري</span>):</strong> كتابة المسمى أو طبيعة العمل المكلف بها في جامعة المنوفية الأهلية إن وجد.</li>
 

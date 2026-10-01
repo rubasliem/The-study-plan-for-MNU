@@ -1443,6 +1443,10 @@ def download_excel_template(db: Session = Depends(get_db)):
     ws.column_dimensions['B'].width = 28 # National ID
     ws.column_dimensions['C'].width = 22 # Job title
     ws.column_dimensions['D'].width = 25 # Workplace
+    
+    # ملحوظة فوق عمود نوع التعاقد في نموذج الإكسيل
+    from openpyxl.comments import Comment
+    ws["H1"].comment = Comment("يحسب تعاقد كلي إذا لم يتم تحديد نوع التعاقد", "النظام")
     ws.column_dimensions['E'].width = 20 # Phone
     ws.column_dimensions['F'].width = 28 # Email
     ws.column_dimensions['G'].width = 30 # Faculty
@@ -1638,8 +1642,8 @@ def download_excel_template(db: Session = Depends(get_db)):
         dv_fac = DataValidation(type="list", formula1=fac_formula, allow_blank=True)
         dv_fac.error ='يرجى اختيار كلية من القائمة المتاحة فقط'
         dv_fac.errorTitle = 'اختيار غير صحيح'
-        dv_fac.prompt = 'يرجى اختيار الكلية'
-        dv_fac.promptTitle = 'الكلية التابع لها'
+        dv_fac.prompt = 'يمكن اختيار الكلية (اختياري)'
+        dv_fac.promptTitle = 'الكلية التابع لها (اختياري)'
         ws.add_data_validation(dv_fac)
         dv_fac.add("G2:G200")
         
@@ -1657,11 +1661,11 @@ def download_excel_template(db: Session = Depends(get_db)):
     # 3. Contract Type Dropdown for column H (نوع التعاقد) - rows 2 to 200
     contract_col_letter = get_column_letter(151)
     contract_formula = f"='قوائم المرجعية'!${contract_col_letter}$1:${contract_col_letter}${len(contract_options)}"
-    dv_contract = DataValidation(type="list", formula1=contract_formula, allow_blank=False)
+    dv_contract = DataValidation(type="list", formula1=contract_formula, allow_blank=True)
     dv_contract.error = 'يرجى اختيار نوع التعاقد من القائمة المتاحة فقط'
     dv_contract.errorTitle = 'اختيار غير صحيح'
-    dv_contract.prompt = 'يرجى اختيار نوع التعاقد (إجباري)'
-    dv_contract.promptTitle = 'نوع التعاقد'
+    dv_contract.prompt = 'يحسب تعاقد كلي إذا لم يتم تحديد نوع التعاقد'
+    dv_contract.promptTitle = 'نوع التعاقد (افتراضياً: تعاقد كلي)'
     ws.add_data_validation(dv_contract)
     dv_contract.add("H2:H200")
 
@@ -2036,6 +2040,11 @@ async def import_professors_excel(
                     c_contract_type = "بدون تعاقد"
                     c_work_days = "بدون تعاقد"
 
+            # إذا لم يتم تحديد نوع التعاقد، يعتبر تعاقد كلي افتراضياً
+            if not c_contract_type:
+                c_contract_type = "كلي"
+                c_work_days = "5 أيام في الأسبوع"
+
             key = nid if nid else f"__row_{row_idx}"
 
             if key not in professors_data:
@@ -2111,12 +2120,12 @@ async def import_professors_excel(
                     row_errors.append("رقم الهاتف مكرر لعضو آخر داخل الملف")
                 else:
                     seen_phones_in_excel[phone] = nid
-                    
-            if not data["assignments"]:
-                row_errors.append("الكلية التابع لها غير محددة")
+            # الكلية التابع لها أصبحت اختيارية وليست إجبارية
 
-            if not data["contract_type"]:
-                row_errors.append("نوع التعاقد غير محدد")
+            # نوع التعاقد: افتراضياً تعاقد كلي إذا لم يحدد
+            if not data.get("contract_type"):
+                data["contract_type"] = "كلي"
+                data["work_days"] = "5 أيام في الأسبوع"
 
             if row_errors:
                 validation_errors.append(f"{name_label}: " + " - ".join(row_errors))
@@ -2511,9 +2520,23 @@ def update_professor(id: int, professor: schemas.ProfessorCreate, db: Session = 
     
     return db_prof
 
+@app.post("/api/professors/{prof_id}/assign-faculty/{faculty_id}")
+def assign_faculty_to_professor(prof_id: int, faculty_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    prof = db.query(models.Professor).filter(models.Professor.id == prof_id, models.Professor.is_deleted == False).first()
+    if not prof:
+        raise HTTPException(status_code=404, detail="الأستاذ غير موجود")
+    faculty = db.query(models.Faculty).filter(models.Faculty.id == faculty_id).first()
+    if not faculty:
+        raise HTTPException(status_code=404, detail="الكلية غير موجودة")
+    
+    if faculty.id not in [f.id for f in prof.faculties]:
+        prof.faculties.append(faculty)
+        db.commit()
+    return {"success": True, "message": "تمت إضافة الكلية لعضو هيئة التدريس بنجاح"}
+
 @app.get("/api/professors", response_model=list[schemas.ProfessorOut])
-def get_professors(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    if current_user.role in [models.UserRole.admin, models.UserRole.student_affairs] or current_user.all_faculties_access:
+def get_professors(all: bool = False, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if all or current_user.role in [models.UserRole.admin, models.UserRole.student_affairs] or current_user.all_faculties_access:
         profs = db.query(models.Professor).filter(models.Professor.is_deleted == False).all()
     elif current_user.assigned_faculties and len(current_user.assigned_faculties) > 0:
         faculty_ids = [f.id for f in current_user.assigned_faculties]
@@ -3782,8 +3805,9 @@ def create_study_plan(plan: schemas.StudyPlanCreate, db: Session = Depends(get_d
                 
                 # أضف الكلية للأستاذ إذا لم تكن موجودة ضمن كلياته
                 faculty = db.query(models.Faculty).filter(models.Faculty.id == plan.faculty_id).first()
-                if faculty and faculty not in prof.faculties:
+                if faculty and faculty.id not in [f.id for f in prof.faculties]:
                     prof.faculties.append(faculty)
+                    db.flush()
         
             # حساب الساعات المطلوبة
             req_theory = (course.theory_hours or 0) * (item_data.groups_theory or 0)
