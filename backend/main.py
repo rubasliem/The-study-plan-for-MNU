@@ -2040,10 +2040,10 @@ async def import_professors_excel(
                     c_contract_type = "بدون تعاقد"
                     c_work_days = "بدون تعاقد"
 
-            # إذا لم يتم تحديد نوع التعاقد، يعتبر تعاقد كلي افتراضياً
+            # إذا لم يتم تحديد نوع التعاقد، يعتبر تعاقد جزئي يومين افتراضياً
             if not c_contract_type:
-                c_contract_type = "كلي"
-                c_work_days = "5 أيام في الأسبوع"
+                c_contract_type = "جزئي"
+                c_work_days = "يومان"
 
             key = nid if nid else f"__row_{row_idx}"
 
@@ -2122,10 +2122,10 @@ async def import_professors_excel(
                     seen_phones_in_excel[phone] = nid
             # الكلية التابع لها أصبحت اختيارية وليست إجبارية
 
-            # نوع التعاقد: افتراضياً تعاقد كلي إذا لم يحدد
+            # نوع التعاقد: افتراضياً تعاقد جزئي يومين إذا لم يحدد
             if not data.get("contract_type"):
-                data["contract_type"] = "كلي"
-                data["work_days"] = "5 أيام في الأسبوع"
+                data["contract_type"] = "جزئي"
+                data["work_days"] = "يومان"
 
             if row_errors:
                 validation_errors.append(f"{name_label}: " + " - ".join(row_errors))
