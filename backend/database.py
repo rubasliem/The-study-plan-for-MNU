@@ -3,10 +3,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# اسم ملف / رابط قاعدة البيانات
+# اسم ملف / رابط قاعدة البيانات (قاعدة بيانات سحابية موحدة - Neon)
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://mnu_admin:mnu_password_2026@localhost:5432/mnu_study_plan"
+    "postgresql://neondb_owner:npg_gaEzKvbN0d5H@ep-muddy-voice-b10gbneo.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require"
 )
 
 connect_args = {}
