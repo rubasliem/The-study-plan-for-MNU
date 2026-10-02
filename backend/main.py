@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from typing import Optional, List
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload, joinedload
 from datetime import datetime
 from sqlalchemy import inspect, text, func, or_
 from database import engine, get_db, SessionLocal
@@ -2536,28 +2536,35 @@ def assign_faculty_to_professor(prof_id: int, faculty_id: int, db: Session = Dep
 
 @app.get("/api/professors", response_model=list[schemas.ProfessorOut])
 def get_professors(all: bool = False, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    prof_query = db.query(models.Professor).options(selectinload(models.Professor.faculties)).filter(models.Professor.is_deleted == False)
     if all or current_user.role in [models.UserRole.admin, models.UserRole.student_affairs] or current_user.all_faculties_access:
-        profs = db.query(models.Professor).filter(models.Professor.is_deleted == False).all()
+        profs = prof_query.all()
     elif current_user.assigned_faculties and len(current_user.assigned_faculties) > 0:
         faculty_ids = [f.id for f in current_user.assigned_faculties]
-        profs = db.query(models.Professor).filter(
-            models.Professor.is_deleted == False,
+        profs = prof_query.filter(
             (models.Professor.faculties.any(models.Faculty.id.in_(faculty_ids))) | 
             (~models.Professor.faculties.any())
         ).all()
     elif current_user.faculty_id:
-        profs = db.query(models.Professor).filter(
-            models.Professor.is_deleted == False,
+        profs = prof_query.filter(
             (models.Professor.faculties.any(models.Faculty.id == current_user.faculty_id)) | 
             (~models.Professor.faculties.any())
         ).all()
     else:
-        profs = db.query(models.Professor).filter(models.Professor.is_deleted == False).all()
+        profs = prof_query.all()
 
     prof_ids = [p.id for p in profs]
     prof_courses_map = {pid: [] for pid in prof_ids}
     if prof_ids:
-        plan_items = db.query(models.StudyPlanItem).join(models.StudyPlan).filter(
+        plan_items = db.query(models.StudyPlanItem).options(
+            selectinload(models.StudyPlanItem.course).joinedload(models.Course.faculty),
+            selectinload(models.StudyPlanItem.course).joinedload(models.Course.program),
+            selectinload(models.StudyPlanItem.course).selectinload(models.Course.modules),
+            selectinload(models.StudyPlanItem.base_course).joinedload(models.Course.faculty),
+            selectinload(models.StudyPlanItem.base_course).joinedload(models.Course.program),
+            selectinload(models.StudyPlanItem.base_course).selectinload(models.Course.modules),
+            joinedload(models.StudyPlanItem.study_plan)
+        ).join(models.StudyPlan).filter(
             models.StudyPlan.is_deleted == False,
             models.StudyPlanItem.professor_id.in_(prof_ids)
         ).all()
@@ -2658,7 +2665,11 @@ def create_course(course: schemas.CourseCreate, db: Session = Depends(get_db), c
 
 @app.get("/api/courses", response_model=list[schemas.CourseOut])
 def get_courses(faculty_id: Optional[int] = None, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    query = db.query(models.Course).filter(models.Course.is_deleted == False)
+    query = db.query(models.Course).options(
+        joinedload(models.Course.faculty),
+        joinedload(models.Course.program),
+        selectinload(models.Course.modules)
+    ).filter(models.Course.is_deleted == False)
     if current_user.role in [models.UserRole.admin, models.UserRole.student_affairs] or current_user.all_faculties_access:
         if faculty_id is not None:
             query = query.filter(models.Course.faculty_id == faculty_id)
