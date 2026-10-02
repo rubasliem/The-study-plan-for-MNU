@@ -60,7 +60,7 @@ function App() {
   }
 
   return (
-    <div className="app-container" style={{ display: 'flex', minHeight: '100vh', direction: 'rtl', position: 'relative' }}>
+    <div className="app-container" style={{ display: 'flex', minHeight: 'calc(100vh / 0.9)', direction: 'rtl', position: 'relative' }}>
       <Toaster position="top-center" reverseOrder={false} toastOptions={{ duration: 5000, style: { fontFamily: 'inherit', fontSize: '15px', borderRadius: '10px', padding: '12px 20px' } }} />
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       <main style={{ flex: 1, padding: '20px', width: '100%', overflowX: 'hidden' }}>
