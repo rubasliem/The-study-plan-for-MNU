@@ -299,32 +299,26 @@ const GuidelinesPage = () => {
 
   return (
     <Container fluid className="p-3" style={{ direction: "rtl", textAlign: "right" }}>
-      {/* ── 1. Page Header ── */}
-      <Card className="shadow-sm mb-4 border-0 text-white" style={{ borderRadius: "12px", background: "linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%)" }}>
-        <Card.Body className="p-4">
-          <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <div>
-              <div className="d-flex align-items-center gap-3 mb-2">
-                <div style={{ backgroundColor: "rgba(255, 255, 255, 0.2)", padding: "10px 14px", borderRadius: "10px" }}>
-                  <FaBookOpen style={{ fontSize: "28px", color: "#ffffff" }} />
-                </div>
-                <div>
-                  <h3 className="fw-bold mb-1 text-white" style={{ fontSize: "22px", color: "#ffffff" }}>دليل الاستخدام والإرشادات الشاملة</h3>
-                  <p className="mb-0 text-white" style={{ fontSize: "14.5px", color: "#ffffff", opacity: 0.95 }}>
-                    نظام إدارة الخطط الدراسية و المقررات وهيئة التدريس - جامعة المنوفية الأهلية
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="text-start">
-              <Badge bg="light" text="dark" className="px-3 py-2 fw-bold shadow-sm" style={{ fontSize: "13.5px", borderRadius: "8px" }}>
-                <FaUserShield className="ms-2 text-success" />
-                المستخدم الحالي: {user?.username} ({roleNameDisplay})
-              </Badge>
-            </div>
+      {/* ── 1. Page Header (No Fill, Green Title) ── */}
+      <div className="mb-4 pb-3 border-bottom">
+        <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
+          <div>
+            <h2 className="d-flex align-items-center gap-3 mb-1" style={{ margin: 0, fontWeight: 'bold', color: '#2e7d32', fontSize: '24px' }}>
+              <FaBookOpen className="text-success" style={{ marginLeft: '12px' }} />
+              دليل الاستخدام والإرشادات الشاملة
+            </h2>
+            <p className="text-muted mb-0" style={{ fontSize: "14.5px", paddingRight: "44px" }}>
+              نظام إدارة الخطط الدراسية و المقررات وهيئة التدريس - جامعة المنوفية الأهلية
+            </p>
           </div>
-        </Card.Body>
-      </Card>
+          <div className="text-start">
+            <Badge bg="light" text="dark" className="px-3 py-2 fw-bold border shadow-sm" style={{ fontSize: "13.5px", borderRadius: "8px" }}>
+              <FaUserShield className="ms-2 text-success" />
+              المستخدم الحالي: {user?.username} ({roleNameDisplay})
+            </Badge>
+          </div>
+        </div>
+      </div>
 
       {/* ── 2. User Info & Available Faculties Card ── */}
       <Card className="shadow-sm mb-4 border-0" style={{ borderRadius: "12px", overflow: "hidden" }}>
