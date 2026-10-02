@@ -4315,7 +4315,7 @@ ${signaturesHtml}
   const profAggRows = buildProfAggregatedRows();
 
   return (
-    <Container fluid className="p-4" style={{ fontFamily: "Cairo, Arial, sans-serif", direction: "rtl", textAlign: "right", backgroundColor: "#f4f6f9", minHeight: "100vh", zoom: "0.8" }}>
+    <Container fluid className="p-4" style={{ fontFamily: "Cairo, Arial, sans-serif", direction: "rtl", textAlign: "right", backgroundColor: "#f4f6f9", minHeight: "100vh" }}>
       {/* ── 1. Header ── */}
       <div className="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div className="d-flex align-items-center gap-2">

@@ -307,8 +307,8 @@ const GuidelinesPage = () => {
               <FaBookOpen className="text-success" style={{ marginLeft: '12px' }} />
               دليل الاستخدام والإرشادات الشاملة
             </h2>
-            <p className="text-muted mb-0" style={{ fontSize: "14.5px", paddingRight: "44px" }}>
-              نظام إدارة الخطط الدراسية و المقررات وهيئة التدريس - جامعة المنوفية الأهلية
+            <p className="text-muted mt-2" style={{ fontSize: "14.5px", paddingRight: "44px" }}>
+              نظام إدارة وتوزيع الخطط والأعباء الدراسية - جامعة المنوفية الأهلية
             </p>
           </div>
           <div className="text-start">
@@ -323,10 +323,6 @@ const GuidelinesPage = () => {
       {/* ── 2. User Info & Available Faculties Card ── */}
       <Card className="shadow-sm mb-4 border-0" style={{ borderRadius: "12px", overflow: "hidden" }}>
         <Card.Header className="bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
-          <div className="d-flex align-items-center gap-2">
-            <FaUniversity className="text-success fs-5" />
-            <span className="fw-bold text-dark" style={{ fontSize: "16px" }}>نطاق الصلاحيات والكليات المصرح لك بالدخول عليها</span>
-          </div>
           <Badge bg={hasAllFaculties ? "success" : "info"} className="px-3 py-2 fw-bold" style={{ fontSize: "12.5px" }}>
             {hasAllFaculties ? "وصول لجميع الكليات بالجامعة" : `متاح لك (${userFacultiesList.length}) كلية`}
           </Badge>
@@ -353,7 +349,7 @@ const GuidelinesPage = () => {
                   <div className="text-muted py-3 text-center">جاري تحميل قائمة الكليات...</div>
                 ) : hasAllFaculties ? (
                   <div>
-                    <div className="p-3 rounded-2 mb-2 fw-bold text-success d-flex align-items-center gap-2" style={{ backgroundColor: "#e8f5e9", border: "1.5px solid #a5d6a7" }}>
+                    <div className="p-3 rounded-2 m-2 fw-bold text-success d-flex align-items-center gap-2" style={{ backgroundColor: "#e8f5e9", border: "1.5px solid #a5d6a7" }}>
                       <FaCheckCircle className="fs-5" />
                       <span>حسابك يتمتع بصلاحية شاملة للوصول إلى كافة كليات جامعة المنوفية الأهلية.</span>
                     </div>
