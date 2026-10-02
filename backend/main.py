@@ -1446,7 +1446,7 @@ def download_excel_template(db: Session = Depends(get_db)):
     
     # ملحوظة فوق عمود نوع التعاقد في نموذج الإكسيل
     from openpyxl.comments import Comment
-    ws["H1"].comment = Comment("يحسب تعاقد كلي إذا لم يتم تحديد نوع التعاقد", "النظام")
+    ws["H1"].comment = Comment("يحسب تعاقد جزئي يومين إذا لم يتم تحديد نوع التعاقد", "النظام")
     ws.column_dimensions['E'].width = 20 # Phone
     ws.column_dimensions['F'].width = 28 # Email
     ws.column_dimensions['G'].width = 30 # Faculty
@@ -1664,8 +1664,8 @@ def download_excel_template(db: Session = Depends(get_db)):
     dv_contract = DataValidation(type="list", formula1=contract_formula, allow_blank=True)
     dv_contract.error = 'يرجى اختيار نوع التعاقد من القائمة المتاحة فقط'
     dv_contract.errorTitle = 'اختيار غير صحيح'
-    dv_contract.prompt = 'يحسب تعاقد كلي إذا لم يتم تحديد نوع التعاقد'
-    dv_contract.promptTitle = 'نوع التعاقد (افتراضياً: تعاقد كلي)'
+    dv_contract.prompt = 'يحسب تعاقد جزئي يومين إذا لم يتم تحديد نوع التعاقد'
+    dv_contract.promptTitle = 'نوع التعاقد (افتراضياً: تعاقد جزئي يومين)'
     ws.add_data_validation(dv_contract)
     dv_contract.add("H2:H200")
 

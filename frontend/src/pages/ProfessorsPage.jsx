@@ -3648,7 +3648,7 @@ ${renderProfSignaturesHTML(fids)}
           <tr style="height: 25px;">
             <td colspan="${skipColsBeforeContract}" style="border: none;"></td>
             <td style="border: none; text-align: center; vertical-align: middle; color: #2e7d32; font-weight: bold; font-size: 10pt; white-space: nowrap;">
-              يحسب تعاقد كلي إذا لم يتم تحديد نوع التعاقد
+              يحسب تعاقد جزئي يومين إذا لم يتم تحديد نوع التعاقد
             </td>
             <td colspan="${middleColCount}" style="border: none;"></td>
             <td colspan="2" style="border: none; text-align: center; vertical-align: middle; color: #2e7d32; font-weight: bold; font-size: 10pt; white-space: nowrap;">
