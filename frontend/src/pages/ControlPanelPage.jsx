@@ -26,7 +26,7 @@ const SIDEBAR_PAGES = [
     { id: 'notifications', label: 'الإشعارات', icon: '🔔' },
     { id: 'recycle-bin', label: 'استرجاع المحذوف', icon: '🗑️' },
     { id: 'workload', label: 'تحديد الأعباء', icon: '⚖️' },
-    { id: 'professor-workloads', label: 'أعباء أعضاء هيئة التدريس', icon: '📋' },
+    { id: 'professor-workloads', label: 'أعمال إضافية للأساتذة', icon: '👥' },
     { id: 'guidelines', label: 'الإرشادات', icon: 'ℹ️' },
     { id: 'control-panel', label: 'لوحة التحكم', icon: '⚙️' },
     { id: 'logs', label: 'العمليات (Logs)', icon: '📋' },
@@ -2944,7 +2944,7 @@ const ControlPanelPage = () => {
                                 <span>إضافة مهمة جديدة</span>
                             </h5>
                             <p className="text-muted mb-0 small">
-                                يمكنك تعريف مهام إضافية جديدة (مثل: أعمال الكنترول، الإرشاد الأكاديمي، اللجان والامتحانات) لتظهر تلقائياً في صفحة "أعباء أعضاء هيئة التدريس".
+                                يمكنك تعريف مهام إضافية جديدة (مثل: أعمال الكنترول، الإرشاد الأكاديمي، اللجان والامتحانات) لتظهر تلقائياً في صفحة "أعمال إضافية للأساتذة".
                             </p>
                         </Card.Header>
                         <Card.Body className="p-4">
