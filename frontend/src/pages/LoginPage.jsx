@@ -107,15 +107,15 @@ const LoginPage = () => {
             {/* Outer Circular Logo Frame */}
             <div 
                 style={{
-                    width: '820px',
-                    height: '820px',
-                    maxWidth: '96vw',
-                    maxHeight: '96vw',
+                    width: '900px',
+                    height: '900px',
+                    maxWidth: '110vw',
+                    maxHeight: '110vw',
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: '0 0 60px rgba(46, 125, 50, 0.12), 0 0 90px rgba(46, 125, 50, 0.06)',
+                    boxShadow: '0 0 65px rgba(46, 125, 50, 0.12), 0 0 100px rgba(46, 125, 50, 0.06)',
                     backgroundColor: '#ffffff',
                     position: 'relative',
                     overflow: 'hidden'
@@ -132,7 +132,7 @@ const LoginPage = () => {
                         borderRadius: '50%',
                         backgroundImage: `url(${logo})`,
                         backgroundPosition: 'center',
-                        backgroundSize: '88%',
+                        backgroundSize: '95%',
                         backgroundRepeat: 'no-repeat',
                         opacity: 0.16,
                         zIndex: 1
@@ -142,8 +142,8 @@ const LoginPage = () => {
                 {/* Inner White Login Circle */}
                 <div 
                     style={{
-                        width: '530px',
-                        height: '530px',
+                        width: '570px',
+                        height: '570px',
                         maxWidth: '92%',
                         maxHeight: '92%',
                         borderRadius: '50%',
@@ -153,7 +153,7 @@ const LoginPage = () => {
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        padding: '25px 20px',
+                        padding: '28px 22px',
                         boxShadow: 'inset 0 0 20px rgba(0,0,0,0.03), 0 12px 35px rgba(0,0,0,0.1)',
                         textAlign: 'center',
                         zIndex: 2
