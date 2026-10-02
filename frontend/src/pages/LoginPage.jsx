@@ -92,9 +92,8 @@ const LoginPage = () => {
 
     return (
         <div style={{
-            height: 'calc(100vh / 0.9)',
-            width: 'calc(100vw / 0.9)',
-            zoom: '0.9',
+            height: '100vh',
+            width: '100vw',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
