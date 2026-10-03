@@ -3727,7 +3727,13 @@ def get_study_plans(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    query = db.query(models.StudyPlan).filter(models.StudyPlan.is_deleted == False)
+    query = db.query(models.StudyPlan).options(
+        selectinload(models.StudyPlan.items).joinedload(models.StudyPlanItem.course),
+        selectinload(models.StudyPlan.items).joinedload(models.StudyPlanItem.base_course),
+        selectinload(models.StudyPlan.items).joinedload(models.StudyPlanItem.module),
+        selectinload(models.StudyPlan.items).joinedload(models.StudyPlanItem.program),
+        selectinload(models.StudyPlan.items).joinedload(models.StudyPlanItem.professor)
+    ).filter(models.StudyPlan.is_deleted == False)
     if current_user.role in [models.UserRole.admin, models.UserRole.student_affairs] or current_user.all_faculties_access:
         if faculty_id:
             query = query.filter(models.StudyPlan.faculty_id == faculty_id)
