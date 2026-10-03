@@ -9,7 +9,7 @@ echo ==================================================
 echo.
 
 echo [1/3] Starting Backend...
-start "MNU Backend" cmd /k "cd /d %~dp0backend && (python -m uvicorn main:app --port 8000 --reload || py -m uvicorn main:app --port 8000 --reload)"
+start "MNU Backend" cmd /k "cd /d %~dp0backend && (py -m pip install -r requirements.txt || python -m pip install -r requirements.txt) && (python -m uvicorn main:app --port 8000 --reload || py -m uvicorn main:app --port 8000 --reload)"
 
 ping -n 3 127.0.0.1 > nul
 
