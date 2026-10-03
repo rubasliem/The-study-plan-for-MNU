@@ -4668,7 +4668,10 @@ const CoursesPage = () => {
 
                       disabled={modalMode === 'view'}
 
-                      onChange={(e) => setFormData({ ...formData, name_ar: e.target.value })}
+                      onChange={(e) => {
+                        setFormData({ ...formData, name_ar: e.target.value });
+                        if (errors.name_ar) setErrors(prev => ({ ...prev, name_ar: null }));
+                      }}
 
                       style={{ borderColor: errors.name_ar ? 'red' : '#ccc' }}
 
@@ -4694,7 +4697,10 @@ const CoursesPage = () => {
 
                       disabled={modalMode === 'view'}
 
-                      onChange={(e) => setFormData({ ...formData, name_en: e.target.value })}
+                      onChange={(e) => {
+                        setFormData({ ...formData, name_en: e.target.value });
+                        if (errors.name_en) setErrors(prev => ({ ...prev, name_en: null }));
+                      }}
 
                       style={{ borderColor: errors.name_en ? 'red' : '#ccc' }}
 
