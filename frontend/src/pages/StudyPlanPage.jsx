@@ -385,23 +385,27 @@ const StudyPlanPage = () => {
 
     if (showLoading) setLoading(true);
     try {
+      const profsPromise = (professors && professors.length > 0)
+        ? Promise.resolve({ data: professors })
+        : axios.get(`${API}/api/professors?all=true`).catch(err => {
+            console.warn("Could not fetch professors:", err);
+            return { data: null };
+          });
+
       const [coursesRes, programsRes, plansRes, sigsRes, limitsRes, profsRes] = await Promise.all([
-        axios.get(`${API}/api/courses`),
-        axios.get(`${API}/api/programs`),
+        axios.get(`${API}/api/courses?faculty_id=${facultyId}`),
+        axios.get(`${API}/api/programs?faculty_id=${facultyId}`),
         axios.get(`${API}/api/study-plans?faculty_id=${facultyId}&semester=${encodeURIComponent(semester)}&academic_year=${encodeURIComponent(year)}`),
         axios.get(`${API}/api/signatures?faculty_id=${facultyId}&report_type=${encodeURIComponent("الخطة الدراسية")}`),
         axios.get(`${API}/api/workload/limits?faculty_id=${facultyId}&academic_year=${encodeURIComponent(year)}&semester=${encodeURIComponent(semester)}`).catch(err => {
           console.warn("Could not fetch workload limits:", err);
           return { data: null };
         }),
-        axios.get(`${API}/api/professors?all=true`).catch(err => {
-          console.warn("Could not fetch professors:", err);
-          return { data: null };
-        })
+        profsPromise
       ]);
 
-      const freshProfs = profsRes?.data || [];
-      if (freshProfs.length > 0) {
+      const freshProfs = profsRes?.data || professors || [];
+      if (freshProfs.length > 0 && (!professors || professors.length === 0)) {
         setProfessors(freshProfs);
       }
 
@@ -418,8 +422,8 @@ const StudyPlanPage = () => {
       }
       setSignatures(fetchedSigs);
 
-      const facultyCourses = (coursesRes.data || []).filter(c => String(c.faculty_id) === String(facultyId));
-      const facultyPrograms = (programsRes.data || []).filter(p => String(p.faculty_id) === String(facultyId));
+      const facultyCourses = coursesRes.data || [];
+      const facultyPrograms = programsRes.data || [];
 
       setCourses(facultyCourses);
       setPrograms(facultyPrograms);

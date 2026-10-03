@@ -2535,7 +2535,7 @@ def assign_faculty_to_professor(prof_id: int, faculty_id: int, db: Session = Dep
     return {"success": True, "message": "تمت إضافة الكلية لعضو هيئة التدريس بنجاح"}
 
 @app.get("/api/professors", response_model=list[schemas.ProfessorOut])
-def get_professors(all: bool = False, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+def get_professors(all: bool = False, include_courses: bool = False, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     prof_query = db.query(models.Professor).options(selectinload(models.Professor.faculties)).filter(models.Professor.is_deleted == False)
     if all or current_user.role in [models.UserRole.admin, models.UserRole.student_affairs] or current_user.all_faculties_access:
         profs = prof_query.all()
@@ -2555,7 +2555,7 @@ def get_professors(all: bool = False, db: Session = Depends(get_db), current_use
 
     prof_ids = [p.id for p in profs]
     prof_courses_map = {pid: [] for pid in prof_ids}
-    if prof_ids:
+    if include_courses and prof_ids:
         plan_items = db.query(models.StudyPlanItem).options(
             selectinload(models.StudyPlanItem.course).joinedload(models.Course.faculty),
             selectinload(models.StudyPlanItem.course).joinedload(models.Course.program),
