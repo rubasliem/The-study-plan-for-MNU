@@ -9,12 +9,12 @@ echo ==================================================
 echo.
 
 echo [1/3] Starting Backend...
-start "MNU Backend" cmd /k "cd /d %~dp0backend && python -m uvicorn main:app --port 8000"
+start "MNU Backend" cmd /k "cd /d %~dp0backend && (python -m uvicorn main:app --port 8000 || py -m uvicorn main:app --port 8000)"
 
 ping -n 3 127.0.0.1 > nul
 
 echo [2/3] Starting Frontend...
-start "MNU Frontend" cmd /k "cd /d %~dp0frontend && npm run preview"
+start "MNU Frontend" cmd /k "cd /d %~dp0frontend && (npm.cmd run preview || npm run preview)"
 
 ping -n 3 127.0.0.1 > nul
 
