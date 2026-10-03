@@ -3,17 +3,17 @@ chcp 65001 > nul
 title تشغيل نظام الخطة الدراسية - MNU
 
 echo ==================================================
-echo   🚀 جاري تشغيل نظام الخطة الدراسية بدون Docker
+echo   🚀 جاري تشغيل نظام الخطة الدراسية
 echo ==================================================
 echo.
 
 echo 1. جاري تشغيل Backend (FastAPI)...
-start "MNU Backend" cmd /k "cd /d %~dp0backend && (python -m uvicorn main:app --reload --port 8000 || py -m uvicorn main:app --reload --port 8000)"
+start "MNU Backend" cmd /k "cd /d %~dp0backend && (python -m uvicorn main:app --port 8000 || py -m uvicorn main:app --port 8000)"
 
 timeout /t 3 /nobreak > nul
 
-echo 2. جاري تشغيل Frontend (Vite)...
-start "MNU Frontend" cmd /k "cd /d %~dp0frontend && npm run dev"
+echo 2. جاري تشغيل Frontend الفائق السرعة (Preview)...
+start "MNU Frontend" cmd /k "cd /d %~dp0frontend && (if not exist dist npm run build) && npm run preview"
 
 timeout /t 3 /nobreak > nul
 
@@ -22,7 +22,7 @@ start "Cloudflare Tunnel" cmd /k "cd /d %~dp0 && cloudflared.exe tunnel --url ht
 
 echo.
 echo ==================================================
-echo ✅ تم فتح نوافذ التشغيل بنجاح!
+echo ✅ تم فتح نوافذ التشغيل بنجاح وبأعلى سرعة ممكنة!
 echo --------------------------------------------------
 echo - رابط البرنامج على جهازك:  http://localhost:5173
 echo - الرابط الخارجي (للإنترنت): انسخه من نافذة Cloudflare (السطر المكتوب بالأخضر trycloudflare.com)

@@ -285,12 +285,23 @@ class StudyPlanItemBase(BaseModel):
 class StudyPlanItemCreate(StudyPlanItemBase):
     pass
 
+class CourseSimpleOut(CourseBase):
+    id: int
+    class Config:
+        from_attributes = True
+
+class ProfessorSimpleOut(ProfessorBase):
+    id: int
+    class Config:
+        from_attributes = True
+
 class StudyPlanItemOut(StudyPlanItemBase):
     id: int
-    course: Optional[CourseOut] = None
+    base_course: Optional[CourseSimpleOut] = None
+    course: Optional[CourseSimpleOut] = None
     module: Optional[CourseModuleOut] = None
     program: Optional[ProgramOut] = None
-    professor: Optional[ProfessorOut] = None
+    professor: Optional[ProfessorSimpleOut] = None
 
     class Config:
         from_attributes = True

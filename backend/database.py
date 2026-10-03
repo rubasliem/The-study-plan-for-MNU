@@ -3,17 +3,22 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# اسم ملف / رابط قاعدة البيانات (قاعدة بيانات سحابية موحدة - Neon)
+# اسم ملف / رابط قاعدة البيانات (قاعدة بيانات سحابية موحدة - Neon مع Connection Pooler)
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://neondb_owner:npg_gaEzKvbN0d5H@ep-muddy-voice-b10gbneo.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require"
+    "postgresql://neondb_owner:npg_gaEzKvbN0d5H@ep-muddy-voice-b10gbneo-pooler.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require"
 )
 
 connect_args = {}
 
-# إنشاء محرك قاعدة البيانات
+# إنشاء محرك قاعدة البيانات مع تحسين إدارة الاتصالات
 engine = create_engine(
-    DATABASE_URL, connect_args=connect_args
+    DATABASE_URL,
+    connect_args=connect_args,
+    pool_size=15,
+    max_overflow=25,
+    pool_pre_ping=True,
+    pool_recycle=300
 )
 
 # إنشاء جلسة للتعامل مع البيانات
