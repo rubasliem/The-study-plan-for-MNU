@@ -139,7 +139,7 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
         fetchRecycleCount();
         fetchNotificationCount();
         fetchLogsCount();
-      }, 2000);
+      }, 15000);
       
       axios.get(`/api/faculties`)
         .then(res => {
