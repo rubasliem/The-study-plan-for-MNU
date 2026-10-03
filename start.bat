@@ -8,7 +8,7 @@ echo ==================================================
 echo.
 
 echo 1. جاري تشغيل Backend (FastAPI)...
-start "MNU Backend" cmd /k "cd /d %~dp0backend && python -m uvicorn main:app --reload --port 8000"
+start "MNU Backend" cmd /k "cd /d %~dp0backend && (python -m uvicorn main:app --reload --port 8000 || py -m uvicorn main:app --reload --port 8000)"
 
 timeout /t 3 /nobreak > nul
 
