@@ -32,6 +32,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/api/db-info")
+def get_db_info(db: Session = Depends(get_db)):
+    from database import DATABASE_URL
+    masked_host = DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else "local_or_unknown"
+    return {
+        "status": "connected",
+        "db_host": masked_host,
+        "signatures_count": db.query(models.Signature).count(),
+        "users_count": db.query(models.User).count(),
+        "plans_count": db.query(models.StudyPlan).count(),
+        "version": "2026-v2-neon-pooler"
+    }
+
 # استخدام contextvars بدلاً من threading.local لتخزين بيانات الطلب لكي يعمل بشكل صحيح مع FastAPI
 import contextvars
 
