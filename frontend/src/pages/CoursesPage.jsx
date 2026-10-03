@@ -970,13 +970,13 @@ const CoursesPage = () => {
 
       if (hasNameEn) {
 
-        // السماح بالحروف الإنجليزية والأرقام الإنجليزية وعلامات الترقيم والمسافات فقط (يمنع أي نص عربي أو أرقام عربية)
+        // السماح بالحروف الإنجليزية والأرقام الإنجليزية والحروف اللاتينية المشكولة وعلامات الترقيم والمسافات (يمنع أي نص عربي أو أرقام عربية)
 
-        const englishRegex = /^[A-Za-z0-9\s.,_\-\(\)\[\]\/\\:;!?#@&'"\*\+=<>%]*$/;
+        const englishRegex = /^[A-Za-z0-9\u00C0-\u024F\s.,_\-\u2013\u2014\(\)\[\]\/\\:;!?#@&'"\u2018\u2019\u201C\u201D\*\+=<>%]*$/;
 
         if (!englishRegex.test(formData.name_en)) {
 
-          errs.name_en = "اسم المقرر بالإنجليزي يجب أن يحتوي على حروف وأرقام إنجليزية وعلامات ترقيم فقط";
+          errs.name_en = "اسم المقرر بالإنجليزي يجب أن يحتوي على حروف وأرقام إنجليزية وعلامات ترقيم فقط (يمنع الحروف والأرقام العربية)";
 
         }
 
@@ -1052,6 +1052,8 @@ const CoursesPage = () => {
       setErrors(errs);
       const firstErr = Object.values(errs)[0];
       toast.error(`يرجى مراجعة البيانات: ${firstErr}`);
+      const modalBody = document.querySelector('.modal-body') || document.querySelector('.modal');
+      if (modalBody) modalBody.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
